@@ -1,0 +1,132 @@
+/**
+ * onCommand Middleware — Cooldown Enforcement + Options Parsing and Validation
+ *
+ * Extracts the guard block that previously lived in command.dispatcher.ts (lines 45–74).
+ * Moving it here means:
+ *   - command.dispatcher.ts is reduced to routing + chain invocation only
+ *   - Additional command-level guards (auth, rate limiting, permission checks) can be
+ *     inserted before or after this one via use.onCommand([...]) in index.ts
+ *
+ * Cooldown state has been further extracted to lib/cooldown.lib.ts so this file
+ * owns only dispatch logic — zero mutable state lives here.
+ *
+ * Two parse paths (preserved from the original dispatcher):
+ *   Discord slash ('/' prefix) → pre-resolved values in event.optionsRecord
+ *                                 (set by event-handlers.ts to preserve Discord type coercion)
+ *   All other platforms         → raw message body scanned with key: value regex
+ *
+ * Short-circuit: sends a user-facing usage error and returns WITHOUT calling next()
+ * when any required option is absent — the onCommand handler never executes.
+ * Options are mutated onto ctx so subsequent middleware and the final handler can read them.
+ */
+
+import type { MiddlewareFn, OnCommandCtx } from '@/types/middleware.types.js';
+import { OptionsMap } from '@/lib/options-map.lib.js';
+import type { OptionDef } from '@/lib/options-map.lib.js';
+import { parseTextOptions, validateOptions } from '@/utils/options.util.js';
+// Cooldown state delegated to lib/ — mirrors reply-state.lib.ts pattern;
+// this middleware file stays free of mutable Map declarations.
+import { cooldownStore } from '@/lib/cooldown.lib.js';
+
+// ── Cooldown Enforcement ─────────────────────────────────────────────────────
+
+/**
+ * Enforces per-user command cooldowns declared in config.cooldown (seconds).
+ *
+ * First blocked attempt  → sends ONE "please wait N seconds" notice, latches notified flag.
+ * Subsequent blocked attempts → silent no-op; no additional messages sent.
+ * This hard cap of one notification per cooldown window prevents message flooding
+ * when a user rapidly retries a command they have already been warned about.
+ *
+ * Registered BEFORE validateCommandOptions in the chain so option parsing is
+ * skipped entirely for a command that will be rejected anyway.
+ */
+export const enforceCooldown: MiddlewareFn<OnCommandCtx> = async function (
+  ctx,
+  next,
+): Promise<void> {
+  const cfg = ctx.mod['config'] as Record<string, unknown> | undefined;
+  const cooldownSec = cfg?.['cooldown'];
+
+  // Commands that omit cooldown or set it to 0 skip this middleware entirely.
+  if (typeof cooldownSec !== 'number' || cooldownSec <= 0) {
+    await next();
+    return;
+  }
+
+  // Scope per-user so two different users on the same command never block each other.
+  const senderID = (ctx.event['senderID'] ??
+    ctx.event['userID'] ??
+    'unknown') as string;
+  const key = `${ctx.parsed.name}:${senderID}`;
+  const now = Date.now();
+
+  // Lazy eviction delegated to the store — keeps this middleware free of Map management.
+  cooldownStore.pruneIfNeeded(now);
+
+  const entry = cooldownStore.check(key, now);
+  if (entry !== null) {
+    if (!entry.notified) {
+      // First blocked attempt — send the notice exactly once and latch the flag.
+      // All subsequent attempts within this window are silently dropped (no spam).
+      cooldownStore.markNotified(key);
+      const remainingSec = Math.ceil((entry.expiry - now) / 1000);
+      await ctx.chat.replyMessage({
+        message: `⏳ Please wait ${remainingSec} second${remainingSec !== 1 ? 's' : ''} before using this command again.`,
+      });
+    }
+    // Do NOT call next() — command is blocked regardless of notification state.
+    return;
+  }
+
+  // Cooldown expired or first invocation — register a fresh window before proceeding
+  // so the window starts at invocation time, not after the handler finishes.
+  cooldownStore.record(key, now, cooldownSec * 1000);
+  await next();
+};
+
+// ── Options Parsing + Validation ─────────────────────────────────────────────
+
+export const validateCommandOptions: MiddlewareFn<OnCommandCtx> =
+  async function (ctx, next): Promise<void> {
+    const cfg = ctx.mod['config'] as Record<string, unknown> | undefined;
+    const optionDefs = (cfg?.['options'] as OptionDef[] | undefined) ?? [];
+
+    if (optionDefs.length > 0) {
+      // Discord slash commands embed pre-resolved values so interaction.options type
+      // coercion and native validation are preserved. All other platforms re-parse the body.
+      const preBuilt = ctx.event['optionsRecord'] as
+        | Record<string, string>
+        | undefined;
+
+      const options =
+        preBuilt !== undefined
+          ? new OptionsMap(preBuilt)
+          : new OptionsMap(
+              parseTextOptions(
+                (ctx.event['message'] ?? ctx.event['body'] ?? '') as string,
+                optionDefs,
+              ),
+            );
+
+      // Reject before the handler executes — avoids the onCommand handler needing its
+      // own guard on options.get() returning undefined for required fields.
+      const errorMsg = validateOptions(
+        options,
+        optionDefs,
+        ctx.parsed.name,
+        ctx.prefix,
+      );
+      if (errorMsg !== null) {
+        await ctx.chat.replyMessage({ message: errorMsg });
+        return; // Do NOT call next() — chain halts; handler never runs
+      }
+
+      ctx.options = options;
+    } else {
+      // No options defined — set empty map so the handler always has ctx.options available.
+      ctx.options = OptionsMap.empty();
+    }
+
+    await next();
+  };

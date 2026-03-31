@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    /* Tests are never emitted — this config exists solely for IDE type-checking and vitest
+       path resolution. noEmit lifts the rootDir enforcement that causes TS5090 on test files. */
+    "noEmit": true,
+
+    /* Widen rootDir from ./src to . so test files under tests/ don't violate the contract.
+       Safe because noEmit means TypeScript never writes output paths derived from rootDir. */
+    "rootDir": ".",
+
+    /* Re-add tests/ to the @/ alias so test helpers can cross-import via @/mocks/... or
+       @/integration/shared/... without relative path gymnastics. */
+    "paths": {
+      "@/*": ["./src/*", "./tests/*"]
+    }
+  },
+  "include": ["src", "tests"]
+}
