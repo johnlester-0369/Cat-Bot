@@ -34,7 +34,7 @@ import type {
 } from '@/adapters/models/context.model.js';
 
 export const config = {
-  name: 'react',
+  name: 'example-react',
   description: 'Tests the onReact emoji-reaction flow (❤️ / 😂 / 😢)',
 };
 
