@@ -1,0 +1,44 @@
+{
+  "name": "bot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "tsx watch src/app.ts",
+    "build": "tsc && tsc-alias",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "start": "node dist/app.js",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.5.0",
+    "eslint": "^10.1.0",
+    "globals": "^17.4.0",
+    "prettier": "^3.8.1",
+    "ts-node": "^10.9.2",
+    "tsc-alias": "^1.8.16",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.57.2",
+    "vite-tsconfig-paths": "^6.1.1",
+    "vitest": "^4.1.1"
+  },
+  "dependencies": {
+    "@johnlester-0369/fca-unofficial": "^3.0.32",
+    "axios": "^1.13.6",
+    "discord.js": "^14.25.1",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "moment-timezone": "^0.6.1",
+    "telegraf": "^4.16.3",
+    "winston": "^3.19.0"
+  }
+}
