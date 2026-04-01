@@ -6,7 +6,7 @@
  * domain-specific concern, not a general-purpose helper.
  */
 
-import { PLATFORM_ID } from '../index.js';
+import { Platforms } from '@/constants/platform.constants.js';
 
 /**
  * Raw fca-unofficial attachment shape — only fields consumed by normalizeMessageEvent.
@@ -54,7 +54,7 @@ export function normalizeMessageEvent(
   return {
     // Pass through fca's type ('message' or 'message_reply') so the emitter event name and event.type agree
     type: event.type ?? 'message',
-    platform: PLATFORM_ID,
+    platform: Platforms.FacebookMessenger,
     threadID: event.threadID,
     senderID: event.senderID,
     message,

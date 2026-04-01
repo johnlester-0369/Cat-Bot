@@ -25,7 +25,7 @@ import {
   normalizeFbPageReactionEvent,
 } from './utils/helper.util.js';
 import type { MessageReplyData } from './utils/helper.util.js';
-import { PLATFORM_ID } from './index.js';
+import { Platforms } from '@/constants/platform.constants.js';
 /**
  * Creates the onMessage callback consumed by startServer().
  * Each call to the returned function processes one webhook messaging entry.
@@ -62,7 +62,7 @@ export function createEventRouter(
         messaging as Parameters<typeof normalizeFbPageReactionEvent>[0],
         originalSenderID,
       );
-      const native = { platform: PLATFORM_ID, userId, sessionId, messaging };
+      const native = { platform: Platforms.FacebookPage, userId, sessionId, messaging };
       emitter.emit('message_reaction', {
         api: unifiedApi,
         event,
@@ -80,7 +80,7 @@ export function createEventRouter(
       const unifiedApi = createFbPageApi(pageApi);
       const event = {
         type: 'button_action',
-        platform: PLATFORM_ID,
+        platform: Platforms.FacebookPage,
         actionId: postback['payload'] ?? '',
         // Page Messenger is always 1:1 — sender PSID is both senderID and threadID
         threadID: sender?.id ?? '',
@@ -88,7 +88,7 @@ export function createEventRouter(
         messageID: '',
         timestamp: messaging['timestamp'] ?? null,
       };
-      const native = { platform: PLATFORM_ID, userId, sessionId, messaging };
+      const native = { platform: Platforms.FacebookPage, userId, sessionId, messaging };
       emitter.emit('button_action', { api: unifiedApi, event, native, prefix });
       return;
     }
@@ -122,7 +122,7 @@ export function createEventRouter(
       message as Parameters<typeof normalizeFbPageEvent>[1],
       messageReply,
     );
-    const native = { platform: PLATFORM_ID, userId, sessionId, messaging };
+    const native = { platform: Platforms.FacebookPage, userId, sessionId, messaging };
     emitter.emit('message', { api: unifiedApi, event, native, prefix });
   };
 }

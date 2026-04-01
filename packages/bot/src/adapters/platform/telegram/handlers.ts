@@ -20,7 +20,7 @@ import type { EventEmitter } from 'events';
 import type { Telegraf } from 'telegraf';
 import { message } from 'telegraf/filters';
 import type { Message } from 'telegraf/types';
-import { PLATFORM_ID } from './index.js';
+import { Platforms } from '@/constants/platform.constants.js';
 import { createTelegramApi } from './wrapper.js';
 import {
   normalizeTelegramEvent,
@@ -84,7 +84,7 @@ export function attachHandlers(
       );
     }
 
-    const native = { platform: PLATFORM_ID, userId, sessionId, ctx };
+    const native = { platform: Platforms.Telegram, userId, sessionId, ctx };
     // reply_to_message is set when the user taps "Reply" on an existing message
     const eventType = msg.reply_to_message ? 'message_reply' : 'message';
     emitter.emit(eventType, { api, event, native, prefix });
@@ -94,7 +94,7 @@ export function attachHandlers(
   bot.on(message('new_chat_members'), async (ctx) => {
     const api = createTelegramApi(ctx);
     const event = normalizeNewChatMembersEvent(ctx);
-    const native = { platform: PLATFORM_ID, userId, sessionId, ctx };
+    const native = { platform: Platforms.Telegram, userId, sessionId, ctx };
     emitter.emit('event', { api, event, native, prefix });
   });
 
@@ -102,7 +102,7 @@ export function attachHandlers(
   bot.on(message('left_chat_member'), async (ctx) => {
     const api = createTelegramApi(ctx);
     const event = normalizeLeftChatMemberEvent(ctx);
-    const native = { platform: PLATFORM_ID, userId, sessionId, ctx };
+    const native = { platform: Platforms.Telegram, userId, sessionId, ctx };
     emitter.emit('event', { api, event, native, prefix });
   });
 
@@ -113,7 +113,7 @@ export function attachHandlers(
   bot.on('message_reaction', async (ctx) => {
     const api = createTelegramApi(ctx);
     const event = normalizeTelegramReactionEvent(ctx);
-    const native = { platform: PLATFORM_ID, userId, sessionId, ctx };
+    const native = { platform: Platforms.Telegram, userId, sessionId, ctx };
     emitter.emit('message_reaction', { api, event, native, prefix });
   });
 
@@ -132,14 +132,14 @@ export function attachHandlers(
     };
     const event = {
       type: 'button_action',
-      PLATFORM_ID,
+      platform: Platforms.Telegram,
       actionId: cbq.data ?? '',
       threadID: String(cbq.message?.chat?.id ?? ''),
       senderID: String(cbq.from.id),
       messageID: String(cbq.message?.message_id ?? ''),
       timestamp: Date.now(),
     };
-    const native = { platform: PLATFORM_ID, userId, sessionId, ctx };
+    const native = { platform: Platforms.Telegram, userId, sessionId, ctx };
     emitter.emit('button_action', { api, event, native, prefix });
   });
 }

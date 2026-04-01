@@ -13,7 +13,7 @@
  *   normalizeFbPageReactionEvent — reaction webhook → unified message_reaction shape
  */
 
-import { PLATFORM_ID } from '../index.js';
+import { Platforms } from '@/constants/platform.constants.js';
 
 // ── Attachment types ──────────────────────────────────────────────────────────
 
@@ -255,7 +255,7 @@ export function normalizeFbPageEvent(
     : [];
 
   return {
-    platform: PLATFORM_ID,
+    platform: Platforms.FacebookPage,
     threadID: sender.id,
     senderID: sender.id,
     message: msgBody,
@@ -319,7 +319,7 @@ export function normalizeFbPageReactionEvent(
   const r = messaging.reaction ?? {};
   return {
     type: 'message_reaction',
-    platform: PLATFORM_ID,
+    platform: Platforms.FacebookPage,
     // Page Messenger is always 1:1 — the sender PSID doubles as the threadID
     threadID: messaging.sender?.id ?? '',
     messageID: r.mid ?? '', // the message that was reacted to

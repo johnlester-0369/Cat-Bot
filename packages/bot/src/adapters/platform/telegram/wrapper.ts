@@ -14,7 +14,7 @@
  * normalizers directly from utils/, keeping wrapper's responsibility to the
  * UnifiedApi class shell only.
  */
-import { PLATFORM_ID } from './index.js';
+import { Platforms } from '@/constants/platform.constants.js';
 
 import type { Context } from 'telegraf';
 import type { Readable } from 'stream';
@@ -54,7 +54,7 @@ class TelegramApi extends UnifiedApi {
 
   constructor(ctx: Context) {
     super();
-    this.platform = PLATFORM_ID;
+    this.platform = Platforms.Telegram;
     this.#ctx = ctx;
   }
 

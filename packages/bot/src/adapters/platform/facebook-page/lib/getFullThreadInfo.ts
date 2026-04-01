@@ -8,7 +8,7 @@
  * crashes command handling.
  */
 
-import { PLATFORM_ID } from '../index.js';
+import { Platforms } from '@/constants/platform.constants.js';
 
 import { createUnifiedThreadInfo } from '@/adapters/models/thread.model.js';
 import type { UnifiedThreadInfo } from '@/adapters/models/thread.model.js';
@@ -34,7 +34,7 @@ export async function getFullThreadInfo(
   }
 
   return createUnifiedThreadInfo({
-    platform: PLATFORM_ID,
+    platform: Platforms.FacebookPage,
     threadID,
     name: userInfo?.name ?? null,
     isGroup: false,

@@ -13,7 +13,7 @@
  * Normalise functions are NOT re-exported here — consumers import directly
  * from utils/helper.util.js to maintain clear ownership boundaries.
  */
-import { PLATFORM_ID } from './index.js';
+import { Platforms } from '@/constants/platform.constants.js';
 
 import { UnifiedApi } from '@/adapters/models/api.model.js';
 import type {
@@ -55,7 +55,7 @@ class FbPageApi extends UnifiedApi {
 
   constructor(pageApi: PageApi) {
     super();
-    this.platform = PLATFORM_ID;
+    this.platform = Platforms.FacebookPage;
     this.#pageApi = pageApi;
   }
 

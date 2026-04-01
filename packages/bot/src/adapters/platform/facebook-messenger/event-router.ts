@@ -15,9 +15,7 @@
  *   (other)              → emit verbatim on original type name
  */
 
-// PLATFORM_ID used only inside routeRawEvent() body — the circular import with index.ts
-// (which statically imports this file) is safe because ESM live bindings resolve before any function call.
-import { PLATFORM_ID } from './index.js';
+import { Platforms } from '@/constants/platform.constants.js';
 import type { EventEmitter } from 'events';
 import type { UnifiedApi } from '@/adapters/models/api.model.js';
 import { formatEvent } from '@/adapters/models/event.model.js';
@@ -59,7 +57,7 @@ export function routeRawEvent(
       // Spread platform tag: formatEvent strips it (fca events lack it), but all other platforms include it
       const event = {
         ...formatEvent(rawEvent),
-        platform: PLATFORM_ID,
+        platform: Platforms.FacebookMessenger,
       };
       emitter.emit(type, { api: apiWrapper, event, native, prefix });
       break;
@@ -71,7 +69,7 @@ export function routeRawEvent(
       // 'log:thread-image' so handlers subscribe once for that key regardless of platform.
       const event = {
         ...formatEvent(rawEvent),
-        platform: PLATFORM_ID,
+        platform: Platforms.FacebookMessenger,
       };
       emitter.emit('event', { api: apiWrapper, event, native, prefix });
       break;

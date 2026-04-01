@@ -5,7 +5,7 @@
  * by accepting the relevant context objects as explicit parameters.
  */
 import type { Client, TextChannel, Guild } from 'discord.js';
-import { PLATFORM_ID } from '../index.js';
+import { Platforms } from '@/constants/platform.constants.js';
 // @/ alias resolves via tsc-alias at build / tsx at dev time — replaces ../../../../models/
 import { createUnifiedThreadInfo } from '@/adapters/models/thread.model.js';
 import type { UnifiedThreadInfo } from '@/adapters/models/thread.model.js';
@@ -31,7 +31,7 @@ export async function getFullThreadInfo(
   if (!guild) {
     // DM channel — no server context available
     return createUnifiedThreadInfo({
-      platform: PLATFORM_ID,
+      platform: Platforms.Discord,
       threadID,
       name: (channel as unknown as { name?: string })?.name ?? null,
       isGroup: false,
@@ -49,7 +49,7 @@ export async function getFullThreadInfo(
   const cachedMembers = [...(g.members?.cache?.values() ?? [])];
 
   return createUnifiedThreadInfo({
-    platform: PLATFORM_ID,
+    platform: Platforms.Discord,
     threadID,
     name: g.name,
     isGroup: true,

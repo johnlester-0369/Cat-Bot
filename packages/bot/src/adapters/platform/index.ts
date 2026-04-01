@@ -21,25 +21,14 @@
  */
 
 import { EventEmitter } from 'events';
-import {
-  createDiscordListener,
-  PLATFORM_ID as DISCORD_PLATFORM_ID,
-} from './discord/index.js';
-import {
-  createTelegramListener,
-  PLATFORM_ID as TELEGRAM_PLATFORM_ID,
-} from './telegram/index.js';
-import {
-  createFacebookMessengerListener,
-  PLATFORM_ID as FB_MESSENGER_PLATFORM_ID,
-} from './facebook-messenger/index.js';
-import {
-  createFacebookPageListener,
-  PLATFORM_ID as FB_PAGE_PLATFORM_ID,
-} from './facebook-page/index.js';
+import { createDiscordListener } from './discord/index.js';
+import { createTelegramListener } from './telegram/index.js';
+import { createFacebookMessengerListener } from './facebook-messenger/index.js';
+import { createFacebookPageListener } from './facebook-page/index.js';
 import { logger } from '@/lib/logger.lib.js';
 import { sessionManager } from '@/lib/session-manager.lib.js';
 import { withRetry } from '@/lib/retry.lib.js';
+import { Platforms } from '@/constants/platform.constants.js';
 
 /**
  * Every registered platform ID in one place — derived from each platform's own index.ts constant.
@@ -47,10 +36,10 @@ import { withRetry } from '@/lib/retry.lib.js';
  * (2) add it to this array. adapters/models/ never needs to change.
  */
 export const PLATFORM_IDS = [
-  DISCORD_PLATFORM_ID,
-  TELEGRAM_PLATFORM_ID,
-  FB_MESSENGER_PLATFORM_ID,
-  FB_PAGE_PLATFORM_ID,
+  Platforms.Discord,
+  Platforms.Telegram,
+  Platforms.FacebookMessenger,
+  Platforms.FacebookPage,
 ] as const;
 
 /** Union of all registered platform IDs plus the 'unknown' sentinel for pre-identification contexts. */
@@ -223,9 +212,9 @@ export function createUnifiedPlatformListener(
   ): Promise<void> => {
     config.discord.forEach((c, i) => {
       const l = discordListeners[i]!;
-      const label = `discord:${c.userId}:${c.sessionId}`;
+      const label = `${Platforms.Discord}:${c.userId}:${c.sessionId}`;
       sessionManager.register(
-        `${c.userId}:${DISCORD_PLATFORM_ID}:${c.sessionId}`,
+        `${c.userId}:${Platforms.Discord}:${c.sessionId}`,
         {
           start: () => startSessionWithRetry(label, () => l.start(commands), () => l.stop()),
           stop: async () => await l.stop(),
@@ -236,9 +225,9 @@ export function createUnifiedPlatformListener(
 
     config.telegram.forEach((c, i) => {
       const l = telegramListeners[i]!;
-      const label = `telegram:${c.userId}:${c.sessionId}`;
+      const label = `${Platforms.Telegram}:${c.userId}:${c.sessionId}`;
       sessionManager.register(
-        `${c.userId}:${TELEGRAM_PLATFORM_ID}:${c.sessionId}`,
+        `${c.userId}:${Platforms.Telegram}:${c.sessionId}`,
         {
           start: () => startSessionWithRetry(label, () => l.start(commands), () => l.stop()),
           stop: async () => await l.stop(),
@@ -250,9 +239,9 @@ export function createUnifiedPlatformListener(
     // Facebook Messenger MQTT login — no commands/prefix needed at transport level
     config.fbMessenger.forEach((c, i) => {
       const l = fbMessengerListeners[i]!;
-      const label = `facebook-messenger:${c.userId}:${c.sessionId}`;
+      const label = `${Platforms.FacebookMessenger}:${c.userId}:${c.sessionId}`;
       sessionManager.register(
-        `${c.userId}:${FB_MESSENGER_PLATFORM_ID}:${c.sessionId}`,
+        `${c.userId}:${Platforms.FacebookMessenger}:${c.sessionId}`,
         {
           start: () => startSessionWithRetry(label, () => l.start(), () => l.stop()),
           stop: async () => await l.stop(),
@@ -264,9 +253,9 @@ export function createUnifiedPlatformListener(
     // Facebook Page webhook server — Express startup; no commands/prefix at transport level
     config.fbPage.forEach((c, i) => {
       const l = fbPageListeners[i]!;
-      const label = `facebook-page:${c.userId}:${c.sessionId}`;
+      const label = `${Platforms.FacebookPage}:${c.userId}:${c.sessionId}`;
       sessionManager.register(
-        `${c.userId}:${FB_PAGE_PLATFORM_ID}:${c.sessionId}`,
+        `${c.userId}:${Platforms.FacebookPage}:${c.sessionId}`,
         {
           start: () => startSessionWithRetry(label, () => l.start(), () => l.stop()),
           stop: async () => await l.stop(),

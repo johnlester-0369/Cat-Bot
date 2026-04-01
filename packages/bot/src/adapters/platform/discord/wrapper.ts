@@ -32,7 +32,7 @@ import type { UnifiedUserInfo } from '@/adapters/models/user.model.js';
 
 import { buildDiscordMentionMsg } from './utils/helper.util.js';
 
-import { PLATFORM_ID } from './index.js';
+import { Platforms } from '@/constants/platform.constants.js';
 import { sendMessage as sendMessageLib } from './lib/sendMessage.js';
 import { unsendMessage as unsendMessageLib } from './lib/unsendMessage.js';
 import { getUserInfo as getUserInfoLib } from './lib/getUserInfo.js';
@@ -64,7 +64,7 @@ class DiscordApi extends UnifiedApi {
 
   constructor(interaction: RepliableInteraction) {
     super();
-    this.platform = PLATFORM_ID;
+    this.platform = Platforms.Discord;
     this.#interaction = interaction;
   }
 
@@ -253,7 +253,7 @@ export function createDiscordChannelApi(
   client: Client | null = null,
 ): UnifiedApi {
   const api = new UnifiedApi();
-  api.platform = PLATFORM_ID;
+  api.platform = Platforms.Discord;
 
   // sendFn for plain channel sends — returns the Message object so lib can extract .id
   const channelSendFn = async (

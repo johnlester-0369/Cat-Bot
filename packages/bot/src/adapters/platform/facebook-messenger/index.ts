@@ -36,12 +36,11 @@ import { startBot } from './login.js';
 import { routeRawEvent } from './event-router.js';
 import { withRetry } from '@/lib/retry.lib.js';
 
+import { Platforms } from '@/constants/platform.constants.js';
+
 // Re-export startBot so integration tests can construct FacebookApi
 // directly without going through the platform listener.
 export { startBot };
-
-/** Canonical Facebook Messenger platform identifier — imported by adapters/platform/index.ts to build the PlatformId union. */
-export const PLATFORM_ID = 'facebook-messenger' as const;
 
 // ── Listener config ────────────────────────────────────────────────────────────
 
@@ -135,7 +134,7 @@ export function createFacebookMessengerListener(
         const native = {
           userId: config.userId,
           sessionId: config.sessionId,
-          platform: PLATFORM_ID,
+          platform: Platforms.FacebookMessenger,
           api: fcaApi,
           event: rawEvent,
         };

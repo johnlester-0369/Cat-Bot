@@ -11,7 +11,7 @@
  * the target chat but has a reference to it from a forwarded message).
  */
 import type { Context } from 'telegraf';
-import { PLATFORM_ID } from '../index.js';
+import { Platforms } from '@/constants/platform.constants.js';
 import {
   createUnifiedThreadInfo,
   type UnifiedThreadInfo,
@@ -34,7 +34,7 @@ export async function getFullThreadInfo(
   }
 
   if (!chat) {
-    return createUnifiedThreadInfo({ platform: PLATFORM_ID, threadID });
+    return createUnifiedThreadInfo({ platform: Platforms.Telegram, threadID });
   }
 
   const isGroup =
@@ -70,7 +70,7 @@ export async function getFullThreadInfo(
         : null;
 
   return createUnifiedThreadInfo({
-    platform: PLATFORM_ID,
+    platform: Platforms.Telegram,
     threadID,
     name,
     isGroup,

@@ -4,7 +4,7 @@
  * adminIDs is normalised to a string array since fca returns either string or { id: string }.
  */
 
-import { PLATFORM_ID } from '../index.js';
+import { Platforms } from '@/constants/platform.constants.js';
 
 // @/ alias for cross-cutting model types — avoids fragile ../../../../ relative chains
 import { createUnifiedThreadInfo } from '@/adapters/models/thread.model.js';
@@ -38,7 +38,7 @@ export function getFullThreadInfo(
       );
       resolve(
         createUnifiedThreadInfo({
-          platform: PLATFORM_ID,
+          platform: Platforms.FacebookMessenger,
           threadID,
           name: info.threadName ?? null,
           isGroup: info.isGroup ?? false,

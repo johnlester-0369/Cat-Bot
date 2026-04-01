@@ -9,7 +9,7 @@
  * To change any send/receive behaviour, edit the corresponding lib/<method>.ts file.
  */
 
-import { PLATFORM_ID } from './index.js';
+import { Platforms } from '@/constants/platform.constants.js';
 
 import { UnifiedApi } from '@/adapters/models/api.model.js';
 import type {
@@ -53,7 +53,7 @@ class FacebookApi extends UnifiedApi {
 
   constructor(fcaApi: FcaApi) {
     super();
-    this.platform = PLATFORM_ID;
+    this.platform = Platforms.FacebookMessenger;
     this.#api = fcaApi;
   }
 
