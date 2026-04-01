@@ -28,11 +28,13 @@
 import { EventEmitter } from 'events';
 
 import type { FacebookMessengerEmitter } from './types.js';
+import type { FcaApi } from './types.js';
 export type { StartBotConfig, StartBotResult } from './types.js';
 
 import { logger } from '@/lib/logger.lib.js';
 import { startBot } from './login.js';
 import { routeRawEvent } from './event-router.js';
+import { withRetry } from '@/lib/retry.lib.js';
 
 // Re-export startBot so integration tests can construct FacebookApi
 // directly without going through the platform listener.
@@ -78,29 +80,82 @@ export function createFacebookMessengerListener(
     // evaluation time — deferring keeps module load safe and isolates failures to start().
     const { createFacebookApi } = await import('./wrapper.js');
 
-    // Pass sessionPath so login.ts reads/writes appstate.json in the correct directory,
+    // Extracted so it can be called again on MQTT reconnect without repeating the login flow.
+    // reconnecting flag deduplicates burst errors — if MQTT emits multiple errors in rapid
+    // succession before the first reconnect attempt lands, only one reconnect races at a time.
+    let reconnecting = false;
+
+    const listen = (fcaApi: FcaApi): void => {
+      listenerInstances = fcaApi.listenMqtt((err, rawEvent) => {
+        if (err) {
+          logger.error('[facebook-messenger] MQTT error', { error: err });
+
+          if (reconnecting) return;
+          reconnecting = true;
+
+          // Stop the dead listener before attempting to re-login and re-listen.
+          // withRetry drives full re-login: a dropped MQTT connection may indicate
+          // an expired session cookie that requires a fresh authentication cycle.
+          void listenerInstances
+            ?.stopListeningAsync()
+            .catch(() => undefined)
+            .then(async () => {
+              await withRetry(
+                async () => {
+                  const { api: freshApi } = await startBot({
+                    sessionPath: config.sessionPath,
+                  });
+                  // Replace the listener with a fresh MQTT connection after re-login
+                  listen(freshApi);
+                },
+                {
+                  maxAttempts: 10,
+                  initialDelayMs: 5_000,
+                  backoffFactor: 2,
+                  maxDelayMs: 120_000,
+                  onRetry: (attempt, retryErr) => {
+                    logger.warn(
+                      `[facebook-messenger] MQTT reconnect attempt ${attempt}/10`,
+                      { error: retryErr },
+                    );
+                  },
+                },
+              ).catch((finalErr: unknown) => {
+                logger.error(
+                  '[facebook-messenger] MQTT reconnect exhausted — session offline',
+                  { error: finalErr },
+                );
+              });
+              reconnecting = false;
+            });
+          return;
+        }
+
+        const apiWrapper = createFacebookApi(fcaApi);
+        const native = {
+          userId: config.userId,
+          sessionId: config.sessionId,
+          platform: PLATFORM_ID,
+          api: fcaApi,
+          event: rawEvent,
+        };
+
+        // Guard routeRawEvent so a malformed payload never throws through fca-unofficial's
+        // synchronous callback and silently kills the entire MQTT connection.
+        try {
+          routeRawEvent(rawEvent, apiWrapper, native, emitter, config.prefix);
+        } catch (routeErr) {
+          logger.error('[facebook-messenger] routeRawEvent failed (event dropped)', {
+            error: routeErr,
+          });
+        }
+      });
+    };
 
     const { api } = await startBot({ sessionPath: config.sessionPath });
-
     // start() is the sole owner of the MQTT listener — startBot() deliberately does NOT
     // call listenMqtt so there is exactly one listener on the connection at all times.
-    listenerInstances = api.listenMqtt((err, rawEvent) => {
-      if (err) {
-        logger.error('MQTT error', { error: err });
-        return;
-      }
-
-      const apiWrapper = createFacebookApi(api);
-      const native = {
-        userId: config.userId,
-        sessionId: config.sessionId,
-        platform: PLATFORM_ID,
-        api,
-        event: rawEvent,
-      };
-
-      routeRawEvent(rawEvent, apiWrapper, native, emitter, config.prefix);
-    });
+    listen(api);
 
     logger.info('Listener active');
   };
