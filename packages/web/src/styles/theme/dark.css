@@ -1,0 +1,215 @@
+/* ============================================================
+   DARK THEME VARIABLES
+   
+   Structure:
+   1. :root - Define all dark theme values with --dark- prefix
+   2. .dark - Reference layer mapping standard variables to dark values
+   
+   The :root definitions ensure dark theme values are available
+   at the global scope, while the .dark class activates them.
+   ============================================================ */
+
+:root {
+  /* ==================== PRIMARY ==================== */
+  --dark-color-primary: 196 216 253;
+  --dark-color-on-primary: 14 30 62;
+  --dark-color-primary-container: 51 87 162;
+  --dark-color-on-primary-container: 221 232 254;
+
+  /* ==================== SECONDARY ==================== */
+  --dark-color-secondary: 216 209 253;
+  --dark-color-on-secondary: 33 23 61;
+  --dark-color-secondary-container: 96 71 161;
+  --dark-color-on-secondary-container: 232 228 254;
+
+  /* ==================== TERTIARY ==================== */
+  --dark-color-tertiary: 244 197 249;
+  --dark-color-on-tertiary: 48 15 52;
+  --dark-color-tertiary-container: 129 54 139;
+  --dark-color-on-tertiary-container: 247 222 250;
+
+  /* ==================== SURFACE SYSTEM ==================== */
+  --dark-color-surface: 31 43 61;
+  --dark-color-on-surface: 255 255 255;
+  --dark-color-surface-variant: 50 65 87;
+  --dark-color-on-surface-variant: 202 213 226;
+  --dark-color-surface-container-lowest: 31 43 61;
+  --dark-color-surface-container-low: 23 32 49;
+  --dark-color-surface-container: 20 28 44;
+  --dark-color-surface-container-high: 16 24 40;
+  --dark-color-surface-container-highest: 3 7 18;
+  --dark-color-surface-bright: 98 116 142;
+  --dark-color-surface-dim: 3 7 18;
+
+  /* ==================== INVERSE ==================== */
+  --dark-color-inverse-surface: 241 245 249;
+  --dark-color-inverse-on-surface: 29 41 58;
+  --dark-color-inverse-primary: 68 114 210;
+
+  /* ==================== OUTLINE ==================== */
+  --dark-color-outline: 144 161 185;
+  --dark-color-outline-variant: 69 85 108;
+
+  /* ==================== SCRIM & SHADOW ==================== */
+  --dark-color-scrim: 0 0 0;
+  --dark-color-shadow: 0 0 0;
+
+  /* ==================== ERROR ==================== */
+  --dark-color-error: 255 100 103;
+  --dark-color-on-error: 70 8 9;
+  --dark-color-error-container: 130 24 26;
+  --dark-color-on-error-container: 255 226 226;
+
+  /* ==================== SUCCESS ==================== */
+  --dark-color-success: 5 223 114;
+  --dark-color-on-success: 3 46 21;
+  --dark-color-success-container: 13 84 43;
+  --dark-color-on-success-container: 220 252 231;
+
+  /* ==================== WARNING ==================== */
+  --dark-color-warning: 255 185 0;
+  --dark-color-on-warning: 70 25 1;
+  --dark-color-warning-container: 151 60 0;
+  --dark-color-on-warning-container: 254 243 198;
+
+  /* ==================== INFO ==================== */
+  --dark-color-info: 0 188 255;
+  --dark-color-on-info: 5 47 74;
+  --dark-color-info-container: 2 74 112;
+  --dark-color-on-info-container: 223 242 254;
+
+  /* ==================== PRIMARY GRADIENT ==================== */
+  --dark-color-gradient-primary: linear-gradient(
+    135deg,
+    rgb(39, 83, 179) 0%,
+    rgb(15, 99, 134) 100%
+  );
+
+  /* ==================== SECONDARY GRADIENT ==================== */
+  --dark-color-gradient-secondary: linear-gradient(
+    135deg,
+    rgb(97, 66, 171) 0%,
+    rgb(39, 83, 179) 100%
+  );
+
+  /* ==================== TERTIARY GRADIENT ==================== */
+  --dark-color-gradient-tertiary: linear-gradient(
+    135deg,
+    rgb(131, 51, 142) 0%,
+    rgb(97, 66, 171) 100%
+  );
+
+  /* ==================== ERROR GRADIENT ==================== */
+  --dark-color-gradient-error: linear-gradient(
+    135deg,
+    rgb(161, 39, 31) 0%,
+    rgb(133, 73, 13) 100%
+  );
+
+  /* ==================== SUCCESS GRADIENT ==================== */
+  --dark-color-gradient-success: linear-gradient(
+    135deg,
+    rgb(16, 109, 48) 0%,
+    rgb(16, 105, 91) 100%
+  );
+
+  /* ==================== WARNING GRADIENT ==================== */
+  --dark-color-gradient-warning: linear-gradient(
+    135deg,
+    rgb(146, 62, 12) 0%,
+    rgb(121, 82, 13) 100%
+  );
+
+  /* ==================== INFO GRADIENT ==================== */
+  --dark-color-gradient-info: linear-gradient(
+    135deg,
+    rgb(15, 95, 150) 0%,
+    rgb(16, 102, 118) 100%
+  );
+}
+
+/* Reference layer: Maps standard variables to dark theme values.
+   When .dark class is applied, these override the light theme references. */
+.dark {
+  /* PRIMARY */
+  --color-primary: var(--dark-color-primary);
+  --color-on-primary: var(--dark-color-on-primary);
+  --color-primary-container: var(--dark-color-primary-container);
+  --color-on-primary-container: var(--dark-color-on-primary-container);
+
+  /* SECONDARY */
+  --color-secondary: var(--dark-color-secondary);
+  --color-on-secondary: var(--dark-color-on-secondary);
+  --color-secondary-container: var(--dark-color-secondary-container);
+  --color-on-secondary-container: var(--dark-color-on-secondary-container);
+
+  /* TERTIARY */
+  --color-tertiary: var(--dark-color-tertiary);
+  --color-on-tertiary: var(--dark-color-on-tertiary);
+  --color-tertiary-container: var(--dark-color-tertiary-container);
+  --color-on-tertiary-container: var(--dark-color-on-tertiary-container);
+
+  /* SURFACE SYSTEM */
+  --color-surface: var(--dark-color-surface);
+  --color-on-surface: var(--dark-color-on-surface);
+  --color-surface-variant: var(--dark-color-surface-variant);
+  --color-on-surface-variant: var(--dark-color-on-surface-variant);
+  --color-surface-container-lowest: var(--dark-color-surface-container-lowest);
+  --color-surface-container-low: var(--dark-color-surface-container-low);
+  --color-surface-container: var(--dark-color-surface-container);
+  --color-surface-container-high: var(--dark-color-surface-container-high);
+  --color-surface-container-highest: var(
+    --dark-color-surface-container-highest
+  );
+  --color-surface-bright: var(--dark-color-surface-bright);
+  --color-surface-dim: var(--dark-color-surface-dim);
+
+  /* INVERSE */
+  --color-inverse-surface: var(--dark-color-inverse-surface);
+  --color-inverse-on-surface: var(--dark-color-inverse-on-surface);
+  --color-inverse-primary: var(--dark-color-inverse-primary);
+
+  /* OUTLINE */
+  --color-outline: var(--dark-color-outline);
+  --color-outline-variant: var(--dark-color-outline-variant);
+
+  /* SCRIM & SHADOW */
+  --color-scrim: var(--dark-color-scrim);
+  --color-shadow: var(--dark-color-shadow);
+
+  /* ERROR */
+  --color-error: var(--dark-color-error);
+  --color-on-error: var(--dark-color-on-error);
+  --color-error-container: var(--dark-color-error-container);
+  --color-on-error-container: var(--dark-color-on-error-container);
+
+  /* SUCCESS */
+  --color-success: var(--dark-color-success);
+  --color-on-success: var(--dark-color-on-success);
+  --color-success-container: var(--dark-color-success-container);
+  --color-on-success-container: var(--dark-color-on-success-container);
+
+  /* WARNING */
+  --color-warning: var(--dark-color-warning);
+  --color-on-warning: var(--dark-color-on-warning);
+  --color-warning-container: var(--dark-color-warning-container);
+  --color-on-warning-container: var(--dark-color-on-warning-container);
+
+  /* INFO */
+  --color-info: var(--dark-color-info);
+  --color-on-info: var(--dark-color-on-info);
+  --color-info-container: var(--dark-color-info-container);
+  --color-on-info-container: var(--dark-color-on-info-container);
+
+  /* GRADIENTS */
+  --color-gradient-primary: var(--dark-color-gradient-primary);
+  --color-gradient-secondary: var(--dark-color-gradient-secondary);
+  --color-gradient-tertiary: var(--dark-color-gradient-tertiary);
+  --color-gradient-error: var(--dark-color-gradient-error);
+  --color-gradient-success: var(--dark-color-gradient-success);
+  --color-gradient-warning: var(--dark-color-gradient-warning);
+  --color-gradient-info: var(--dark-color-gradient-info);
+
+  /* Color scheme for native browser controls */
+  color-scheme: dark;
+}
