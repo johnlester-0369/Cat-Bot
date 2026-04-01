@@ -1,0 +1,60 @@
+generator client {
+  // prisma-client is the v7 provider name; prisma-client-js is removed
+  provider = "prisma-client"
+  // output is required in v7 — generates the client into src/ so tsc and tsx can resolve it
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  // url is configured in prisma.config.ts in v7; schema.prisma only declares the driver
+  provider = "sqlite"
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  // unique constraint prevents duplicate seeding on repeated dev runs
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+}
+
+// ── Bot Users — persists platform-specific user info captured on first encounter ──
+// The userId is the unique string primary key.
+// firstName, username, avatarUrl are nullable because not every platform exposes them
+// (e.g. Facebook Page 1:1 returns only name; Telegram bots may lack avatar access).
+model BotUser {
+  platform    Int
+  id          String   @id
+  name        String
+  firstName   String?
+  username    String?
+  avatarUrl   String?
+  createdAt   DateTime @default(now())
+  // updatedAt tracks the last time platform API returned fresh profile data for drift detection
+  updatedAt   DateTime @updatedAt
+
+  // Implicit M:M relations populated dynamically from thread metadata
+  participatingThreads BotThread[] @relation("ThreadParticipants")
+  adminOfThreads       BotThread[] @relation("ThreadAdmins")
+
+  @@map("bot_users")
+}
+
+// ── Bot Threads — persists platform-specific thread/group metadata ─────────────
+// memberCount is nullable — some platforms (large Discord guilds) do not expose it.
+model BotThread {
+  platform       Int
+  id             String   @id
+  name           String?
+  isGroup        Boolean  @default(false)
+  memberCount    Int?
+  avatarUrl      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Implicit M:M relations connecting users to this thread
+  participants BotUser[] @relation("ThreadParticipants")
+  admins       BotUser[] @relation("ThreadAdmins")
+
+  @@map("bot_threads")
+}
