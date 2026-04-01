@@ -39,6 +39,7 @@ import {
 } from './facebook-page/index.js';
 import { logger } from '@/lib/logger.lib.js';
 import { sessionManager } from '@/lib/session-manager.lib.js';
+import { withRetry } from '@/lib/retry.lib.js';
 
 /**
  * Every registered platform ID in one place — derived from each platform's own index.ts constant.
@@ -119,6 +120,64 @@ const FORWARDED_EVENTS = [
 ] as const;
 
 /**
+ * Starts a single platform session with automatic retry on failure.
+ *
+ * WHY: A plain .catch(log) leaves the session permanently dead after the
+ * first startup error (bad token, temporary network blip at boot time).
+ * Wrapping with withRetry means transient errors self-heal without operator intervention.
+ *
+ * isFirstAttempt guard: on the very first call there is nothing to clean up,
+ * so we skip stop() to avoid calling unregisterPageSession (FB Page) or
+ * destroy() (Discord) on an object that was never initialized.
+ *
+ * start/stop accept void | Promise<void> — FB Page's PlatformEmitter.start() is
+ * typed as returning void (fire-and-forget webhook server bind), so we normalise
+ * both callbacks with Promise.resolve() rather than requiring Promise<void> everywhere.
+ */
+async function startSessionWithRetry(
+  label: string,
+  start: () => void | Promise<void>,
+  stop: () => void | Promise<void>,
+): Promise<void> {
+  let isFirstAttempt = true;
+
+  await withRetry(
+    async () => {
+      // Clean up any partial state from a previous failed attempt before retrying.
+      // All stop() implementations guard against being called on uninitialized instances.
+      if (!isFirstAttempt) {
+        try {
+          await Promise.resolve(stop());
+        } catch {
+          // Non-fatal — a failed stop() should never block the next start() attempt
+        }
+      }
+      isFirstAttempt = false;
+      await Promise.resolve(start());
+    },
+    {
+      maxAttempts: 10,
+      initialDelayMs: 3_000,
+      backoffFactor: 2,
+      maxDelayMs: 120_000,
+      onRetry: (attempt, err) => {
+        logger.warn(
+          `[${label}] Start attempt ${attempt}/10 failed — retrying with backoff`,
+          { error: err },
+        );
+      },
+    },
+  ).catch((err: unknown) => {
+    // All 10 attempts exhausted — log and leave this session offline.
+    // Other sessions on other platforms continue running unaffected.
+    logger.error(
+      `[${label}] Permanent startup failure after 10 attempts — session offline`,
+      { error: err },
+    );
+  });
+}
+
+/**
  * Creates a unified platform listener that aggregates all configured sessions
  * across all four transport types.
  */
@@ -164,64 +223,56 @@ export function createUnifiedPlatformListener(
   ): Promise<void> => {
     config.discord.forEach((c, i) => {
       const l = discordListeners[i]!;
+      const label = `discord:${c.userId}:${c.sessionId}`;
       sessionManager.register(
         `${c.userId}:${DISCORD_PLATFORM_ID}:${c.sessionId}`,
         {
-          start: async () => await l.start(commands),
+          start: () => startSessionWithRetry(label, () => l.start(commands), () => l.stop()),
           stop: async () => await l.stop(),
         },
       );
-      void Promise.resolve(l.start(commands)).catch((err: Error) => {
-        logger.error('[discord] Session failed to start', { error: err });
-      });
+      void startSessionWithRetry(label, () => l.start(commands), () => l.stop());
     });
 
     config.telegram.forEach((c, i) => {
       const l = telegramListeners[i]!;
+      const label = `telegram:${c.userId}:${c.sessionId}`;
       sessionManager.register(
         `${c.userId}:${TELEGRAM_PLATFORM_ID}:${c.sessionId}`,
         {
-          start: async () => await l.start(commands),
+          start: () => startSessionWithRetry(label, () => l.start(commands), () => l.stop()),
           stop: async () => await l.stop(),
         },
       );
-      void Promise.resolve(l.start(commands)).catch((err: Error) => {
-        logger.error('[telegram] Session failed to start', { error: err });
-      });
+      void startSessionWithRetry(label, () => l.start(commands), () => l.stop());
     });
 
     // Facebook Messenger MQTT login — no commands/prefix needed at transport level
     config.fbMessenger.forEach((c, i) => {
       const l = fbMessengerListeners[i]!;
+      const label = `facebook-messenger:${c.userId}:${c.sessionId}`;
       sessionManager.register(
         `${c.userId}:${FB_MESSENGER_PLATFORM_ID}:${c.sessionId}`,
         {
-          start: async () => await l.start(),
+          start: () => startSessionWithRetry(label, () => l.start(), () => l.stop()),
           stop: async () => await l.stop(),
         },
       );
-      // Wrap in Promise.resolve to safely catch rejections even if the interface strictly types start() as void
-      void Promise.resolve(l.start()).catch((err: Error) => {
-        logger.error('[facebook-messenger] Session failed to start', {
-          error: err,
-        });
-      });
+      void startSessionWithRetry(label, () => l.start(), () => l.stop());
     });
 
     // Facebook Page webhook server — Express startup; no commands/prefix at transport level
     config.fbPage.forEach((c, i) => {
       const l = fbPageListeners[i]!;
+      const label = `facebook-page:${c.userId}:${c.sessionId}`;
       sessionManager.register(
         `${c.userId}:${FB_PAGE_PLATFORM_ID}:${c.sessionId}`,
         {
-          start: async () => await l.start(),
+          start: () => startSessionWithRetry(label, () => l.start(), () => l.stop()),
           stop: async () => await l.stop(),
         },
       );
-      // Wrap in Promise.resolve to safely catch rejections even if the interface strictly types start() as void
-      void Promise.resolve(l.start()).catch((err: Error) => {
-        logger.error('[facebook-page] Session failed to start', { error: err });
-      });
+      void startSessionWithRetry(label, () => l.start(), () => l.stop());
     });
   };
 
