@@ -1,0 +1,212 @@
+/* ============================================================
+   BASE LAYER
+   
+   HTML element defaults, body/root configuration, scrollbar
+   normalization, and dark mode integration.
+   
+   These rules reset and normalize the raw HTML substrate so
+   component styles can assume a consistent starting point.
+   All rules live inside @layer base so Tailwind preflight
+   and component overrides maintain correct cascade order.
+   ============================================================ */
+
+@layer base {
+  :root {
+    /* Modern system font stack with comprehensive fallbacks */
+    font-family:
+      system-ui,
+      -apple-system,
+      BlinkMacSystemFont,
+      'Segoe UI',
+      Roboto,
+      'Helvetica Neue',
+      Arial,
+      'Noto Sans',
+      sans-serif,
+      'Apple Color Emoji',
+      'Segoe UI Emoji',
+      'Segoe UI Symbol',
+      'Noto Color Emoji';
+    font-weight: 400;
+    line-height: 1.6;
+    letter-spacing: 0.01em;
+    color-scheme: light dark;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    /* Base font size - ensures 1rem = 16px */
+    font-size: 100%;
+  }
+
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    color: rgb(var(--color-on-surface) / 1);
+    background-color: rgb(var(--color-surface-container-high) / 1);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* -----------------------------------------------------------
+    Global Custom Scrollbar Styles
+    Applied to ALL elements EXCEPT html (main page scrollbar)
+    This allows automatic styled scrollbars in dropdowns, 
+    overflow containers, etc. without manual class application
+    ----------------------------------------------------------- */
+
+  /* Firefox scrollbar support - excludes html for main page */
+  *:not(html) {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(161 161 161 / 0.5) rgb(var(--color-surface) / 0.5);
+  }
+
+  /* WebKit (Chrome, Safari, Edge) scrollbar - excludes html */
+  *:not(html)::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  *:not(html)::-webkit-scrollbar-track {
+    background: rgb(var(--color-surface) / 0.5);
+    border-radius: 4px;
+  }
+
+  *:not(html)::-webkit-scrollbar-thumb {
+    background: rgb(var(--color-outline-variant) / 0.5);
+    border-radius: 4px;
+  }
+
+  *:not(html)::-webkit-scrollbar-thumb:hover {
+    background: rgb(var(--color-outline) / 0.7);
+  }
+
+  /* Dark mode scrollbar adjustments for better visibility */
+  .dark *:not(html) {
+    scrollbar-color: rgb(115 115 115 / 0.5) rgb(var(--color-surface) / 0.3);
+  }
+
+  .dark *:not(html)::-webkit-scrollbar-track {
+    background: rgb(var(--color-surface) / 0.3);
+  }
+
+  .dark *:not(html)::-webkit-scrollbar-thumb {
+    background: rgb(var(--color-outline) / 0.5);
+  }
+
+  .dark *:not(html)::-webkit-scrollbar-thumb:hover {
+    background: rgb(var(--color-outline) / 0.7);
+  }
+
+  h1 {
+    font-size: var(--typography-display-large-font-size);
+    line-height: var(--typography-display-large-line-height);
+    font-weight: var(--typography-display-large-font-weight);
+    letter-spacing: var(--typography-display-large-letter-spacing);
+  }
+
+  h2 {
+    font-size: var(--typography-display-medium-font-size);
+    line-height: var(--typography-display-medium-line-height);
+    font-weight: var(--typography-display-medium-font-weight);
+    letter-spacing: var(--typography-display-medium-letter-spacing);
+  }
+
+  h3 {
+    font-size: var(--typography-headline-large-font-size);
+    line-height: var(--typography-headline-large-line-height);
+    font-weight: var(--typography-headline-large-font-weight);
+    letter-spacing: var(--typography-headline-large-letter-spacing);
+  }
+
+  h4 {
+    font-size: var(--typography-headline-medium-font-size);
+    line-height: var(--typography-headline-medium-line-height);
+    font-weight: var(--typography-headline-medium-font-weight);
+    letter-spacing: var(--typography-headline-medium-letter-spacing);
+  }
+
+  h5 {
+    font-size: var(--typography-headline-small-font-size);
+    line-height: var(--typography-headline-small-line-height);
+    font-weight: var(--typography-headline-small-font-weight);
+    letter-spacing: var(--typography-headline-small-letter-spacing);
+  }
+
+  h6 {
+    font-size: var(--typography-title-large-font-size);
+    line-height: var(--typography-title-large-line-height);
+    font-weight: var(--typography-title-large-font-weight);
+    letter-spacing: var(--typography-title-large-letter-spacing);
+  }
+
+  /* Paragraph uses body-md which is 16px - WCAG compliant */
+  p {
+    font-size: var(--typography-body-medium-font-size);
+    line-height: var(--typography-body-medium-line-height);
+  }
+
+  nav a:hover {
+    text-decoration: none;
+  }
+
+  code {
+    font-family:
+      ui-monospace, 'SF Mono', 'Cascadia Code', 'Cascadia Mono',
+      'Segoe UI Mono', Menlo, Monaco, 'Roboto Mono', 'Courier New', monospace;
+    font-size: 0.9em;
+    background-color: rgb(var(--color-primary) / 0.05);
+    color: rgb(var(--color-primary) / 1);
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+    letter-spacing: 0;
+  }
+
+  pre {
+    font-family: var(--font-family-mono);
+    font-size: var(--typography-body-small-font-size);
+    line-height: 1.6;
+    background-color: rgb(var(--color-surface-container-highest) / 1);
+    padding: var(--spacing-md);
+    border-radius: 0.5rem;
+    overflow-x: auto;
+  }
+
+  pre code {
+    background-color: transparent;
+    padding: 0;
+    font-size: inherit;
+  }
+
+  ::selection {
+    background-color: rgb(var(--color-primary) / 0.3);
+  }
+
+  :focus-visible {
+    outline: 2px solid rgb(var(--color-primary) / 1);
+    outline-offset: 2px;
+  }
+
+  /* Opt-out of all motion for users who need it — applied globally
+     rather than per-component so no animation slips through */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  .dark {
+    color-scheme: dark;
+  }
+
+  .dark body {
+    color: rgb(var(--color-on-surface) / 1);
+    background-color: rgb(var(--color-surface) / 1);
+  }
+}
