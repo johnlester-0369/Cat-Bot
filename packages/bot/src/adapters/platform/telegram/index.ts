@@ -14,6 +14,4 @@
  *   lib/              → Individual UnifiedApi method implementations
  */
 export { createTelegramListener } from './listener.js';
-/** Canonical Telegram platform identifier — aggregated into PlatformId union by adapters/platform/index.ts. */
-export const PLATFORM_ID = 'telegram' as const;
 export type { TelegramConfig } from './types.js';

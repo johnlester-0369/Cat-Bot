@@ -10,7 +10,7 @@
  */
 import type { Context } from 'telegraf';
 import type { User } from 'telegraf/types';
-import { PLATFORM_ID } from '../index.js';
+import { Platforms } from '@/constants/platform.constants.js';
 import {
   createUnifiedUserInfo,
   type UnifiedUserInfo,
@@ -38,14 +38,14 @@ export async function getFullUserInfo(
 
   if (!u) {
     return createUnifiedUserInfo({
-      platform: PLATFORM_ID,
+      platform: Platforms.Telegram,
       id: userID,
       name: `User ${userID}`,
     });
   }
 
   return createUnifiedUserInfo({
-    platform: PLATFORM_ID,
+    platform: Platforms.Telegram,
     id: String(u.id),
     name:
       `${u.first_name ?? ''} ${u.last_name ?? ''}`.trim() ||

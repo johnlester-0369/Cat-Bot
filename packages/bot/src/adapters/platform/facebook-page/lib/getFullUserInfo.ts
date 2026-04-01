@@ -6,7 +6,7 @@
  * Defaults to "User {userID}" when the profile fetch fails.
  */
 
-import { PLATFORM_ID } from '../index.js';
+import { Platforms } from '@/constants/platform.constants.js';
 
 import { createUnifiedUserInfo } from '@/adapters/models/user.model.js';
 import type { UnifiedUserInfo } from '@/adapters/models/user.model.js';
@@ -22,7 +22,7 @@ export async function getFullUserInfo(
       const u = users?.[userID] ?? {};
       resolve(
         createUnifiedUserInfo({
-          platform: PLATFORM_ID,
+          platform: Platforms.FacebookPage,
           id: userID,
           name: (u as { name?: string }).name ?? `User ${userID}`,
           firstName: null,

@@ -16,7 +16,7 @@
 import { EventEmitter } from 'events';
 import type { Client } from 'discord.js';
 import { logger } from '@/lib/logger.lib.js';
-import { PLATFORM_ID } from './index.js';
+import { Platforms } from '@/constants/platform.constants.js';
 import { createDiscordApi, createDiscordChannelApi } from './wrapper.js';
 import {
   normalizeInteractionEvent,
@@ -103,7 +103,7 @@ export async function attachEventHandlers(
       rawArgs,
       referencedMessage,
     );
-    const native = { platform: PLATFORM_ID, userId, sessionId, message };
+    const native = { platform: Platforms.Discord, userId, sessionId, message };
 
     // Distinguish replies so app.ts can subscribe granularly via platform.on('message_reply')
     const eventType = message.reference?.messageId
@@ -122,7 +122,7 @@ export async function attachEventHandlers(
       const api = createDiscordApi(interaction);
       const event = {
         type: 'button_action',
-        platform: PLATFORM_ID,
+        platform: Platforms.Discord,
         actionId: interaction.customId,
         threadID: interaction.channelId,
         senderID: interaction.user.id,
@@ -130,7 +130,7 @@ export async function attachEventHandlers(
         messageID: interaction.message.id,
         timestamp: Date.now(),
       };
-      const native = { platform: PLATFORM_ID, userId, sessionId, interaction };
+      const native = { platform: Platforms.Discord, userId, sessionId, interaction };
       emitter.emit('button_action', { api, event, native, prefix });
       return;
     }
@@ -166,7 +166,7 @@ export async function attachEventHandlers(
     // Embed the pre-resolved options so dispatchCommand detects the Discord slash path
     // and skips text-body parsing — the optionsRecord field is the detection signal.
     event['optionsRecord'] = optionsRecord;
-    const native = { platform: PLATFORM_ID, userId, sessionId, interaction };
+    const native = { platform: Platforms.Discord, userId, sessionId, interaction };
     // Slash commands arrive via interactionCreate and bypass the emitter→handleMessage
     // pipeline that normally builds the full BaseCtx. Construct thread/chat/bot/user
     // here so dispatchCommand spreads a complete context into commandCtx — without this,
@@ -208,7 +208,7 @@ export async function attachEventHandlers(
       client,
     );
     const event = normalizeGuildMemberAddEvent(member);
-    const native = { platform: PLATFORM_ID, userId, sessionId, member };
+    const native = { platform: Platforms.Discord, userId, sessionId, member };
     emitter.emit('event', { api, event, native, prefix });
   });
 
@@ -222,7 +222,7 @@ export async function attachEventHandlers(
       client,
     );
     const event = normalizeGuildMemberRemoveEvent(member);
-    const native = { platform: PLATFORM_ID, userId, sessionId, member };
+    const native = { platform: Platforms.Discord, userId, sessionId, member };
     emitter.emit('event', { api, event, native, prefix });
   });
 
@@ -246,7 +246,7 @@ export async function attachEventHandlers(
       reaction as import('discord.js').MessageReaction,
       user as import('discord.js').User,
     );
-    const native = { platform: PLATFORM_ID, userId, sessionId, reaction, user };
+    const native = { platform: Platforms.Discord, userId, sessionId, reaction, user };
     emitter.emit('message_reaction', { api, event, native, prefix });
   });
 
@@ -260,7 +260,7 @@ export async function attachEventHandlers(
       client,
     );
     const event = normalizeMessageDeleteEvent(message);
-    const native = { platform: PLATFORM_ID, userId, sessionId, message };
+    const native = { platform: Platforms.Discord, userId, sessionId, message };
     emitter.emit('message_unsend', { api, event, native, prefix });
   });
 

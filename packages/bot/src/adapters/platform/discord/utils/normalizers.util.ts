@@ -9,7 +9,7 @@
  * helper.util.ts keeps stream/mention utilities without pulling in 6 normalizers.
  */
 
-import { PLATFORM_ID } from '../index.js';
+import { Platforms } from '@/constants/platform.constants.js';
 
 import type {
   ChatInputCommandInteraction,
@@ -37,7 +37,7 @@ export function normalizeInteractionEvent(
   const body = args.join(' ');
   return {
     type: 'message',
-    platform: PLATFORM_ID,
+    platform: Platforms.Discord,
     threadID: interaction.channelId,
     senderID: interaction.user.id,
     body,
@@ -62,7 +62,7 @@ export function normalizeGuildMemberAddEvent(
 ): Record<string, unknown> {
   return {
     type: 'event',
-    platform: PLATFORM_ID,
+    platform: Platforms.Discord,
     threadID: member.guild.systemChannelId || member.guild.id,
     logMessageType: 'log:subscribe',
     logMessageData: {
@@ -96,7 +96,7 @@ export function normalizeGuildMemberRemoveEvent(
 ): Record<string, unknown> {
   return {
     type: 'event',
-    platform: PLATFORM_ID,
+    platform: Platforms.Discord,
     threadID: member.guild.systemChannelId || member.guild.id,
     logMessageType: 'log:unsubscribe',
     logMessageData: { leftParticipantFbId: member.id },
@@ -120,7 +120,7 @@ export function normalizeMessageCreateEvent(
   return {
     // Emit 'message_reply' when Discord message.reference is set (user hit "Reply")
     type: message.reference?.messageId ? 'message_reply' : 'message',
-    platform: PLATFORM_ID,
+    platform: Platforms.Discord,
     threadID: message.channelId,
     senderID: message.author.id,
     message: message.content,
@@ -180,7 +180,7 @@ export function normalizeMessageReactionAddEvent(
 ): Record<string, unknown> {
   return {
     type: 'message_reaction',
-    platform: PLATFORM_ID,
+    platform: Platforms.Discord,
     threadID: reaction.message.channelId,
     messageID: reaction.message.id,
     // Prefer emoji.name (standard emoji) — toString() covers custom guild emoji objects
@@ -205,7 +205,7 @@ export function normalizeMessageDeleteEvent(
 ): Record<string, unknown> {
   return {
     type: 'message_unsend',
-    platform: PLATFORM_ID,
+    platform: Platforms.Discord,
     threadID: message.channelId ?? '',
     messageID: message.id,
     senderID: message.author?.id ?? '',

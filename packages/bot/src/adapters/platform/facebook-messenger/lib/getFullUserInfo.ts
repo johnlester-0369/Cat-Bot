@@ -4,7 +4,7 @@
  * we don't surface gender on the unified model, so it stays in the raw fca response.
  */
 
-import { PLATFORM_ID } from '../index.js';
+import { Platforms } from '@/constants/platform.constants.js';
 
 // @/ alias for cross-cutting model types — avoids fragile ../../../../ relative chains
 import { createUnifiedUserInfo } from '@/adapters/models/user.model.js';
@@ -36,7 +36,7 @@ export function getFullUserInfo(
       const u = users?.[userID] ?? {};
       resolve(
         createUnifiedUserInfo({
-          platform: PLATFORM_ID,
+          platform: Platforms.FacebookMessenger,
           id: userID,
           name: u.name ?? u.firstName ?? `User ${userID}`,
           firstName: u.firstName ?? null,

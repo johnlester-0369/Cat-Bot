@@ -28,8 +28,6 @@ import {
 } from '@/server/lib/facebook-page-session.lib.js';
 import { startPageWebhookServer } from '@/server/server.js';
 // Re-export types so adapters/platform/index.ts import path stays unchanged
-/** Canonical Facebook Page platform identifier — imported by adapters/platform/index.ts to build the PlatformId union. */
-export const PLATFORM_ID = 'facebook-page' as const;
 export type { FacebookPageConfig, PlatformEmitter } from './types.js';
 
 import type { FacebookPageConfig, PlatformEmitter } from './types.js';

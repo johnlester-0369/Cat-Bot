@@ -7,7 +7,7 @@
  *   4. Stub with id only — ensures callers always receive a valid object
  */
 import type { Client, Guild, User } from 'discord.js';
-import { PLATFORM_ID } from '../index.js';
+import { Platforms } from '@/constants/platform.constants.js';
 // @/ alias resolves via tsc-alias at build / tsx at dev time — replaces ../../../../models/
 import { createUnifiedUserInfo } from '@/adapters/models/user.model.js';
 import type { UnifiedUserInfo } from '@/adapters/models/user.model.js';
@@ -38,14 +38,14 @@ export async function getFullUserInfo(
 
   if (!user) {
     return createUnifiedUserInfo({
-      platform: PLATFORM_ID,
+      platform: Platforms.Discord,
       id: userID,
       name: `User ${userID}`,
     });
   }
 
   return createUnifiedUserInfo({
-    platform: PLATFORM_ID,
+    platform: Platforms.Discord,
     id: user.id,
     name: user.globalName ?? user.displayName ?? user.username,
     firstName: null,

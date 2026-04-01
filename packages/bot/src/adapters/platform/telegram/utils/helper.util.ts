@@ -14,7 +14,7 @@
  *   buildTelegramMentionEntities   — builds Bot API text_mention entity array
  */
 import type { Context } from 'telegraf';
-import { PLATFORM_ID } from '../index.js';
+import { Platforms } from '@/constants/platform.constants.js';
 import type { Message, MessageEntity, PhotoSize } from 'telegraf/types';
 import type { MentionEntry } from '@/adapters/models/api.model.js';
 
@@ -118,7 +118,7 @@ export function normalizeTelegramEvent(
   return {
     // Emit 'message_reply' when user tapped "Reply" so handler and command modules can distinguish
     type: msg?.reply_to_message ? 'message_reply' : 'message',
-    platform: PLATFORM_ID,
+    platform: Platforms.Telegram,
     threadID: String(ctx.chat?.id ?? ''),
     senderID: String(ctx.from?.id ?? ''),
     // Media messages carry text in .caption, not .text — fall back so commands always have a body to parse
@@ -198,7 +198,7 @@ export function normalizeNewChatMembersEvent(
 
   return {
     type: 'event',
-    platform: PLATFORM_ID,
+    platform: Platforms.Telegram,
     threadID: String(ctx.chat?.id ?? ''),
     logMessageType: 'log:subscribe',
     logMessageData: { addedParticipants },
@@ -239,7 +239,7 @@ export function normalizeLeftChatMemberEvent(
 
   return {
     type: 'event',
-    platform: PLATFORM_ID,
+    platform: Platforms.Telegram,
     threadID: String(ctx.chat?.id ?? ''),
     logMessageType: 'log:unsubscribe',
     logMessageData: { leftParticipantFbId: String(m?.id ?? '') },
@@ -288,7 +288,7 @@ export function normalizeTelegramReactionEvent(
 
   return {
     type: 'message_reaction',
-    platform: PLATFORM_ID,
+    platform: Platforms.Telegram,
     threadID: String(mr.chat.id),
     messageID: String(mr.message_id),
     reaction: reactionEmoji,

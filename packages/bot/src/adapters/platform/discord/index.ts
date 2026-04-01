@@ -24,9 +24,6 @@ import { createDiscordClient } from './client.js';
 import { registerSlashCommands } from './slash-commands.js';
 import { attachEventHandlers } from './event-handlers.js';
 
-/** Canonical Discord platform identifier — imported by adapters/platform/index.ts to build the PlatformId union. */
-export const PLATFORM_ID = 'discord' as const;
-
 interface DiscordConfig {
   token: string;
   clientId: string;
