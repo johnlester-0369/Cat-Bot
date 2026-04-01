@@ -1,0 +1,295 @@
+/* ============================================================
+   DESIGN SYSTEM TOKENS
+   
+   All CSS custom properties for the design system scale.
+   These are global (not theme-specific) — color roles live
+   in theme/light.css and theme/dark.css.
+   
+   Token groups:
+   1. Typography (font sizes, line heights, weights, tracking)
+   2. Spacing (numeric scale + semantic aliases)
+   3. Motion (durations, easings)
+   4. Layout (z-index layers, icon sizes)
+   5. Shadows (M3 elevation system)
+   6. State layer opacity
+   ============================================================ */
+
+:root {
+  /* ==================== TYPOGRAPHY ==================== */
+  /* Font Families */
+  --font-family-brand:
+    system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-family-plain:
+    system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-family-mono:
+    ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+
+  --font-size-base: 1rem;
+
+  /* ==================== DISPLAY STYLES ==================== */
+  /* Large display text - line-height below 1.5 is acceptable per WCAG 
+    as these qualify as "large text" (24px+) with relaxed requirements */
+  --typography-display-large-font-size: calc(var(--font-size-base) * 3.5625);
+  --typography-display-large-line-height: 1.12;
+  --typography-display-large-font-weight: 400;
+  --typography-display-large-letter-spacing: -0.0156em;
+  --typography-display-medium-font-size: calc(var(--font-size-base) * 2.8125);
+  --typography-display-medium-line-height: 1.16;
+  --typography-display-medium-font-weight: 400;
+  --typography-display-medium-letter-spacing: 0em;
+  --typography-display-small-font-size: calc(var(--font-size-base) * 2.25);
+  --typography-display-small-line-height: 1.22;
+  --typography-display-small-font-weight: 400;
+  --typography-display-small-letter-spacing: 0em;
+
+  /* ==================== HEADLINE STYLES ==================== */
+  /* Headline text - qualifies as "large text" (24px+) per WCAG */
+  --typography-headline-large-font-size: calc(var(--font-size-base) * 2);
+  --typography-headline-large-line-height: 1.25;
+  --typography-headline-large-font-weight: 400;
+  --typography-headline-large-letter-spacing: 0em;
+  --typography-headline-medium-font-size: calc(var(--font-size-base) * 1.75);
+  --typography-headline-medium-line-height: 1.29;
+  --typography-headline-medium-font-weight: 400;
+  --typography-headline-medium-letter-spacing: 0em;
+  --typography-headline-small-font-size: calc(var(--font-size-base) * 1.5);
+  --typography-headline-small-line-height: 1.33;
+  --typography-headline-small-font-weight: 400;
+  --typography-headline-small-letter-spacing: 0em;
+
+  /* ==================== TITLE STYLES ==================== */
+  /* Title-large (22px) qualifies as large text - acceptable line-height */
+  --typography-title-large-font-size: calc(var(--font-size-base) * 1.375);
+  --typography-title-large-line-height: 1.27;
+  --typography-title-large-font-weight: 400;
+  --typography-title-large-letter-spacing: 0em;
+  --typography-title-medium-font-size: calc(var(--font-size-base) * 1);
+  --typography-title-medium-line-height: 1.5;
+  --typography-title-medium-font-weight: 500;
+  --typography-title-medium-letter-spacing: 0.0094em;
+  /* Title-small updated to 1.5 line-height for WCAG 2.2 compliance */
+  --typography-title-small-font-size: calc(var(--font-size-base) * 0.875);
+  --typography-title-small-line-height: 1.5;
+  --typography-title-small-font-weight: 500;
+  --typography-title-small-letter-spacing: 0.0071em;
+
+  /* ==================== BODY STYLES - WCAG 2.2 COMPLIANT ==================== */
+  /* 
+  * All body styles meet WCAG 2.2 requirements:
+  * - body-lg: 18px with 1.6 line-height (exceeds 1.5 minimum)
+  * - body-md: 16px with 1.5 line-height (meets WCAG minimum)
+  * - body-sm: 14px with 1.5 line-height (meets WCAG minimum)
+  * 
+  * Font sizes per 2026 accessibility best practices:
+  * - 16px minimum for primary body text (WCAG AA recommendation)
+  * - 14px acceptable for secondary/supplementary text
+  */
+  --typography-body-large-font-size: calc(var(--font-size-base) * 1.125);
+  /* 18px - Enhanced readability */
+  --typography-body-large-line-height: 1.6;
+  /* Optimal for extended reading */
+  --typography-body-large-font-weight: 400;
+  --typography-body-large-letter-spacing: 0.0156em;
+
+  --typography-body-medium-font-size: calc(var(--font-size-base) * 1);
+  /* 16px - WCAG minimum for body */
+  --typography-body-medium-line-height: 1.5;
+  /* WCAG 2.1/2.2 minimum */
+  --typography-body-medium-font-weight: 400;
+  --typography-body-medium-letter-spacing: 0.0156em;
+
+  --typography-body-small-font-size: calc(var(--font-size-base) * 0.875);
+  /* 14px - Secondary text */
+  --typography-body-small-line-height: 1.5;
+  /* WCAG 2.1/2.2 minimum */
+  --typography-body-small-font-weight: 400;
+  --typography-body-small-letter-spacing: 0.0179em;
+
+  /* ==================== LABEL STYLES - UPDATED FOR WCAG 2.2 ==================== */
+  /* 
+  * Label styles updated January 2026 for improved accessibility:
+  * - All label line-heights now 1.5 for consistency with WCAG 2.2
+  * - Improves readability of buttons, form labels, and UI elements
+  * - label-sm remains at 12px (minimum readable size for UI elements)
+  */
+  --typography-label-large-font-size: calc(var(--font-size-base) * 0.875);
+  /* 14px */
+  --typography-label-large-line-height: 1.5;
+  /* Updated from 1.43 */
+  --typography-label-large-font-weight: 500;
+  --typography-label-large-letter-spacing: 0.0071em;
+
+  --typography-label-medium-font-size: calc(var(--font-size-base) * 0.8125);
+  /* 13px */
+  --typography-label-medium-line-height: 1.5;
+  /* Updated from 1.38 */
+  --typography-label-medium-font-weight: 500;
+  --typography-label-medium-letter-spacing: 0.0385em;
+
+  --typography-label-small-font-size: calc(var(--font-size-base) * 0.75);
+  /* 12px - Minimum readable */
+  --typography-label-small-line-height: 1.5;
+  /* Already compliant */
+  --typography-label-small-font-weight: 500;
+  --typography-label-small-letter-spacing: 0.0417em;
+
+  /* ==================== SPACING ==================== */
+  --spacing-base: 0.25rem;
+
+  /* Spacing Scale */
+  --spacing-0: 0;
+  --spacing-1: calc(var(--spacing-base) * 1);
+  --spacing-2: calc(var(--spacing-base) * 2);
+  --spacing-3: calc(var(--spacing-base) * 3);
+  --spacing-4: calc(var(--spacing-base) * 4);
+  --spacing-5: calc(var(--spacing-base) * 5);
+  --spacing-6: calc(var(--spacing-base) * 6);
+  --spacing-7: calc(var(--spacing-base) * 7);
+  --spacing-8: calc(var(--spacing-base) * 8);
+  --spacing-9: calc(var(--spacing-base) * 9);
+  --spacing-10: calc(var(--spacing-base) * 10);
+  --spacing-11: calc(var(--spacing-base) * 11);
+  --spacing-12: calc(var(--spacing-base) * 12);
+  --spacing-14: calc(var(--spacing-base) * 14);
+  --spacing-16: calc(var(--spacing-base) * 16);
+  --spacing-20: calc(var(--spacing-base) * 20);
+  --spacing-24: calc(var(--spacing-base) * 24);
+  --spacing-28: calc(var(--spacing-base) * 28);
+  --spacing-32: calc(var(--spacing-base) * 32);
+  --spacing-36: calc(var(--spacing-base) * 36);
+  --spacing-40: calc(var(--spacing-base) * 40);
+  --spacing-44: calc(var(--spacing-base) * 44);
+  --spacing-48: calc(var(--spacing-base) * 48);
+  --spacing-52: calc(var(--spacing-base) * 52);
+  --spacing-56: calc(var(--spacing-base) * 56);
+  --spacing-60: calc(var(--spacing-base) * 60);
+  --spacing-64: calc(var(--spacing-base) * 64);
+  --spacing-72: calc(var(--spacing-base) * 72);
+  --spacing-80: calc(var(--spacing-base) * 80);
+  --spacing-96: calc(var(--spacing-base) * 96);
+
+  /* ==================== MOTION ==================== */
+  /* Duration Scale */
+  --duration-short1: 50ms;
+  --duration-short2: 100ms;
+  --duration-short3: 150ms;
+  --duration-short4: 200ms;
+  --duration-medium1: 250ms;
+  --duration-medium2: 300ms;
+  --duration-medium3: 350ms;
+  --duration-medium4: 400ms;
+  --duration-long1: 450ms;
+  --duration-long2: 500ms;
+  --duration-long3: 550ms;
+  --duration-long4: 600ms;
+  --duration-extra-long1: 700ms;
+  --duration-extra-long2: 800ms;
+  --duration-extra-long3: 900ms;
+  --duration-extra-long4: 1000ms;
+
+  /* Semantic Durations */
+  --duration-instant: 50ms;
+  --duration-fast: 150ms;
+  --duration-normal: 300ms;
+  --duration-slow: 400ms;
+  --duration-slower: 500ms;
+  --duration-tooltip: 100ms;
+  --duration-fade: 150ms;
+  --duration-slide: 300ms;
+  --duration-expand: 350ms;
+  --duration-collapse: 300ms;
+  --duration-modal: 350ms;
+  --duration-page: 500ms;
+
+  /* Easing Curves */
+  --easing-linear: cubic-bezier(0, 0, 1, 1);
+  --easing-standard: cubic-bezier(0.2, 0, 0, 1);
+  --easing-standard-decelerate: cubic-bezier(0, 0, 0, 1);
+  --easing-standard-accelerate: cubic-bezier(0.3, 0, 1, 1);
+  --easing-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  --easing-emphasized-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --easing-emphasized-accelerate: cubic-bezier(0.3, 0, 0.8, 0.15);
+  --easing-ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --easing-ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --easing-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ==================== LAYOUT ==================== */
+  /* Z-Index Layers */
+  --z-deep: -999;
+  --z-base: 0;
+  --z-raised: 10;
+  --z-sticky: 100;
+  --z-fixed: 200;
+  --z-drawer: 300;
+  --z-dropdown: 400;
+  --z-modal-backdrop: 450;
+  --z-modal: 500;
+  --z-popover: 600;
+  --z-tooltip: 700;
+  --z-notification: 800;
+  --z-overlay: 900;
+  --z-max: 9999;
+
+  /* ==================== SHADOWS ==================== */
+  /* M3 Elevation Levels */
+  --shadow-elevation-0: none;
+  --shadow-elevation-1:
+    0px 1px 2px 0px rgb(var(--color-shadow) / 0.3),
+    0px 1px 3px 1px rgb(var(--color-shadow) / 0.15);
+  --shadow-elevation-2:
+    0px 1px 2px 0px rgb(var(--color-shadow) / 0.3),
+    0px 2px 6px 2px rgb(var(--color-shadow) / 0.15);
+  --shadow-elevation-3:
+    0px 1px 3px 0px rgb(var(--color-shadow) / 0.3),
+    0px 4px 8px 3px rgb(var(--color-shadow) / 0.15);
+  --shadow-elevation-4:
+    0px 2px 3px 0px rgb(var(--color-shadow) / 0.3),
+    0px 6px 10px 4px rgb(var(--color-shadow) / 0.15);
+  --shadow-elevation-5:
+    0px 4px 4px 0px rgb(var(--color-shadow) / 0.3),
+    0px 8px 12px 6px rgb(var(--color-shadow) / 0.15);
+
+  /* Elevation Variants */
+  --shadow-elevation-1-soft:
+    0px 1px 3px 0px rgb(var(--color-shadow) / 0.21),
+    0px 1px 5px 1px rgb(var(--color-shadow) / 0.105);
+  --shadow-elevation-1-medium:
+    0px 1px 2px 0px rgb(var(--color-shadow) / 0.3),
+    0px 1px 3px 1px rgb(var(--color-shadow) / 0.15);
+  --shadow-elevation-1-hard:
+    0px 1px 1px 0px rgb(var(--color-shadow) / 0.39),
+    0px 1px 2px 1px rgb(var(--color-shadow) / 0.195);
+  --shadow-elevation-2-soft:
+    0px 1px 3px 0px rgb(var(--color-shadow) / 0.21),
+    0px 2px 9px 2px rgb(var(--color-shadow) / 0.105);
+  --shadow-elevation-2-medium:
+    0px 1px 2px 0px rgb(var(--color-shadow) / 0.3),
+    0px 2px 6px 2px rgb(var(--color-shadow) / 0.15);
+  --shadow-elevation-2-hard:
+    0px 1px 1px 0px rgb(var(--color-shadow) / 0.39),
+    0px 2px 4px 2px rgb(var(--color-shadow) / 0.195);
+  --shadow-elevation-3-soft:
+    0px 1px 5px 0px rgb(var(--color-shadow) / 0.21),
+    0px 4px 12px 3px rgb(var(--color-shadow) / 0.105);
+  --shadow-elevation-3-medium:
+    0px 1px 3px 0px rgb(var(--color-shadow) / 0.3),
+    0px 4px 8px 3px rgb(var(--color-shadow) / 0.15);
+  --shadow-elevation-3-hard:
+    0px 1px 2px 0px rgb(var(--color-shadow) / 0.39),
+    0px 4px 5px 3px rgb(var(--color-shadow) / 0.195);
+
+  /* Special Shadows */
+  --shadow-inner: inset 0 2px 4px 0 rgb(0 0 0 / 0.05);
+  --shadow-inner-lg: inset 0 4px 6px 0 rgb(0 0 0 / 0.1);
+  --shadow-glow-sm: 0 0 8px rgb(var(--color-primary) / 0.3);
+  --shadow-glow-md: 0 0 16px rgb(var(--color-primary) / 0.4);
+  --shadow-glow-lg: 0 0 24px rgb(var(--color-primary) / 0.5);
+
+  /* ==================== STATE LAYER OPACITY ==================== */
+  --state-hover-opacity: 0.08;
+  --state-focus-opacity: 0.12;
+  --state-pressed-opacity: 0.12;
+  --state-dragged-opacity: 0.16;
+  --state-disabled-opacity: 0.38;
+  --state-disabled-container-opacity: 0.12;
+}
