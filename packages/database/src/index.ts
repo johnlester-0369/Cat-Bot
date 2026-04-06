@@ -47,6 +47,9 @@ export const findAllFbPageCredentials: typeof p_cred.findAllFbPageCredentials = 
 export const findAllFbMessengerCredentials: typeof p_cred.findAllFbMessengerCredentials = (...args) => isJson ? j_cred.findAllFbMessengerCredentials(...args) : p_cred.findAllFbMessengerCredentials(...args);
 export const findAllBotSessions: typeof p_cred.findAllBotSessions = (...args) => isJson ? j_cred.findAllBotSessions(...args) : p_cred.findAllBotSessions(...args);
 export const isBotAdmin: typeof p_cred.isBotAdmin = (...args) => isJson ? j_cred.isBotAdmin(...args) : p_cred.isBotAdmin(...args);
+export const addBotAdmin: typeof p_cred.addBotAdmin = (...args) => isJson ? j_cred.addBotAdmin(...args) : p_cred.addBotAdmin(...args);
+export const removeBotAdmin: typeof p_cred.removeBotAdmin = (...args) => isJson ? j_cred.removeBotAdmin(...args) : p_cred.removeBotAdmin(...args);
+export const listBotAdmins: typeof p_cred.listBotAdmins = (...args) => isJson ? j_cred.listBotAdmins(...args) : p_cred.listBotAdmins(...args);
 
 // --- THREADS ---
 export const upsertThread: typeof p_thr.upsertThread = (...args) => isJson ? j_thr.upsertThread(...args) : p_thr.upsertThread(...args);

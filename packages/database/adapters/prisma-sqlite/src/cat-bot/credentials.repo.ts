@@ -45,3 +45,33 @@ export async function isBotAdmin(userId: string, platform: string, sessionId: st
   });
   return row !== null;
 }
+
+export async function addBotAdmin(userId: string, platform: string, sessionId: string, adminId: string): Promise<void> {
+  const platformId = toPlatformNumericId(platform);
+  // upsert instead of create — idempotent when the same uid is added twice; avoids
+  // unique-constraint violations if the dashboard and an in-chat /admin add race.
+  await prisma.botAdmin.upsert({
+    where: { userId_platformId_sessionId_adminId: { userId, platformId, sessionId, adminId } },
+    create: { userId, platformId, sessionId, adminId },
+    update: {},
+  });
+}
+
+export async function removeBotAdmin(userId: string, platform: string, sessionId: string, adminId: string): Promise<void> {
+  const platformId = toPlatformNumericId(platform);
+  // deleteMany instead of delete — avoids Prisma P2025 "record not found" when the uid
+  // was never registered; the caller treats a no-op as a success (already not an admin).
+  await prisma.botAdmin.deleteMany({
+    where: { userId, platformId, sessionId, adminId },
+  });
+}
+
+export async function listBotAdmins(userId: string, platform: string, sessionId: string): Promise<string[]> {
+  const platformId = toPlatformNumericId(platform);
+  const rows = await prisma.botAdmin.findMany({
+    where: { userId, platformId, sessionId },
+    select: { adminId: true },
+    orderBy: { adminId: 'asc' },
+  });
+  return rows.map((r) => r.adminId);
+}

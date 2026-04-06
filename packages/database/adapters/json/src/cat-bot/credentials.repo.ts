@@ -48,3 +48,29 @@ export async function isBotAdmin(userId: string, platform: string, sessionId: st
   const platformId = toPlatformNumericId(platform);
   return db.botAdmin.some((a: any) => a.userId === userId && a.platformId === platformId && a.sessionId === sessionId && a.adminId === adminId);
 }
+
+export async function addBotAdmin(userId: string, platform: string, sessionId: string, adminId: string): Promise<void> {
+  const db = await getDb();
+  const platformId = toPlatformNumericId(platform);
+  // Guard prevents duplicate entries — mirrors Prisma upsert's idempotent contract.
+  const exists = db.botAdmin.some((a: any) => a.userId === userId && a.platformId === platformId && a.sessionId === sessionId && a.adminId === adminId);
+  if (!exists) db.botAdmin.push({ userId, platformId, sessionId, adminId });
+  await saveDb();
+}
+
+export async function removeBotAdmin(userId: string, platform: string, sessionId: string, adminId: string): Promise<void> {
+  const db = await getDb();
+  const platformId = toPlatformNumericId(platform);
+  // filter replaces the array in-place — no error when the record is absent (mirrors Prisma deleteMany).
+  db.botAdmin = db.botAdmin.filter((a: any) => !(a.userId === userId && a.platformId === platformId && a.sessionId === sessionId && a.adminId === adminId));
+  await saveDb();
+}
+
+export async function listBotAdmins(userId: string, platform: string, sessionId: string): Promise<string[]> {
+  const db = await getDb();
+  const platformId = toPlatformNumericId(platform);
+  return db.botAdmin
+    .filter((a: any) => a.userId === userId && a.platformId === platformId && a.sessionId === sessionId)
+    .map((a: any) => a.adminId as string)
+    .sort();
+}
