@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import '@/styles/globals.css'
 import { ThemeProvider } from '@/contexts/ThemeContext'
+import { HelmetProvider } from '@dr.pogodin/react-helmet'
 import { UserAuthProvider } from '@/contexts/UserAuthContext'
 import { getInitialTheme, applyTheme } from '@/utils/theme.util'
 import { SnackbarProvider } from '@/contexts/SnackbarContext'
@@ -17,11 +18,13 @@ initTheme()
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ThemeProvider>
-      <UserAuthProvider>
-        <SnackbarProvider position="bottom-center" defaultDuration={4000}>
-          <App />
-        </SnackbarProvider>
-      </UserAuthProvider>
+      <HelmetProvider>
+        <UserAuthProvider>
+          <SnackbarProvider position="bottom-center" defaultDuration={4000}>
+            <App />
+          </SnackbarProvider>
+        </UserAuthProvider>
+      </HelmetProvider>
     </ThemeProvider>
   </StrictMode>,
 )
