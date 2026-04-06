@@ -11,7 +11,12 @@ export async function findDiscordCredentialState(userId: string, sessionId: stri
 export async function updateDiscordCredentialCommandHash(userId: string, sessionId: string, data: { isCommandRegister: boolean; commandHash: string }): Promise<void> {
   const db = await getDb();
   const rec = db.botCredentialDiscord.find((c: any) => c.userId === userId && c.platformId === PLATFORM_TO_ID[Platforms.Discord] && c.sessionId === sessionId);
-  if (rec) { rec.isCommandRegister = data.isCommandRegister; rec.commandHash = data.commandHash; await saveDb(); }
+  // Mirror Prisma's update() which throws P2025 when the record is absent —
+  // a missing credential at this call site means something is structurally wrong upstream.
+  if (!rec) throw new Error('Credential record not found');
+  rec.isCommandRegister = data.isCommandRegister;
+  rec.commandHash = data.commandHash;
+  await saveDb();
 }
 
 export async function findAllDiscordCredentials(): Promise<any[]> { const db = await getDb(); return [...db.botCredentialDiscord]; }
@@ -25,7 +30,12 @@ export async function findTelegramCredentialState(userId: string, sessionId: str
 export async function updateTelegramCredentialCommandHash(userId: string, sessionId: string, data: { isCommandRegister: boolean; commandHash: string }): Promise<void> {
   const db = await getDb();
   const rec = db.botCredentialTelegram.find((c: any) => c.userId === userId && c.platformId === PLATFORM_TO_ID[Platforms.Telegram] && c.sessionId === sessionId);
-  if (rec) { rec.isCommandRegister = data.isCommandRegister; rec.commandHash = data.commandHash; await saveDb(); }
+  // Mirror Prisma's update() which throws P2025 when the record is absent —
+  // a missing credential at this call site means something is structurally wrong upstream.
+  if (!rec) throw new Error('Credential record not found');
+  rec.isCommandRegister = data.isCommandRegister;
+  rec.commandHash = data.commandHash;
+  await saveDb();
 }
 
 export async function findAllTelegramCredentials(): Promise<any[]> { const db = await getDb(); return [...db.botCredentialTelegram]; }
