@@ -13,6 +13,7 @@ import { auth } from '@/server/lib/better-auth.lib.js';
 import cors from 'cors';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import fs from 'node:fs';
 
 import facebookPageRoutes from './routes/v1/facebook-page.routes.js';
 import apiV1Router from './routes/v1/index.js';
@@ -67,9 +68,9 @@ export function createApp(): Application {
     res.json({ status: "ok" });
   });
 
-  // Serve SPA in production — fallback for React Router
-  if (process.env.NODE_ENV === 'production') {
-    const webDistPath = path.resolve(__dirname, '../../../web/dist');
+  // Serve SPA if the built dist folder exists — fallback for React Router
+  const webDistPath = path.resolve(__dirname, '../../../web/dist');
+  if (fs.existsSync(webDistPath)) {
     app.use(express.static(webDistPath));
     app.get('/{*splat}', (req, res) => {
       res.sendFile(path.join(webDistPath, 'index.html'));
