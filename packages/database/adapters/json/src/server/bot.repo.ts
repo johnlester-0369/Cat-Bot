@@ -8,7 +8,9 @@ export class BotRepo {
     const platformId = (PLATFORM_TO_ID as Record<string, number>)[dto.credentials.platform] ?? (PLATFORM_TO_ID as Record<string, number>)[dto.credentials.platform.replace('_', '-')];
     if (platformId === undefined) throw new Error(`Unknown platform ${dto.credentials.platform}`);
 
-    db.botSession.push({ userId, platformId, sessionId, nickname: dto.botNickname, prefix: dto.botPrefix, isRunning: false });
+    // isRunning: true mirrors the Prisma schema's @default(true) so session-loader.util.ts
+    // includes this session in runningKeys on first boot without requiring an explicit API start call.
+    db.botSession.push({ userId, platformId, sessionId, nickname: dto.botNickname, prefix: dto.botPrefix, isRunning: true });
     for (const adminId of dto.botAdmins) db.botAdmin.push({ userId, platformId, sessionId, adminId });
 
     const creds = dto.credentials;
