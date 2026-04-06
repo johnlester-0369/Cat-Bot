@@ -23,7 +23,7 @@
 import type { MiddlewareFn, OnCommandCtx } from '@/engine/types/middleware.types.js';
 import { OptionsMap } from '@/engine/lib/options-map.lib.js';
 import type { OptionDef } from '@/engine/lib/options-map.lib.js';
-import { parseTextOptions, validateOptions } from '@/engine/utils/options.util.js';
+import { parseTextOptions } from '@/engine/utils/options.util.js';
 // Cooldown state delegated to lib/ — mirrors reply-state.lib.ts pattern;
 // this middleware file stays free of mutable Map declarations.
 import { cooldownStore } from '@/engine/lib/cooldown.lib.js';
@@ -109,24 +109,13 @@ export const validateCommandOptions: MiddlewareFn<OnCommandCtx> =
           ? new OptionsMap(preBuilt)
           : new OptionsMap(
               parseTextOptions(
-                (ctx.event['message'] ?? ctx.event['body'] ?? '') as string,
+        (ctx.event['message'] ?? ctx.event['body'] ?? '') as string,
                 optionDefs,
               ),
             );
 
-      // Reject before the handler executes — avoids the onCommand handler needing its
-      // own guard on options.get() returning undefined for required fields.
-      const errorMsg = validateOptions(
-        options,
-        optionDefs,
-        ctx.parsed.name,
-        ctx.prefix,
-      );
-      if (errorMsg !== null) {
-        await ctx.chat.replyMessage({ message: errorMsg });
-        return; // Do NOT call next() — chain halts; handler never runs
-      }
-
+      // Options are parsed and available on ctx.options — validation errors are intentionally
+      // suppressed so command handlers receive options as-is and decide how to handle missing values.
       ctx.options = options;
     } else {
       // No options defined — set empty map so the handler always has ctx.options available.
