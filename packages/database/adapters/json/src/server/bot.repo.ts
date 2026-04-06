@@ -57,6 +57,9 @@ export class BotRepo {
     const platformId = (PLATFORM_TO_ID as Record<string, number>)[dto.credentials.platform] ?? (PLATFORM_TO_ID as Record<string, number>)[dto.credentials.platform.replace('_', '-')];
     const session = db.botSession.find((s: any) => s.userId === userId && s.sessionId === sessionId);
     if (!session) throw new Error('Bot not found');
+    // Guard matches Prisma: admin deletions and credential updates use the incoming platformId,
+    // so silently proceeding when it differs would corrupt those rows for the wrong platform.
+    if (session.platformId !== platformId) throw new Error('Platform cannot be changed after bot creation.');
     
     session.nickname = dto.botNickname;
     session.prefix = dto.botPrefix;
