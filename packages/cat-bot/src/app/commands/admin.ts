@@ -19,6 +19,20 @@ export const config = {
   usage: '<add|list|delete> [uid]',
   cooldown: 5,
   hasPrefix: true,
+  options: [
+    {
+      type: 'string',
+      name: 'action',
+      description: 'Action to perform: add, list, or delete',
+      required: true,
+    },
+    {
+      type: 'string',
+      name: 'uid',
+      description: 'Platform user ID (required for add and delete actions)',
+      required: false,
+    },
+  ],
 };
 
 export const onCommand = async ({
