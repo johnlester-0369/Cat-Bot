@@ -78,11 +78,11 @@ export default function LoginPage() {
       <div className="w-full max-w-md flex flex-col gap-8">
         {/* Header */}
         <div className="text-center flex flex-col gap-2">
-          <h1 className="text-headline-md font-medium text-on-surface">
-            Welcome back
+          <h1 className="text-headline-md font-medium text-on-surface font-brand">
+            Welcome back to Cat-Bot
           </h1>
-          <p className="text-body-md text-on-surface-variant">
-            Sign in to your Cat-Bot account.
+          <p className="text-body-md text-on-surface-variant max-w-sm mx-auto">
+            Sign in to manage your bots across Discord, Telegram, and Facebook.
           </p>
         </div>
 

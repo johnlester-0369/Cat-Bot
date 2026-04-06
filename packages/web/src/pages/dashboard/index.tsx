@@ -92,11 +92,35 @@ function getPlatformIcon(platform: string) {
     case 'telegram':
       return <TelegramIcon className={iconClass} />
     case 'facebook-page':
+    case 'facebook_page':
       return <FacebookPageIcon className={iconClass} />
     case 'facebook-messenger':
+    case 'facebook_messenger':
       return <FacebookMessengerIcon className={iconClass} />
     default:
       return <Bot className={iconClass} />
+  }
+}
+
+// ============================================================================
+// Platform Brand Colors
+// ============================================================================
+
+// Map platforms to their official brand colors, mirroring the Home page aesthetics
+function getPlatformColors(platform: string) {
+  switch (platform) {
+    case 'discord':
+      return 'bg-[#5865F2]/10 text-[#5865F2]'
+    case 'telegram':
+      return 'bg-[#26A5E4]/10 text-[#26A5E4]'
+    case 'facebook-page':
+    case 'facebook_page':
+      return 'bg-[#0866FF]/10 text-[#0866FF]'
+    case 'facebook-messenger':
+    case 'facebook_messenger':
+      return 'bg-[#0084FF]/10 text-[#0084FF]'
+    default:
+      return 'bg-primary-container text-on-primary-container'
   }
 }
 
@@ -116,6 +140,7 @@ function BotCard({
 }) {
   const statusColor = isActive ? ('success' as const) : ('error' as const)
   const statusLabel = isActive ? 'Online' : 'Offline'
+  const platformColors = getPlatformColors(bot.platform)
 
   return (
     <Card.Root
@@ -128,7 +153,7 @@ function BotCard({
       {/* Identity + live status */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-3 min-w-0">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-container text-on-primary-container">
+          <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${platformColors}`}>
             {getPlatformIcon(bot.platform)}
           </span>
           <div className="min-w-0">

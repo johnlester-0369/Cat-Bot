@@ -143,6 +143,10 @@ const TabsList: React.FC<TabsListProps> = ({
       className={cn(
         'flex',
         orientation === 'vertical' ? 'flex-col' : 'flex-row',
+        // Horizontal scroll for viewports too narrow to show all tabs (e.g. mobile with 4+ tabs).
+        // scrollbar-width:none (Firefox) + webkit pseudo-element (Chrome/Safari/Edge) hide the
+        // scrollbar visually — touch swipe and mouse wheel still scroll the list.
+        orientation === 'horizontal' && 'overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
         variant === 'line' && orientation === 'horizontal' && 'gap-6',
         variant === 'line' && orientation === 'vertical' && 'gap-2',
         variant === 'enclosed' && 'gap-1',
@@ -238,7 +242,7 @@ const Tab: React.FC<TabProps> = ({
   // Base styles that apply to all variants
   const baseStyles = cn(
     'relative inline-flex items-center gap-2 px-4 py-2 text-label-lg font-medium transition-all duration-fast',
-    'whitespace-nowrap',
+    'whitespace-nowrap shrink-0',
     disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer',
   )
 

@@ -7,6 +7,8 @@ import Button from '@/components/ui/buttons/Button'
 import IconButton from '@/components/ui/buttons/IconButton'
 import UILink from '@/components/ui/typography/Link'
 import { cn } from '@/utils/cn.util'
+import { useUserAuth } from '@/contexts/UserAuthContext'
+import { ROUTES } from '@/constants/routes.constants'
 
 /**
  * Public shell rendered on marketing and auth routes (/, /login, /signup).
@@ -24,6 +26,7 @@ import { cn } from '@/utils/cn.util'
 export default function Layout() {
   const { theme, setTheme } = useTheme()
   const location = useLocation()
+  const { isAuthenticated } = useUserAuth()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [prevPath, setPrevPath] = useState(location.pathname)
 
@@ -82,27 +85,42 @@ export default function Layout() {
               onClick={() => setTheme(toggleTheme(theme))}
             />
 
-            {/* Outline variant on the active auth link signals "current page" */}
-            <Button
-              as={Link}
-              to="/login"
-              variant={isLogin ? 'tonal' : 'outline'}
-              color="primary"
-              size="sm"
-            >
-              Log in
-            </Button>
+            {isAuthenticated ? (
+              // Streamline UX: Users with active sessions skip the login flow
+              <Button
+                as={Link}
+                to={ROUTES.DASHBOARD.ROOT}
+                variant="filled"
+                color="primary"
+                size="sm"
+              >
+                Go to Dashboard
+              </Button>
+            ) : (
+              <>
+                {/* Outline variant on the active auth link signals "current page" */}
+                <Button
+                  as={Link}
+                  to="/login"
+                  variant={isLogin ? 'tonal' : 'outline'}
+                  color="primary"
+                  size="sm"
+                >
+                  Log in
+                </Button>
 
-            {/* Filled CTA for maximum visual weight on the primary acquisition action */}
-            <Button
-              as={Link}
-              to="/signup"
-              variant={isSignup ? 'tonal' : 'filled'}
-              color="primary"
-              size="sm"
-            >
-              Sign up
-            </Button>
+                {/* Filled CTA for maximum visual weight on the primary acquisition action */}
+                <Button
+                  as={Link}
+                  to="/signup"
+                  variant={isSignup ? 'tonal' : 'filled'}
+                  color="primary"
+                  size="sm"
+                >
+                  Sign up
+                </Button>
+              </>
+            )}
           </div>
 
           {/* ── Mobile controls: theme toggle + hamburger (<md) ── */}
@@ -146,26 +164,42 @@ export default function Layout() {
           >
             <div className="max-w-6xl mx-auto px-6 py-4 flex flex-col gap-3">
               {/* Full-width buttons give generous touch targets on narrow viewports */}
-              <Button
-                as={Link}
-                to="/login"
-                variant={isLogin ? 'tonal' : 'outline'}
-                color="primary"
-                size="md"
-                className="w-full justify-center"
-              >
-                Log in
-              </Button>
-              <Button
-                as={Link}
-                to="/signup"
-                variant={isSignup ? 'tonal' : 'filled'}
-                color="primary"
-                size="md"
-                className="w-full justify-center"
-              >
-                Sign up
-              </Button>
+              {isAuthenticated ? (
+                // Direct navigation to dashboard for authenticated mobile users
+                <Button
+                  as={Link}
+                  to={ROUTES.DASHBOARD.ROOT}
+                  variant="filled"
+                  color="primary"
+                  size="md"
+                  className="w-full justify-center"
+                >
+                  Go to Dashboard
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    as={Link}
+                    to="/login"
+                    variant={isLogin ? 'tonal' : 'outline'}
+                    color="primary"
+                    size="md"
+                    className="w-full justify-center"
+                  >
+                    Log in
+                  </Button>
+                  <Button
+                    as={Link}
+                    to="/signup"
+                    variant={isSignup ? 'tonal' : 'filled'}
+                    color="primary"
+                    size="md"
+                    className="w-full justify-center"
+                  >
+                    Sign up
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         )}
