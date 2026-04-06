@@ -104,11 +104,11 @@ export default function SignupPage() {
       <div className="w-full max-w-md flex flex-col gap-8">
         {/* Header */}
         <div className="text-center flex flex-col gap-2">
-          <h1 className="text-headline-md font-medium text-on-surface">
-            Create your account
+          <h1 className="text-headline-md font-medium text-on-surface font-brand">
+            Start building with Cat-Bot
           </h1>
-          <p className="text-body-md text-on-surface-variant">
-            Start chatting with Cat-Bot in seconds.
+          <p className="text-body-md text-on-surface-variant max-w-sm mx-auto">
+            Deploy bots across Discord, Telegram, and Facebook in minutes — all from one dashboard.
           </p>
         </div>
 
