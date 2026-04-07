@@ -32,6 +32,7 @@ import { cooldownStore } from '@/engine/lib/cooldown.lib.js';
 import { isThreadAdmin } from '@/engine/repos/threads.repo.js';
 import { isBotAdmin } from '@/engine/repos/credentials.repo.js';
 import { Role } from '@/engine/constants/role.constants.js';
+import { isUserBanned, isThreadBanned } from '@/engine/repos/banned.repo.js';
 
 // ── Cooldown Enforcement ─────────────────────────────────────────────────────
 
@@ -193,3 +194,34 @@ export const enforcePermission: MiddlewareFn<OnCommandCtx> = async function (
   await next();
 };
 
+
+// ── Ban Enforcement ───────────────────────────────────────────────────────────
+
+/**
+ * Silently drops commands from banned users or threads — no error reply is sent
+ * so banned actors cannot probe for their ban status. Runs FIRST in the onCommand
+ * chain so no cooldown window is consumed and no option parsing is wasted on a
+ * rejected invocation.
+ *
+ * Fail-open: isUserBanned / isThreadBanned return false on any DB error so a
+ * temporary outage never locks out legitimate users.
+ */
+export const enforceNotBanned: MiddlewareFn<OnCommandCtx> = async function (
+  ctx,
+  next,
+): Promise<void> {
+  const sessionUserId = ctx.native.userId ?? '';
+  const sessionId = ctx.native.sessionId ?? '';
+  const platform = ctx.native.platform;
+
+  // Without session identity we cannot resolve ban records; fail-open and proceed
+  if (!sessionUserId || !sessionId) { await next(); return; }
+
+  const senderID = (ctx.event['senderID'] ?? ctx.event['userID'] ?? '') as string;
+  const threadID = (ctx.event['threadID'] ?? '') as string;
+
+  if (senderID && await isUserBanned(sessionUserId, platform, sessionId, senderID)) return;
+  if (threadID && await isThreadBanned(sessionUserId, platform, sessionId, threadID)) return;
+
+  await next();
+};

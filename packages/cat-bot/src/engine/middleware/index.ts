@@ -31,6 +31,7 @@ import {
   validateCommandOptions,
   enforceCooldown,
   enforcePermission,
+  enforceNotBanned,
 } from './on-command.middleware.js';
 import { chatPassthrough, chatLogThread } from './on-chat.middleware.js';
 import { replyStateValidation } from './on-reply.middleware.js';
@@ -39,6 +40,9 @@ import { reactStateValidation } from './on-react.middleware.js';
 // ── Default middleware pipeline ────────────────────────────────────────────────
 
 use.onCommand([
+  // Ban check is the outermost gate — banned users/threads never reach permission
+  // checks, cooldown windows, or option parsing, eliminating all wasted processing.
+  enforceNotBanned,
   // Permission check runs first — an unauthorised user is rejected before their
   // cooldown window is consumed or option parsing wastes CPU on a denied request.
   enforcePermission,
