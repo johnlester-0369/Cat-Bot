@@ -7,7 +7,7 @@ export const config = {
   version: '1.0.0',
   role: Role.ANYONE,
   author: 'John Lester',
-  description: "Replies with the sender's platform user ID",
+  description: "Replies with the sender's platform user ID, or the replied user's ID",
   category: 'Info',
   usage: '',
   cooldown: 5,
@@ -21,8 +21,15 @@ export const onCommand = async ({
   chat: ChatContext;
   event: Record<string, unknown>;
 }): Promise<void> => {
-  const senderID = event['senderID'] as string | undefined;
+  const messageReply = event['messageReply'] as Record<string, unknown> | undefined;
+  
+  // Extract replied message's sender ID if available; otherwise fallback to the command sender
+  const targetID = (messageReply?.['senderID'] as string | undefined) ?? (event['senderID'] as string | undefined);
+  const isReply = !!messageReply?.['senderID'];
+
   await chat.replyMessage({
-    message: senderID ? `Your user ID: ${senderID}` : '❌ Could not resolve sender ID for this platform.',
+    message: targetID 
+      ? (isReply ? `Replied user ID: ${targetID}` : `Your user ID: ${targetID}`) 
+      : '❌ Could not resolve user ID for this platform.',
   });
 };
