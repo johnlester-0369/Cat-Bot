@@ -2,6 +2,7 @@ import { prisma } from '../index.js';
 import type { BotCredentialDiscord, BotCredentialTelegram, BotCredentialFacebookPage, BotCredentialFacebookMessenger, BotSession } from '../index.js';
 import { Platforms, PLATFORM_TO_ID } from '@cat-bot/engine/constants/platform.constants.js';
 import { toPlatformNumericId } from '@cat-bot/engine/utils/platform-id.util.js';
+import { decrypt } from '@cat-bot/engine/utils/crypto.util.js';
 
 export async function findDiscordCredentialState(userId: string, sessionId: string): Promise<{ isCommandRegister: boolean; commandHash: string | null } | null> {
   return prisma.botCredentialDiscord.findUnique({
@@ -17,7 +18,7 @@ export async function updateDiscordCredentialCommandHash(userId: string, session
   });
 }
 
-export async function findAllDiscordCredentials(): Promise<BotCredentialDiscord[]> { return prisma.botCredentialDiscord.findMany(); }
+export async function findAllDiscordCredentials(): Promise<BotCredentialDiscord[]> { const rows = await prisma.botCredentialDiscord.findMany(); return rows.map(r => ({ ...r, discordToken: decrypt(r.discordToken) })); }
 
 export async function findTelegramCredentialState(userId: string, sessionId: string): Promise<{ isCommandRegister: boolean; commandHash: string | null } | null> {
   return prisma.botCredentialTelegram.findUnique({
@@ -33,9 +34,9 @@ export async function updateTelegramCredentialCommandHash(userId: string, sessio
   });
 }
 
-export async function findAllTelegramCredentials(): Promise<BotCredentialTelegram[]> { return prisma.botCredentialTelegram.findMany(); }
-export async function findAllFbPageCredentials(): Promise<BotCredentialFacebookPage[]> { return prisma.botCredentialFacebookPage.findMany(); }
-export async function findAllFbMessengerCredentials(): Promise<BotCredentialFacebookMessenger[]> { return prisma.botCredentialFacebookMessenger.findMany(); }
+export async function findAllTelegramCredentials(): Promise<BotCredentialTelegram[]> { const rows = await prisma.botCredentialTelegram.findMany(); return rows.map(r => ({ ...r, telegramToken: decrypt(r.telegramToken) })); }
+export async function findAllFbPageCredentials(): Promise<BotCredentialFacebookPage[]> { const rows = await prisma.botCredentialFacebookPage.findMany(); return rows.map(r => ({ ...r, fbAccessToken: decrypt(r.fbAccessToken) })); }
+export async function findAllFbMessengerCredentials(): Promise<BotCredentialFacebookMessenger[]> { const rows = await prisma.botCredentialFacebookMessenger.findMany(); return rows.map(r => ({ ...r, appstate: decrypt(r.appstate) })); }
 export async function findAllBotSessions(): Promise<BotSession[]> { return prisma.botSession.findMany(); }
 
 export async function isBotAdmin(userId: string, platform: string, sessionId: string, adminId: string): Promise<boolean> {
