@@ -33,6 +33,7 @@ import {
   createBotContext,
   createUserContext,
 } from '@/engine/adapters/models/context.model.js';
+import { OptionsMap } from '@/engine/lib/options-map.lib.js';
 
 interface AttachEventHandlersOptions {
   client: Client;
@@ -188,6 +189,9 @@ export async function attachEventHandlers(
       bot,
       user,
       logger: sessionLogger,
+      parsed: { name: commandName, args },
+      mod,
+      options: new OptionsMap(optionsRecord),
     };
 
     await dispatchCommand(
