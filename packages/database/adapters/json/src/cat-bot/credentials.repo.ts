@@ -1,6 +1,7 @@
 import { getDb, saveDb } from '../store.js';
 import { Platforms, PLATFORM_TO_ID } from '@cat-bot/engine/constants/platform.constants.js';
 import { toPlatformNumericId } from '@cat-bot/engine/utils/platform-id.util.js';
+import { decrypt } from '@cat-bot/engine/utils/crypto.util.js';
 
 export async function findDiscordCredentialState(userId: string, sessionId: string): Promise<{ isCommandRegister: boolean; commandHash: string | null } | null> {
   const db = await getDb();
@@ -19,7 +20,7 @@ export async function updateDiscordCredentialCommandHash(userId: string, session
   await saveDb();
 }
 
-export async function findAllDiscordCredentials(): Promise<any[]> { const db = await getDb(); return [...db.botCredentialDiscord]; }
+export async function findAllDiscordCredentials(): Promise<any[]> { const db = await getDb(); return db.botCredentialDiscord.map((r: any) => ({ ...r, discordToken: decrypt(r.discordToken as string) })); }
 
 export async function findTelegramCredentialState(userId: string, sessionId: string): Promise<{ isCommandRegister: boolean; commandHash: string | null } | null> {
   const db = await getDb();
@@ -38,9 +39,9 @@ export async function updateTelegramCredentialCommandHash(userId: string, sessio
   await saveDb();
 }
 
-export async function findAllTelegramCredentials(): Promise<any[]> { const db = await getDb(); return [...db.botCredentialTelegram]; }
-export async function findAllFbPageCredentials(): Promise<any[]> { const db = await getDb(); return [...db.botCredentialFacebookPage]; }
-export async function findAllFbMessengerCredentials(): Promise<any[]> { const db = await getDb(); return [...db.botCredentialFacebookMessenger]; }
+export async function findAllTelegramCredentials(): Promise<any[]> { const db = await getDb(); return db.botCredentialTelegram.map((r: any) => ({ ...r, telegramToken: decrypt(r.telegramToken as string) })); }
+export async function findAllFbPageCredentials(): Promise<any[]> { const db = await getDb(); return db.botCredentialFacebookPage.map((r: any) => ({ ...r, fbAccessToken: decrypt(r.fbAccessToken as string) })); }
+export async function findAllFbMessengerCredentials(): Promise<any[]> { const db = await getDb(); return db.botCredentialFacebookMessenger.map((r: any) => ({ ...r, appstate: decrypt(r.appstate as string) })); }
 export async function findAllBotSessions(): Promise<any[]> { const db = await getDb(); return [...db.botSession]; }
 
 export async function isBotAdmin(userId: string, platform: string, sessionId: string, adminId: string): Promise<boolean> {
