@@ -48,6 +48,10 @@ import { getFullThreadInfo } from './lib/getFullThreadInfo.js';
 import { getFullUserInfo } from './lib/getFullUserInfo.js';
 import { addUserToGroup, setGroupReaction } from './unsupported.js';
 
+// Database fallbacks for cross-platform unified name resolution
+import { getUserName as dbGetUserName } from '@/engine/repos/users.repo.js';
+import { getThreadName as dbGetThreadName } from '@/engine/repos/threads.repo.js';
+
 // ── Class shell ───────────────────────────────────────────────────────────────
 
 class TelegramApi extends UnifiedApi {
@@ -177,6 +181,47 @@ class TelegramApi extends UnifiedApi {
 
   // ── Unsupported stubs ─────────────────────────────────────────────────────
 
+  /**
+   * Returns the sender's display name from ctx.from — zero Bot API calls.
+   * The Telegram Bot API does not provide a public user profile endpoint, so this method
+   * is accurate only when userID matches the current update's sender (ctx.from.id).
+   * Any other user ID falls back to a database lookup rather than making a REST call.
+   * Callers that need cross-user name resolution should use ctx.user.getInfo() instead.
+   */
+  override getUserName(userID: string): Promise<string> {
+    logger.debug('[telegram] getUserName called (event-first with db fallback)', { userID });
+    const from = this.#ctx.from;
+    if (from && String(from.id) === userID) {
+      // Construct display name from first_name + optional last_name (Bot API convention)
+      const lastName = (from as Record<string, unknown>)['last_name'] as string | undefined;
+      const parts = [from.first_name, lastName].filter(Boolean);
+      const name = parts.length ? parts.join(' ') : from.username;
+      if (name) return Promise.resolve(name);
+    }
+    return dbGetUserName(userID);
+  }
+
+  /**
+   * Returns the chat title from ctx.chat — zero Bot API calls.
+   * Groups/supergroups expose .title; private DM chats expose .first_name (+ optional .last_name).
+   * Falls back to database lookup for anonymous or unresolvable chat types.
+   */
+  override getThreadName(_threadID: string): Promise<string> {
+    logger.debug('[telegram] getThreadName called (event-first with db fallback)', { threadID: _threadID });
+    const chat = this.#ctx.chat;
+    if (!chat) return dbGetThreadName(_threadID);
+    // Groups, supergroups, channels all carry .title
+    if ('title' in chat && chat.title) return Promise.resolve(chat.title);
+    // Private DMs: first_name is always present; last_name and username are optional
+    if ('first_name' in chat) {
+      const lastName = (chat as Record<string, unknown>)['last_name'] as string | undefined;
+      const parts = [chat.first_name, lastName].filter(Boolean);
+      const name = parts.length ? parts.join(' ') : ((chat as Record<string, unknown>)['username'] as string | undefined);
+      if (name) return Promise.resolve(name);
+    }
+    return dbGetThreadName(_threadID);
+  }
+  
   override addUserToGroup(threadID: string, userID: string): Promise<void> {
     logger.debug('[telegram] addUserToGroup called', { threadID, userID });
     return addUserToGroup(threadID, userID);
