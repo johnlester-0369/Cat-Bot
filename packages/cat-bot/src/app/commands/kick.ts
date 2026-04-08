@@ -5,6 +5,7 @@ import type {
 } from '@/engine/adapters/models/context.model.js';
 import { Role } from '@/engine/constants/role.constants.js';
 import { OptionType } from '@/engine/constants/command-option.constants.js';
+import { Platforms } from '@/engine/constants/platform.constants.js';
 
 export const config = {
   name: 'kick',
@@ -17,6 +18,8 @@ export const config = {
   usage: '[uid | @mention | reply]',
   cooldown: 5,
   hasPrefix: true,
+  // Exclude Facebook Page since facebook page cannot add to group chat
+  platform: [Platforms.Discord, Platforms.Telegram, Platforms.FacebookMessenger],
   options: [
     {
       type: OptionType.user,
