@@ -1,8 +1,4 @@
-import type { 
-  ChatContext, 
-  ThreadContext, 
-  BotContext 
-} from '@/engine/adapters/models/context.model.js';
+import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
 import { OptionType } from '@/engine/constants/command-option.constants.js';
 import { Platforms } from '@/engine/constants/platform.constants.js';
@@ -36,13 +32,7 @@ export const onCommand = async ({
   bot,
   event,
   args,
-}: {
-  chat: ChatContext;
-  thread: ThreadContext;
-  bot: BotContext;
-  event: Record<string, unknown>;
-  args: string[];
-}): Promise<void> => {
+}: AppCtx): Promise<void> => {
   // 1. Guard: Ensure this is a group thread
   // Single-user DMs cannot have participants removed.
   if (!event['isGroup']) {
