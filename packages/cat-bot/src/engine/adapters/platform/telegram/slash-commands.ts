@@ -21,6 +21,8 @@ import {
   findTelegramCredentialState,
   updateTelegramCredentialCommandHash,
 } from '@/engine/repos/credentials.repo.js';
+import { isPlatformAllowed } from '@/engine/utils/platform-filter.util.js';
+import { Platforms } from '@/engine/constants/platform.constants.js';
 
 /** All four broadcast scopes that must be managed in lockstep to avoid stale menu entries. */
 const BROADCAST_SCOPES = [
@@ -91,6 +93,7 @@ export async function registerSlashMenu(
     // Iterate using keys to properly register both canonical names and their aliases as separate slash commands
     for (const [key, mod] of commands) {
       if (typeof mod['onCommand'] !== 'function') continue;
+      if (!isPlatformAllowed(mod, Platforms.Telegram)) continue;
       const cfg = mod['config'] as
         | { name?: string; description?: string }
         | undefined;
