@@ -12,7 +12,9 @@ import {
   createBotContext,
   createUserContext,
 } from '@/engine/adapters/models/context.model.js';
+import type { StateContext } from '@/engine/adapters/models/context.model.js';
 import type { SessionLogger } from '@/engine/lib/logger.lib.js';
+import type { OptionsMap } from '@/engine/lib/options-map.lib.js';
 
 /** A command module loaded from src/modules/commands/ */
 export type CommandModule = Record<string, unknown>;
@@ -61,4 +63,28 @@ export interface BaseCtx {
       getName: (threadId: string) => Promise<string>;
     };
   };
+}
+
+/** 
+ * Universal Context — a single unified type for all handler functions 
+ * (`onCommand`, `onChat`, `onReply`, `onReact`, `onEvent`).
+ * 
+ * Contains all properties from BaseCtx plus the properties dynamically injected
+ * by the various dispatchers depending on the event lifecycle.
+ */
+export interface AppCtx extends BaseCtx {
+  /** Arguments parsed from the command (available in onCommand). */
+  args: string[];
+  /** Parsed command options (available in onCommand). */
+  options: OptionsMap;
+  /** The parsed command metadata (available in onCommand). */
+  parsed: ParsedCommand;
+  /** The state context for registering pending flows (available in onCommand, onReply, onReact). */
+  state: StateContext['state'];
+  /** The active session data for the current flow (available in onReply, onReact). */
+  session: { id: string; context: Record<string, unknown> };
+  /** The reaction emoji (available in onReact). */
+  emoji: string;
+  /** The target message ID (available in onReact). */
+  messageID: string;
 }

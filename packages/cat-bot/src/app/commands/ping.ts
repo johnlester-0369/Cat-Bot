@@ -1,4 +1,4 @@
-import type { ChatContext } from '@/engine/adapters/models/context.model.js';
+import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
 
 export const config = {
@@ -14,7 +14,7 @@ export const config = {
   hasPrefix: true,
 };
 
-export const onCommand = async ({ chat }: { chat: ChatContext }) => {
+export const onCommand = async ({ chat }: AppCtx) => {
   const start = Date.now();
   // Delegate to uniform context to automatically route response back to the origin
   await chat.replyMessage({

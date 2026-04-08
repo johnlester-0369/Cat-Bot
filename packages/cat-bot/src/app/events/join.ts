@@ -1,4 +1,4 @@
-import type { ChatContext } from '@/engine/adapters/models/context.model.js';
+import type { AppCtx } from '@/engine/types/controller.types.js';
 
 export const config = {
   name: 'join',
@@ -8,13 +8,7 @@ export const config = {
   description: 'Sends a welcome message when members join the group',
 };
 
-export const onEvent = async ({
-  event,
-  chat,
-}: {
-  event: Record<string, unknown>;
-  chat: ChatContext;
-}) => {
+export const onEvent = async ({ event, chat }: AppCtx) => {
   try {
     const logMessageData = event['logMessageData'] as
       | Record<string, unknown>

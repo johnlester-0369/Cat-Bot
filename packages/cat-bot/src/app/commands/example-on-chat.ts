@@ -1,4 +1,4 @@
-import type { BaseCtx } from '@/engine/types/controller.types.js';
+import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
 
 export const config = {
@@ -20,7 +20,7 @@ export const config = {
  * Useful for cross-cutting features like passive word filtering, auto-responders,
  * or experience point (XP) trackers that need to evaluate all conversational traffic.
  */
-export const onChat = async ({ event, chat }: BaseCtx): Promise<void> => {
+export const onChat = async ({ event, chat }: AppCtx): Promise<void> => {
   const message = event['message'] as string;
   if (!message) return;
 

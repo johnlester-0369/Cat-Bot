@@ -13,8 +13,7 @@
  * this handler ever executes.
  */
 
-import type { ChatContext } from '@/engine/adapters/models/context.model.js';
-import type { NativeContext } from '@/engine/types/controller.types.js';
+import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
 import { banThread, unbanThread } from '@/engine/repos/banned.repo.js';
 import { OptionType } from '@/engine/constants/command-option.constants.js';
@@ -50,11 +49,7 @@ export const onCommand = async ({
   chat,
   args,
   native,
-}: {
-  chat: ChatContext;
-  args: string[];
-  native: NativeContext;
-}): Promise<void> => {
+}: AppCtx): Promise<void> => {
   const { userId, platform, sessionId } = native;
 
   if (!userId || !platform || !sessionId) {

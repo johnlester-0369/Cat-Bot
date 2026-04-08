@@ -28,10 +28,7 @@
  * Facebook Messenger, and Facebook Page (with message_reactions webhook field).
  */
 
-import type {
-  ChatContext,
-  StateContext,
-} from '@/engine/adapters/models/context.model.js';
+import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
 
 export const config = {
@@ -56,13 +53,7 @@ const STATE = {
   sad: '😢',
 };
 
-export const onCommand = async ({
-  chat,
-  state,
-}: {
-  chat: ChatContext;
-  state: StateContext['state'];
-}) => {
+export const onCommand = async ({ chat, state }: AppCtx) => {
   const messageID = await chat.replyMessage({
     message: 'React to this message!\n❤️ love  😂 funny  😢 sad',
   });
@@ -91,15 +82,7 @@ export const onReact = {
   /**
    * User reacted with ❤️ — confirms love reaction and tears down state.
    */
-  [STATE.heart]: async ({
-    chat,
-    session,
-    state,
-  }: {
-    chat: ChatContext;
-    session: { id: string; context: Record<string, unknown> };
-    state: StateContext['state'];
-  }) => {
+  [STATE.heart]: async ({ chat, session, state }: AppCtx) => {
     // Remove state before replying so a second ❤️ reaction on the same message
     // does not re-trigger this handler after the conversation is complete.
     state.delete(session.id);
@@ -109,15 +92,7 @@ export const onReact = {
   /**
    * User reacted with 😂 — confirms funny reaction and tears down state.
    */
-  [STATE.laugh]: async ({
-    chat,
-    session,
-    state,
-  }: {
-    chat: ChatContext;
-    session: { id: string; context: Record<string, unknown> };
-    state: StateContext['state'];
-  }) => {
+  [STATE.laugh]: async ({ chat, session, state }: AppCtx) => {
     state.delete(session.id);
     await chat.reply({ message: 'You chose: funny 😂' });
   },
@@ -125,15 +100,7 @@ export const onReact = {
   /**
    * User reacted with 😢 — confirms sad reaction and tears down state.
    */
-  [STATE.sad]: async ({
-    chat,
-    session,
-    state,
-  }: {
-    chat: ChatContext;
-    session: { id: string; context: Record<string, unknown> };
-    state: StateContext['state'];
-  }) => {
+  [STATE.sad]: async ({ chat, session, state }: AppCtx) => {
     state.delete(session.id);
     await chat.reply({ message: 'You chose: sad 😢' });
   },

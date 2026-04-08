@@ -14,6 +14,7 @@ export type {
   ParsedCommand,
   NativeContext,
   BaseCtx,
+  AppCtx,
 } from '@/engine/types/controller.types.js';
 
 // Options — OptionsMap runtime class and OptionDef type for TypeScript command modules

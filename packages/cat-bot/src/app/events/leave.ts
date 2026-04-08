@@ -1,4 +1,4 @@
-import type { ChatContext } from '@/engine/adapters/models/context.model.js';
+import type { AppCtx } from '@/engine/types/controller.types.js';
 
 export const config = {
   name: 'leave',
@@ -8,13 +8,7 @@ export const config = {
   description: 'Sends a goodbye message when members leave the group',
 };
 
-export const onEvent = async ({
-  event,
-  chat,
-}: {
-  event: Record<string, unknown>;
-  chat: ChatContext;
-}) => {
+export const onEvent = async ({ event, chat }: AppCtx) => {
   try {
     const logMessageData = event['logMessageData'] as
       | Record<string, unknown>

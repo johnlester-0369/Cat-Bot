@@ -1,4 +1,4 @@
-import type { ChatContext } from '@/engine/adapters/models/context.model.js';
+import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
 
 export const config = {
@@ -17,10 +17,7 @@ export const config = {
 export const onCommand = async ({
   chat,
   event,
-}: {
-  chat: ChatContext;
-  event: Record<string, unknown>;
-}): Promise<void> => {
+}: AppCtx): Promise<void> => {
   const messageReply = event['messageReply'] as Record<string, unknown> | undefined;
   
   // Extract replied message's sender ID if available; otherwise fallback to the command sender

@@ -1,6 +1,5 @@
 import { sessionManager } from '@/engine/lib/session-manager.lib.js';
-import type { ChatContext } from '@/engine/adapters/models/context.model.js';
-import type { NativeContext } from '@/engine/types/controller.types.js';
+import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
 
 export const config = {
@@ -19,10 +18,7 @@ export const config = {
 export const onCommand = async ({
   chat,
   native,
-}: {
-  chat: ChatContext;
-  native: NativeContext;
-}) => {
+}: AppCtx) => {
   const { userId, sessionId, platform } = native;
 
   if (!userId || !sessionId || !platform) {

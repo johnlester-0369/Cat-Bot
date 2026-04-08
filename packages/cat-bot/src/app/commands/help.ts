@@ -15,8 +15,7 @@
  * commands and prefix) before appending args and state.
  */
 
-import type { ChatContext } from '@/engine/adapters/models/context.model.js';
-import type { CommandMap, NativeContext } from '@/engine/types/controller.types.js';
+import type { CommandMap, AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
 // Disabled-command gate — mirrors message.handler.ts: disabled commands are invisible to users
 import { findSessionCommands } from '@/engine/repos/bot-session-commands.repo.js';
@@ -94,15 +93,9 @@ export const onCommand = async ({
   chat,
   args,
   commands,
-  prefix,
+  prefix = '', // Optional property fallback
   native,
-}: {
-  chat: ChatContext;
-  args: string[];
-  commands: CommandMap;
-  prefix: string;
-  native: NativeContext;
-}): Promise<void> => {
+}: AppCtx): Promise<void> => {
   // noUncheckedIndexedAccess — args[0] is string | undefined
   const arg = args[0]?.toLowerCase() ?? '';
 
