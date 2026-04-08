@@ -35,4 +35,13 @@ export async function isThreadAdmin(threadId: string, userId: string): Promise<b
   const db = await getDb();
   const rec = db.botThread.find((t: any) => t.id === threadId);
   return rec ? rec.admins.includes(userId) : false;
+  return rec ? rec.admins.includes(userId) : false;
 }
+
+// WHY: Fulfills the fallback requirement directly at the DB layer so callers never handle undefined.
+export async function getThreadName(threadId: string): Promise<string> {
+  const db = await getDb();
+  const rec = db.botThread.find((t: any) => t.id === threadId);
+  return rec?.name ?? 'Unknown thread';
+}
+

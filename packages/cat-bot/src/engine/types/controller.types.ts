@@ -51,4 +51,14 @@ export interface BaseCtx {
   user: ReturnType<typeof createUserContext>;
   native: NativeContext;
   logger: SessionLogger;
+
+  // WHY: Provides uniform database queries across all command modules natively inside ctx
+  db: {
+    users: {
+      getName: (userId: string) => Promise<string>;
+    };
+    threads: {
+      getName: (threadId: string) => Promise<string>;
+    };
+  };
 }

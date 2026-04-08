@@ -26,6 +26,8 @@ import { createLogger } from '@/engine/lib/logger.lib.js';
 // Platform filter — enforces config.platform[] declared by each command module
 import { isPlatformAllowed } from '@/engine/utils/platform-filter.util.js';
 import { PLATFORM_TO_ID } from '@/engine/constants/platform.constants.js';
+import { getUserName } from '@/engine/repos/users.repo.js';
+import { getThreadName } from '@/engine/repos/threads.repo.js';
 
 /**
  * Routes a text-based button selection to the owning command's menu[actionId].run() handler.
@@ -174,7 +176,18 @@ export async function handleButtonAction(
     platformId: (PLATFORM_TO_ID as Record<string, number>)[native.platform] ?? native.platform,
     sessionId: native.sessionId ?? '',
   });
-  const ctx = { api, event, commands, thread, chat, bot, user, native, logger };
+  const ctx: BaseCtx = {
+    api,
+    event,
+    commands,
+    thread,
+    chat,
+    bot,
+    user,
+    native,
+    logger,
+    db: { users: { getName: getUserName }, threads: { getName: getThreadName } },
+  };
 
   await handler.run(ctx).catch((err: unknown) => {
     console.error(`❌ Button action "${actionId}" failed`, err);

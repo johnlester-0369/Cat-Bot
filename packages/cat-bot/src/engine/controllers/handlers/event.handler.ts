@@ -24,6 +24,8 @@ import { createLogger } from '@/engine/lib/logger.lib.js';
 import { dispatchEvent } from '../dispatchers/event.dispatcher.js';
 import { dispatchOnReact } from '../dispatchers/react.dispatcher.js';
 import { PLATFORM_TO_ID } from '@/engine/constants/platform.constants.js';
+import { getUserName } from '@/engine/repos/users.repo.js';
+import { getThreadName } from '@/engine/repos/threads.repo.js';
 
 /**
  * Entry point for platform thread-level events (member join, leave, rename, etc.)
@@ -65,6 +67,10 @@ export async function handleEvent(
       user,
       native,
       logger,
+      db: {
+        users: { getName: getUserName },
+        threads: { getName: getThreadName },
+      },
     };
     const handled = await dispatchOnReact(commands, event, ctx);
     if (handled) return;
@@ -73,5 +79,14 @@ export async function handleEvent(
   // Dispatch on logMessageType so modules register for specific event subtypes.
   // Fallback to event.type ('event') when logMessageType is absent.
   const dispatchKey = (event['logMessageType'] ?? event['type']) as string;
-  await dispatchEvent(eventModules, dispatchKey, { api, event, native, logger });
+  await dispatchEvent(eventModules, dispatchKey, {
+    api,
+    event,
+    native,
+    logger,
+    db: {
+      users: { getName: getUserName },
+      threads: { getName: getThreadName },
+    },
+  });
 }
