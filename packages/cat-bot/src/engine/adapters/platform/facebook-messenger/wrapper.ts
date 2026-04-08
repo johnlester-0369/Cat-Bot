@@ -20,6 +20,7 @@ import type { UnifiedThreadInfo } from '@/engine/adapters/models/thread.model.js
 import type { UnifiedUserInfo } from '@/engine/adapters/models/user.model.js';
 import type { Readable } from 'stream';
 
+import { logger } from '@/engine/lib/logger.lib.js';
 import type { FcaApi } from './types.js';
 
 import { sendMessage } from './lib/sendMessage.js';
@@ -61,12 +62,15 @@ class FacebookApi extends UnifiedApi {
     msg: string | SendPayload,
     threadID: string,
   ): Promise<string | undefined> {
+    logger.debug('[facebook-messenger] sendMessage called', { threadID });
     return sendMessage(this.#api, msg, threadID);
   }
   override unsendMessage(messageID: string): Promise<void> {
+    logger.debug('[facebook-messenger] unsendMessage called', { messageID });
     return unsendMessage(this.#api, messageID);
   }
   override editMessage(messageID: string, newBody: string): Promise<void> {
+    logger.debug('[facebook-messenger] editMessage called', { messageID });
     return editMessage(this.#api, messageID, newBody);
   }
   override setNickname(
@@ -74,41 +78,50 @@ class FacebookApi extends UnifiedApi {
     userID: string,
     nickname: string,
   ): Promise<void> {
+    logger.debug('[facebook-messenger] setNickname called', { threadID, userID });
     return setNickname(this.#api, threadID, userID, nickname);
   }
   override getUserInfo(
     userIds: string[],
   ): Promise<Record<string, { name: string }>> {
+    logger.debug('[facebook-messenger] getUserInfo called', { userCount: userIds.length });
     return getUserInfo(this.#api, userIds);
   }
   override setGroupName(threadID: string, name: string): Promise<void> {
+    logger.debug('[facebook-messenger] setGroupName called', { threadID, name });
     return setGroupName(this.#api, threadID, name);
   }
   override setGroupImage(
     threadID: string,
     imageSource: Buffer | Readable | string,
   ): Promise<void> {
+    logger.debug('[facebook-messenger] setGroupImage called', { threadID });
     return setGroupImage(this.#api, threadID, imageSource);
   }
   override removeGroupImage(_threadID: string): Promise<void> {
+    logger.debug('[facebook-messenger] removeGroupImage called', { threadID: _threadID });
     return removeGroupImage();
   }
   override addUserToGroup(threadID: string, userID: string): Promise<void> {
+    logger.debug('[facebook-messenger] addUserToGroup called', { threadID, userID });
     return addUserToGroup(this.#api, threadID, userID);
   }
   override removeUserFromGroup(
     threadID: string,
     userID: string,
   ): Promise<void> {
+    logger.debug('[facebook-messenger] removeUserFromGroup called', { threadID, userID });
     return removeUserFromGroup(this.#api, threadID, userID);
   }
   override setGroupReaction(threadID: string, emoji: string): Promise<void> {
+    logger.debug('[facebook-messenger] setGroupReaction called', { threadID, emoji });
     return setGroupReaction(this.#api, threadID, emoji);
   }
   override replyMessage(
     threadID: string,
     options: ReplyMessageOptions = {},
   ): Promise<unknown> {
+    logger.debug('[facebook-messenger] replyMessage called', { threadID });
     return replyMessage(this.#api, threadID, options);
   }
   override reactToMessage(
@@ -116,15 +129,19 @@ class FacebookApi extends UnifiedApi {
     messageID: string,
     emoji: string,
   ): Promise<void> {
+    logger.debug('[facebook-messenger] reactToMessage called', { threadID, messageID, emoji });
     return reactToMessage(this.#api, threadID, messageID, emoji);
   }
   override getBotID(): Promise<string> {
+    logger.debug('[facebook-messenger] getBotID called');
     return getBotID(this.#api);
   }
   override getFullThreadInfo(threadID: string): Promise<UnifiedThreadInfo> {
+    logger.debug('[facebook-messenger] getFullThreadInfo called', { threadID });
     return getFullThreadInfo(this.#api, threadID);
   }
   override getFullUserInfo(userID: string): Promise<UnifiedUserInfo> {
+    logger.debug('[facebook-messenger] getFullUserInfo called', { userID });
     return getFullUserInfo(this.#api, userID);
   }
 }
