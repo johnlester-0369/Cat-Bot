@@ -30,6 +30,7 @@ export const onCommand = async ({
   chat,
   thread,
   bot,
+  user,
   event,
   args,
 }: AppCtx): Promise<void> => {
@@ -76,14 +77,18 @@ export const onCommand = async ({
     return;
   }
 
+  // Resolve display name before the removal attempt — user.getName falls back to "User {id}"
+  // when the platform has not cached this user, so the message is always human-readable.
+  const userName = await user.getName(targetID);
+
   // 4. Execute removal via platform abstraction
   try {
     await thread.removeUser(targetID);
-    await chat.replyMessage({ message: `✅ User ${targetID} has been removed from the group.` });
+    await chat.replyMessage({ message: `✅ ${userName} has been removed from the group.` });
   } catch (err: unknown) {
     // Fails smoothly if the bot lacks native admin privileges on the platform
     await chat.replyMessage({ 
-      message: `❌ Failed to remove user ${targetID}. Ensure I have admin privileges in this group.` 
+      message: `❌ Failed to remove ${userName}. Ensure I have admin privileges in this group.` 
     });
   }
 };
