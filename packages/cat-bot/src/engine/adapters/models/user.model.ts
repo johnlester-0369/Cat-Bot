@@ -19,6 +19,7 @@
 // Concrete IDs are owned by each adapters/platform/{name}/index.ts and aggregated
 // into a union at adapters/platform/index.ts — models never enumerate platform names.
 export type PlatformId = string;
+import { logger } from '@/engine/lib/logger.lib.js';
 
 /**
  * Unified shape for user metadata across all platforms.
@@ -65,6 +66,7 @@ export const PROTO_UNIFIED_USER_INFO: Readonly<UnifiedUserInfo> = Object.freeze(
 export function createUnifiedUserInfo(
   data: Partial<UnifiedUserInfo>,
 ): UnifiedUserInfo {
+  logger.debug('[user.model] createUnifiedUserInfo called', { platform: data.platform, id: data.id });
   return {
     platform: data.platform ?? 'unknown',
     id: data.id ?? '',

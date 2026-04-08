@@ -24,6 +24,7 @@ export * from './prototypes/index.js';
 // ── Local imports for formatEvent() implementation ────────────────────────────
 // AttachmentType is re-exported via ./enums/index.js barrel but not used locally here.
 import { EventType, LogMessageType } from './enums/index.js';
+import { logger } from '@/engine/lib/logger.lib.js';
 
 // ── Re-export types needed for UnifiedEvent union ─────────────────────────────
 export type {
@@ -181,6 +182,7 @@ export type UnifiedEvent =
  * `event.type`, which must already be one of the EventType enum values.
  */
 export function formatEvent(event: Record<string, unknown>): UnifiedEvent {
+  logger.debug('[event.model] formatEvent called', { type: event['type'] });
   switch (event['type']) {
     case EventType.MESSAGE:
       return {

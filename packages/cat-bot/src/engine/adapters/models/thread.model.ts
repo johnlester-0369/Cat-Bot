@@ -24,6 +24,7 @@
 // Concrete IDs are owned by each adapters/platform/{name}/index.ts and aggregated
 // into a union at adapters/platform/index.ts — models never enumerate platform names.
 export type PlatformId = string;
+import { logger } from '@/engine/lib/logger.lib.js';
 
 /**
  * Unified shape for thread / group / server metadata across all platforms.
@@ -75,6 +76,7 @@ export const PROTO_UNIFIED_THREAD_INFO: Readonly<UnifiedThreadInfo> =
 export function createUnifiedThreadInfo(
   data: Partial<UnifiedThreadInfo>,
 ): UnifiedThreadInfo {
+  logger.debug('[thread.model] createUnifiedThreadInfo called', { platform: data.platform, threadID: data.threadID });
   return {
     platform: data.platform ?? 'unknown',
     threadID: data.threadID ?? '',
