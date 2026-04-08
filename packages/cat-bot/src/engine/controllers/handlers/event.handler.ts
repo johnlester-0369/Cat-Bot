@@ -50,43 +50,36 @@ export async function handleEvent(
     sessionId: native.sessionId ?? '',
   });
 
-  // Check for a pending onReact state before routing to generic event handlers.
-  // The guard on commands.size avoids building context objects on every non-reaction event.
-  if (event['type'] === 'message_reaction' && commands.size > 0) {
-    const thread = createThreadContext(api, event);
-    const chat = createChatContext(api, event);
-    const bot = createBotContext(api);
-    const user = createUserContext(api);
-    const ctx: BaseCtx = {
-      api,
-      event,
-      commands,
-      thread,
-      chat,
-      bot,
-      user,
-      native,
-      logger,
-      db: {
-        users: { getName: getUserName },
-        threads: { getName: getThreadName },
-      },
-    };
-    const handled = await dispatchOnReact(commands, event, ctx);
-    if (handled) return;
-  }
-
-  // Dispatch on logMessageType so modules register for specific event subtypes.
-  // Fallback to event.type ('event') when logMessageType is absent.
-  const dispatchKey = (event['logMessageType'] ?? event['type']) as string;
-  await dispatchEvent(eventModules, dispatchKey, {
+  // Build unified context object for all events so both onReact and generic onEvent
+  // handlers have access to the same chat/thread operations as message handlers.
+  const thread = createThreadContext(api, event);
+  const chat = createChatContext(api, event);
+  const bot = createBotContext(api);
+  const user = createUserContext(api);
+  const baseCtx: BaseCtx = {
     api,
     event,
+    commands,
+    thread,
+    chat,
+    bot,
+    user,
     native,
     logger,
     db: {
       users: { getName: getUserName },
       threads: { getName: getThreadName },
     },
-  });
+  };
+
+  // Check for a pending onReact state before routing to generic event handlers.
+  if (event['type'] === 'message_reaction' && commands.size > 0) {
+    const handled = await dispatchOnReact(commands, event, baseCtx);
+    if (handled) return;
+  }
+
+  // Dispatch on logMessageType so modules register for specific event subtypes.
+  // Fallback to event.type ('event') when logMessageType is absent.
+  const dispatchKey = (event['logMessageType'] ?? event['type']) as string;
+  await dispatchEvent(eventModules, dispatchKey, baseCtx);
 }
