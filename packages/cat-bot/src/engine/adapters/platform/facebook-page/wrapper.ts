@@ -25,6 +25,7 @@ import type { UnifiedThreadInfo } from '@/engine/adapters/models/thread.model.js
 import type { UnifiedUserInfo } from '@/engine/adapters/models/user.model.js';
 import type { Readable } from 'stream';
 
+import { logger } from '@/engine/lib/logger.lib.js';
 // ── PageApi type ──────────────────────────────────────────────────────────────
 import type { PageApi } from './pageApi.js';
 
@@ -65,14 +66,17 @@ class FbPageApi extends UnifiedApi {
     msg: string | SendPayload,
     threadID: string,
   ): Promise<string | undefined> {
+    logger.debug('[facebook-page] sendMessage called', { threadID });
     return sendMessage(this.#pageApi, msg, threadID);
   }
 
   override unsendMessage(messageID: string): Promise<void> {
+    logger.debug('[facebook-page] unsendMessage called', { messageID });
     return unsendMessage(this.#pageApi, messageID);
   }
 
   override getUserInfo(userIds: string[]): Promise<Record<string, UserInfo>> {
+    logger.debug('[facebook-page] getUserInfo called', { userCount: userIds.length });
     return getUserInfo(this.#pageApi, userIds);
   }
 
@@ -80,24 +84,29 @@ class FbPageApi extends UnifiedApi {
     threadID: string,
     opts: ReplyMessageOptions = {},
   ): Promise<unknown> {
+    logger.debug('[facebook-page] replyMessage called', { threadID });
     return replyMessage(this.#pageApi, threadID, opts);
   }
 
   override getBotID(): Promise<string> {
+    logger.debug('[facebook-page] getBotID called');
     return getBotID(this.#pageApi);
   }
 
   override getFullThreadInfo(threadID: string): Promise<UnifiedThreadInfo> {
+    logger.debug('[facebook-page] getFullThreadInfo called', { threadID });
     return getFullThreadInfo(this.#pageApi, threadID);
   }
 
   override getFullUserInfo(userID: string): Promise<UnifiedUserInfo> {
+    logger.debug('[facebook-page] getFullUserInfo called', { userID });
     return getFullUserInfo(this.#pageApi, userID);
   }
 
   // ── Unsupported stubs (FB Page is always 1:1; no group or edit endpoints) ──
 
   override editMessage(messageID: string, newBody: string): Promise<void> {
+    logger.debug('[facebook-page] editMessage called', { messageID });
     return editMessage(messageID, newBody);
   }
 
@@ -106,10 +115,12 @@ class FbPageApi extends UnifiedApi {
     userID: string,
     nickname: string,
   ): Promise<void> {
+    logger.debug('[facebook-page] setNickname called', { threadID, userID });
     return setNickname(threadID, userID, nickname);
   }
 
   override setGroupName(threadID: string, name: string): Promise<void> {
+    logger.debug('[facebook-page] setGroupName called', { threadID, name });
     return setGroupName(threadID, name);
   }
 
@@ -117,14 +128,17 @@ class FbPageApi extends UnifiedApi {
     threadID: string,
     imageSource: Buffer | Readable | string,
   ): Promise<void> {
+    logger.debug('[facebook-page] setGroupImage called', { threadID });
     return setGroupImage(threadID, imageSource);
   }
 
   override removeGroupImage(threadID: string): Promise<void> {
+    logger.debug('[facebook-page] removeGroupImage called', { threadID });
     return removeGroupImage(threadID);
   }
 
   override addUserToGroup(threadID: string, userID: string): Promise<void> {
+    logger.debug('[facebook-page] addUserToGroup called', { threadID, userID });
     return addUserToGroup(threadID, userID);
   }
 
@@ -132,10 +146,12 @@ class FbPageApi extends UnifiedApi {
     threadID: string,
     userID: string,
   ): Promise<void> {
+    logger.debug('[facebook-page] removeUserFromGroup called', { threadID, userID });
     return removeUserFromGroup(threadID, userID);
   }
 
   override setGroupReaction(threadID: string, emoji: string): Promise<void> {
+    logger.debug('[facebook-page] setGroupReaction called', { threadID, emoji });
     return setGroupReaction(threadID, emoji);
   }
 
@@ -144,6 +160,7 @@ class FbPageApi extends UnifiedApi {
     messageID: string,
     emoji: string,
   ): Promise<void> {
+    logger.debug('[facebook-page] reactToMessage called', { threadID, messageID, emoji });
     return reactToMessage(threadID, messageID, emoji);
   }
 }
