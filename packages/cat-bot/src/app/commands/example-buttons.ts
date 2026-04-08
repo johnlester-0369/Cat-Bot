@@ -32,6 +32,7 @@
 
 import type { ChatContext } from '@/engine/adapters/models/context.model.js';
 import { Role } from '@/engine/constants/role.constants.js';
+import { ButtonStyle } from '@/engine/constants/button-style.constants.js';
 
 export const config = {
   name: 'example_buttons',
@@ -62,7 +63,7 @@ const ACTION_ID = {
 export const menu = {
   [ACTION_ID.ping]: {
     label: '🏓 Ping',
-    button_style: 'primary',
+    button_style: ButtonStyle.PRIMARY,
     run: async ({ chat }: { chat: ChatContext }) => {
       await chat.reply({ message: '🏓 Pong! The button system works.' });
     },
@@ -70,7 +71,7 @@ export const menu = {
 
   [ACTION_ID.platform]: {
     label: '🌐 Platform',
-    button_style: 'secondary',
+    button_style: ButtonStyle.SECONDARY,
     run: async ({
       chat,
       event,
@@ -88,7 +89,7 @@ export const menu = {
 
   [ACTION_ID.help]: {
     label: '❓ Help',
-    button_style: 'success',
+    button_style: ButtonStyle.SUCCESS,
     run: async ({ chat }: { chat: ChatContext }) => {
       await chat.reply({
         message:

@@ -21,6 +21,7 @@ import { stateStore } from '@/engine/lib/reply-state.lib.js';
 import type { UnifiedApi } from './api.model.js';
 import type { ButtonItem } from './interfaces/index.js';
 import { logger } from '@/engine/lib/logger.lib.js';
+import { ButtonStyle, type ButtonStyleValue } from '@/engine/constants/button-style.constants.js';
 
 // Re-export interfaces for backward compatibility
 export type {
@@ -107,7 +108,7 @@ export function createChatContext(
     string,
     {
       label?: string;
-      button_style?: string;
+      button_style?: ButtonStyleValue;
       run?: (...args: unknown[]) => unknown;
     }
   > | null = null,
@@ -129,7 +130,9 @@ export function createChatContext(
       // handleButtonAction splits on ':' to find the owning command without a global ID registry.
       id: commandName ? `${commandName}:${id}` : id,
       label: menu?.[id]?.label ?? id,
-      style: (menu?.[id]?.button_style as ButtonItem['style']) ?? 'secondary',
+      // Optional style defaults to Neutral/Secondary to ensure cross-platform safety
+      // where applicable, and provides a default visual baseline for Discord.
+      style: menu?.[id]?.button_style ?? ButtonStyle.SECONDARY,
     }));
   }
 

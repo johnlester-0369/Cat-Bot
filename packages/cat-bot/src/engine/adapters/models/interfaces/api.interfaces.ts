@@ -18,6 +18,8 @@ import type { Readable } from 'stream';
 // Defined in thread.model (leaf) to avoid circular dependency: api ← thread ← api.
 export type { PlatformId } from '../thread.model.js';
 
+import type { ButtonStyleValue } from '@/engine/constants/button-style.constants.js';
+
 /**
  * A mention placeholder embedded in a message body.
  * Each platform adapter translates the tag+user_id pair to its native mention format.
@@ -66,10 +68,10 @@ export interface ButtonItem {
   /** Display label shown on the button face. */
   label: string;
   /**
-   * Visual style hint: 'primary'|'secondary'|'success'|'danger'.
+   * Visual style hint from ButtonStyle.
    * Only meaningful on Discord; other platforms ignore it.
    */
-  style?: 'primary' | 'secondary' | 'success' | 'danger';
+  style?: ButtonStyleValue;
 }
 
 /**
