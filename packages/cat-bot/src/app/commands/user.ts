@@ -47,6 +47,7 @@ export const config = {
 
 export const onCommand = async ({
   chat,
+  user,
   args,
   native,
 }: AppCtx): Promise<void> => {
@@ -69,8 +70,9 @@ export const onCommand = async ({
     // Remaining args after uid are joined as the reason so multi-word reasons work
     const reason = args.slice(2).join(' ') || undefined;
     await banUser(userId, platform, sessionId, uid, reason);
+    const userName = await user.getName(uid);
     const reasonSuffix = reason ? ` — Reason: ${reason}` : '';
-    await chat.replyMessage({ message: `🚫 User ${uid} has been banned from this session.${reasonSuffix}` });
+    await chat.replyMessage({ message: `🚫 ${userName} has been banned from this session.${reasonSuffix}` });
     return;
   }
 
@@ -82,7 +84,8 @@ export const onCommand = async ({
       return;
     }
     await unbanUser(userId, platform, sessionId, uid);
-    await chat.replyMessage({ message: `✅ User ${uid} has been unbanned from this session.` });
+    const userName = await user.getName(uid);
+    await chat.replyMessage({ message: `✅ ${userName} has been unbanned from this session.` });
     return;
   }
 
