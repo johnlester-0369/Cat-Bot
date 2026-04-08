@@ -37,6 +37,7 @@ export const config = {
 
 export const onCommand = async ({
   chat,
+  user,
   args,
   native,
 }: AppCtx): Promise<void> => {
@@ -79,7 +80,8 @@ export const onCommand = async ({
       return;
     }
     await addBotAdmin(userId, platform, sessionId, uid);
-    await chat.replyMessage({ message: `✅ ${uid} is now a bot admin for this session.` });
+    const userName = await user.getName(uid);
+    await chat.replyMessage({ message: `✅ ${userName} is now a bot admin for this session.` });
     return;
   }
 
@@ -90,7 +92,10 @@ export const onCommand = async ({
       await chat.replyMessage({ message: 'ℹ️ No bot admins registered for this session.' });
       return;
     }
-    const lines = admins.map((id: string, i: number) => `${i + 1}. ${id}`).join('\n');
+    // Resolve all admin display names in parallel — names[i] aligns with admins[i] by index;
+    // falls back to the raw ID (noUncheckedIndexedAccess guard) when the name is unavailable.
+    const names = await Promise.all(admins.map((id: string) => user.getName(id)));
+    const lines = admins.map((id: string, i: number) => `${i + 1}. ${names[i] ?? id}`).join('\n');
     await chat.replyMessage({
       message: `Bot admins for this session (${admins.length}):\n${lines}`,
     });
@@ -105,7 +110,8 @@ export const onCommand = async ({
       return;
     }
     await removeBotAdmin(userId, platform, sessionId, uid);
-    await chat.replyMessage({ message: `✅ ${uid} has been removed from bot admins.` });
+    const userName = await user.getName(uid);
+    await chat.replyMessage({ message: `✅ ${userName} has been removed from bot admins.` });
     return;
   }
 
