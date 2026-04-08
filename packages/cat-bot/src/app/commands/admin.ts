@@ -7,6 +7,7 @@ import {
   listBotAdmins,
   isBotAdmin,
 } from '@/engine/repos/credentials.repo.js';
+import { OptionType } from '@/engine/constants/command-option.constants.js';
 
 export const config = {
   name: 'admin',
@@ -21,13 +22,13 @@ export const config = {
   hasPrefix: true,
   options: [
     {
-      type: 'string',
+      type: OptionType.string,
       name: 'action',
       description: 'Action to perform: add, list, or delete',
       required: true,
     },
     {
-      type: 'string',
+      type: OptionType.string,
       name: 'uid',
       description: 'Platform user ID (required for add and delete actions)',
       required: false,
