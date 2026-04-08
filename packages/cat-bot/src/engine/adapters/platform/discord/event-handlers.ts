@@ -34,6 +34,7 @@ import {
   createUserContext,
 } from '@/engine/adapters/models/context.model.js';
 import { OptionsMap } from '@/engine/lib/options-map.lib.js';
+import { OptionType } from '@/engine/constants/command-option.constants.js';
 
 interface AttachEventHandlersOptions {
   client: Client;
@@ -153,11 +154,18 @@ export async function attachEventHandlers(
     // Pre-resolve interaction.options into a name→value record so dispatchCommand
     // constructs OptionsMap from interaction values directly, preserving Discord's
     // native type coercion and required-field guarantees without re-parsing text.
-    const optionDefs = (cfg['options'] as Array<{ name: string }>) ?? [];
+    const optionDefs = (cfg['options'] as Array<{ name: string; type?: string }>) ?? [];
     const optionsRecord: Record<string, string> = {};
     for (const opt of optionDefs) {
-      const val = interaction.options.getString(opt.name);
-      if (val !== null && val !== undefined) optionsRecord[opt.name] = val;
+      if (opt.type === OptionType.user) {
+        // getUser() returns a Discord User object; extract .id to keep optionsRecord
+        // typed as Record<string, string> — OptionsMap and ctx.args both expect string values
+        const user = interaction.options.getUser(opt.name);
+        if (user) optionsRecord[opt.name] = user.id;
+      } else {
+        const val = interaction.options.getString(opt.name);
+        if (val !== null && val !== undefined) optionsRecord[opt.name] = val;
+      }
     }
 
     // Build args as the space-joined option values — same raw-token convention as

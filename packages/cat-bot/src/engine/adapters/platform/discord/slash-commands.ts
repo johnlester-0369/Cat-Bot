@@ -23,10 +23,12 @@ import {
   findDiscordCredentialState,
   updateDiscordCredentialCommandHash,
 } from '@/engine/repos/credentials.repo.js';
+import { OptionType } from '@/engine/constants/command-option.constants.js';
+import type { OptionTypeValue } from '@/engine/constants/command-option.constants.js';
 
 // Shape of each option entry in a command module's config.options array
 interface SlashOption {
-  type: string;
+  type: OptionTypeValue;
   name: string;
   description: string;
   required?: boolean;
@@ -82,8 +84,18 @@ function buildSlashCommandPayloads(
       .setDescription(cfg.description);
 
     for (const opt of cfg.options ?? []) {
-      if (opt.type === 'string') {
+      if (opt.type === OptionType.string) {
         builder.addStringOption((o) =>
+          o
+            .setName(opt.name)
+            .setDescription(opt.description)
+            .setRequired(opt.required ?? false),
+        );
+      } else if (opt.type === OptionType.user) {
+        // addUserOption renders a native Discord guild-member picker in the '/' menu
+        // instead of a free-text field — Discord resolves the selection to a User object
+        // whose .id is extracted downstream in event-handlers.ts via getUser()
+        builder.addUserOption((o) =>
           o
             .setName(opt.name)
             .setDescription(opt.description)
