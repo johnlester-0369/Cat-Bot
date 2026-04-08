@@ -43,6 +43,27 @@ export function attachHandlers(
   userId: string,
   sessionId: string,
 ): void {
+  // ── Service message handlers MUST be registered before the general 'message' handler ───
+  // Telegraf uses Koa-style middleware: the first registered handler that omits next() terminates
+  // the chain. bot.on('message') matches ALL message-type updates (including service messages).
+  // If it were first and returned without calling next(), these specific handlers would never fire.
+
+  // ── Member join → emit 'event' (log:subscribe) ────────────────────────────
+  bot.on(message('new_chat_members'), async (ctx) => {
+    const api = createTelegramApi(ctx);
+    const event = normalizeNewChatMembersEvent(ctx);
+    const native = { platform: Platforms.Telegram, userId, sessionId, ctx };
+    emitter.emit('event', { api, event, native, prefix });
+  });
+
+  // ── Member leave → emit 'event' (log:unsubscribe) ─────────────────────────
+  bot.on(message('left_chat_member'), async (ctx) => {
+    const api = createTelegramApi(ctx);
+    const event = normalizeLeftChatMemberEvent(ctx);
+    const native = { platform: Platforms.Telegram, userId, sessionId, ctx };
+    emitter.emit('event', { api, event, native, prefix });
+  });
+
   // ── Message handler → emit 'message' or 'message_reply' ──────────────────
   // Bare 'message' update type catches ALL Telegram message kinds: text, photo,
   // video, audio, document, sticker, voice, video_note, animation. The previous
@@ -53,8 +74,8 @@ export function attachHandlers(
       left_chat_member?: unknown;
       reply_to_message?: Message;
     };
-    // Service messages (new_chat_members, left_chat_member) have dedicated handlers below;
-    // returning here prevents them from being double-processed as regular messages.
+    // Service messages are handled by the specific handlers registered above (which fired first).
+    // Guard retained as a safety net in case Telegram ever delivers them via an unexpected path.
     if (msg.new_chat_members || msg.left_chat_member) return;
 
     const rawText =
@@ -88,22 +109,6 @@ export function attachHandlers(
     // reply_to_message is set when the user taps "Reply" on an existing message
     const eventType = msg.reply_to_message ? 'message_reply' : 'message';
     emitter.emit(eventType, { api, event, native, prefix });
-  });
-
-  // ── Member join → emit 'event' (log:subscribe) ────────────────────────────
-  bot.on(message('new_chat_members'), async (ctx) => {
-    const api = createTelegramApi(ctx);
-    const event = normalizeNewChatMembersEvent(ctx);
-    const native = { platform: Platforms.Telegram, userId, sessionId, ctx };
-    emitter.emit('event', { api, event, native, prefix });
-  });
-
-  // ── Member leave → emit 'event' (log:unsubscribe) ─────────────────────────
-  bot.on(message('left_chat_member'), async (ctx) => {
-    const api = createTelegramApi(ctx);
-    const event = normalizeLeftChatMemberEvent(ctx);
-    const native = { platform: Platforms.Telegram, userId, sessionId, ctx };
-    emitter.emit('event', { api, event, native, prefix });
   });
 
   // ── Message reaction → emit 'message_reaction' ───────────────────────────

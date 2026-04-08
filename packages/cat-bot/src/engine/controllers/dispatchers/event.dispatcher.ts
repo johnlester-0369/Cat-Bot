@@ -5,7 +5,7 @@
  * config.eventType[] gets its onEvent handler called in registration order.
  */
 
-import type { EventModuleMap } from '@/engine/types/controller.types.js';
+import type { EventModuleMap, BaseCtx } from '@/engine/types/controller.types.js';
 // Platform filter — enforces config.platform[] declared by each event module
 import { isPlatformAllowed } from '@/engine/utils/platform-filter.util.js';
 // Event registry check — honours bot admin toggle decisions in bot_session_events
@@ -17,16 +17,13 @@ import { isEventEnabled } from '@/engine/repos/bot-session-events.repo.js';
 export async function dispatchEvent(
   eventModules: EventModuleMap,
   eventType: string,
-  ctx: Record<string, unknown>,
+  ctx: BaseCtx,
 ): Promise<void> {
   // Extract platform once — avoids a repeated cast inside the handler loop
-  const platform =
-    ((ctx['native'] as Record<string, unknown> | undefined)?.[
-      'platform'
-    ] as string) ?? 'unknown';
+  const platform = ctx.native.platform;
   // Hoist session identity outside the loop — same cost regardless of handler count
-  const sessionUserId = ((ctx['native'] as Record<string, unknown> | undefined)?.['userId'] ?? '') as string;
-  const sessionId = ((ctx['native'] as Record<string, unknown> | undefined)?.['sessionId'] ?? '') as string;
+  const sessionUserId = ctx.native.userId ?? '';
+  const sessionId = ctx.native.sessionId ?? '';
   const handlers = eventModules.get(eventType) ?? [];
   for (const mod of handlers) {
     if (typeof mod['onEvent'] === 'function') {
@@ -40,7 +37,7 @@ export async function dispatchEvent(
       }
       try {
         // Await handles both sync and async returns safely; catch blocks capture any rejections without assuming a .catch() method exists on the return value
-        await (mod['onEvent'] as (ctx: unknown) => unknown)(ctx);
+        await (mod['onEvent'] as (ctx: BaseCtx) => unknown)(ctx);
       } catch (err: unknown) {
         console.error(`❌ Event handler "${eventType}" failed`, err);
       }
