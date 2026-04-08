@@ -1,4 +1,4 @@
-import type { ChatContext } from '@/engine/adapters/models/context.model.js';
+import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
 
 export const config = {
@@ -14,7 +14,7 @@ export const config = {
   hasPrefix: true,
 };
 
-export const onCommand = async ({ chat }: { chat: ChatContext }) => {
+export const onCommand = async ({ chat }: AppCtx) => {
   // chat.replyMessage threads the response as a quote-reply to the triggering message
   await chat.replyMessage({
     message: 'Hello',

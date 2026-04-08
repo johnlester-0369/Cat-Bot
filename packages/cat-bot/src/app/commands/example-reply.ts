@@ -23,10 +23,7 @@
  * are detected and surfaced with a clear error message.
  */
 
-import type {
-  ChatContext,
-  StateContext,
-} from '@/engine/adapters/models/context.model.js';
+import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
 
 export const config = {
@@ -47,13 +44,7 @@ const STATE = {
   awaiting_age: 'awaiting_age',
 };
 
-export const onCommand = async ({
-  chat,
-  state,
-}: {
-  chat: ChatContext;
-  state: StateContext['state'];
-}) => {
+export const onCommand = async ({ chat, state }: AppCtx) => {
   const messageID = await chat.replyMessage({ message: 'What is your name?' });
 
   // Guard: platforms that do not return a message ID from replyMessage cannot support onReply
@@ -78,17 +69,7 @@ export const onReply = {
    * Step 1 — user replied with their name.
    * Stores the name, removes the awaiting_name state, asks for age.
    */
-  [STATE.awaiting_name]: async ({
-    chat,
-    session,
-    event,
-    state,
-  }: {
-    chat: ChatContext;
-    session: { id: string; context: Record<string, unknown> };
-    event: Record<string, unknown>;
-    state: StateContext['state'];
-  }) => {
+  [STATE.awaiting_name]: async ({ chat, session, event, state }: AppCtx) => {
     // event.message is the user's reply text (the name they typed)
     session.context.name = event['message'];
 
@@ -112,17 +93,7 @@ export const onReply = {
    * Step 2 — user replied with their age.
    * Completes the conversation; cleans up state.
    */
-  [STATE.awaiting_age]: async ({
-    chat,
-    session,
-    event,
-    state,
-  }: {
-    chat: ChatContext;
-    session: { id: string; context: Record<string, unknown> };
-    event: Record<string, unknown>;
-    state: StateContext['state'];
-  }) => {
+  [STATE.awaiting_age]: async ({ chat, session, event, state }: AppCtx) => {
     session.context.age = event['message'];
 
     // Remove state before sending the final reply so no stale entry remains in the store

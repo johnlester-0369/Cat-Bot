@@ -30,7 +30,7 @@
  *   Facebook Page — Button Template (max 3 buttons, title ≤20 chars)
  */
 
-import type { ChatContext } from '@/engine/adapters/models/context.model.js';
+import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
 import { ButtonStyle } from '@/engine/constants/button-style.constants.js';
 
@@ -64,7 +64,7 @@ export const menu = {
   [ACTION_ID.ping]: {
     label: '🏓 Ping',
     button_style: ButtonStyle.PRIMARY,
-    run: async ({ chat }: { chat: ChatContext }) => {
+    run: async ({ chat }: AppCtx) => {
       await chat.reply({ message: '🏓 Pong! The button system works.' });
     },
   },
@@ -72,13 +72,7 @@ export const menu = {
   [ACTION_ID.platform]: {
     label: '🌐 Platform',
     button_style: ButtonStyle.SECONDARY,
-    run: async ({
-      chat,
-      event,
-    }: {
-      chat: ChatContext;
-      event: Record<string, unknown>;
-    }) => {
+    run: async ({ chat, event }: AppCtx) => {
       // event.platform is set by the platform's button_action event builder
       const platform = event['platform'] || 'unknown';
       await chat.reply({
@@ -90,7 +84,7 @@ export const menu = {
   [ACTION_ID.help]: {
     label: '❓ Help',
     button_style: ButtonStyle.SUCCESS,
-    run: async ({ chat }: { chat: ChatContext }) => {
+    run: async ({ chat }: AppCtx) => {
       await chat.reply({
         message:
           'Available commands: /help · /reply (conversation flow) · /react (reaction flow) · /example-buttons (this demo)',
@@ -104,7 +98,7 @@ export const menu = {
  * chat.reply() here uses the command-aware chat context created in dispatchCommand,
  * so button IDs are automatically resolved to "buttons:ping" etc. before the platform sees them.
  */
-export const onCommand = async ({ chat }: { chat: ChatContext }) => {
+export const onCommand = async ({ chat }: AppCtx) => {
   await chat.reply({
     message: '🎛️ Choose an action:',
     button: [ACTION_ID.ping, ACTION_ID.platform, ACTION_ID.help],
