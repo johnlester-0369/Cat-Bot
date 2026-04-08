@@ -37,6 +37,7 @@ import { findSimilarCommand } from '@/engine/utils/command-suggest.util.js';
 import { OptionsMap } from '@/engine/lib/options-map.lib.js';
 import { isCommandEnabled, findSessionCommands } from '@/engine/repos/bot-session-commands.repo.js';
 import { PLATFORM_TO_ID } from '@/engine/constants/platform.constants.js';
+import { isPlatformAllowed } from '@/engine/utils/platform-filter.util.js';
 
 /**
  * Returns the set of command names disabled by the bot admin for this session.
@@ -45,16 +46,29 @@ import { PLATFORM_TO_ID } from '@/engine/constants/platform.constants.js';
  * message. An empty set is returned on DB error (fail-open) so "did you mean?"
  * suggestions continue to function even when the DB is temporarily unreachable.
  */
-async function getDisabledNamesForSession(native: NativeContext): Promise<Set<string>> {
+async function getDisabledNamesForSession(native: NativeContext, commands: CommandMap): Promise<Set<string>> {
+  const disabledNames = new Set<string>();
+
+  // Pre-populate with commands not supported on this platform so they are omitted from suggestions
+  for (const mod of commands.values()) {
+    const cfg = mod['config'] as { name?: string } | undefined;
+    if (cfg?.name && !isPlatformAllowed(mod, native.platform)) {
+      disabledNames.add(cfg.name.toLowerCase());
+    }
+  }
+
   const sessionUserId = native.userId ?? '';
   const sessionId = native.sessionId ?? '';
-  if (!sessionUserId || !sessionId) return new Set();
+  if (!sessionUserId || !sessionId) return disabledNames;
   try {
     const rows = await findSessionCommands(sessionUserId, native.platform, sessionId);
-    return new Set(rows.filter((r: { isEnable: boolean; commandName: string }) => !r.isEnable).map((r: { commandName: string }) => r.commandName));
+    for (const r of rows) {
+      if (!r.isEnable) disabledNames.add(r.commandName);
+    }
+    return disabledNames;
   } catch {
     // Fail-open: suggestions still function without disabled-command filtering on DB error
-    return new Set();
+    return disabledNames;
   }
 }
 
@@ -125,15 +139,23 @@ export async function handleMessage(
   if (body.startsWith(prefix)) {
     isCommandInvocation = true;
     parsed = parseCommand(args, prefix) ?? undefined;
-    if (parsed) mod = commands.get(parsed.name);
+    if (parsed) {
+      mod = commands.get(parsed.name);
+      // Nullify unsupported commands so they fallback to "command not found" logic naturally
+      if (mod && !isPlatformAllowed(mod, native.platform)) {
+        mod = undefined;
+      }
+    }
   } else if (args.length > 0) {
     const firstToken = args[0]!.toLowerCase();
     const noPrefixMod = commands.get(firstToken);
     const noPrefixCfg = noPrefixMod?.['config'] as Record<string, unknown> | undefined;
     if (noPrefixCfg?.['hasPrefix'] === false) {
-      isCommandInvocation = true;
-      parsed = { name: firstToken, args: args.slice(1) };
-      mod = noPrefixMod;
+      if (noPrefixMod && isPlatformAllowed(noPrefixMod, native.platform)) {
+        isCommandInvocation = true;
+        parsed = { name: firstToken, args: args.slice(1) };
+        mod = noPrefixMod;
+      }
     }
   }
 
@@ -162,7 +184,7 @@ export async function handleMessage(
         const m = commandCtx.mod;
 
         if (!m) {
-          const disabledNames = await getDisabledNamesForSession(native);
+          const disabledNames = await getDisabledNamesForSession(native, commands);
           const suggestion = findSimilarCommand(p.name, commands, disabledNames);
           await chat.replyMessage({
             message: suggestion
@@ -180,7 +202,7 @@ export async function handleMessage(
         if (sessionUserId && sessionId) {
           const enabled = await isCommandEnabled(sessionUserId, native.platform, sessionId, canonicalName);
           if (!enabled) {
-            const disabledNames = await getDisabledNamesForSession(native);
+            const disabledNames = await getDisabledNamesForSession(native, commands);
             disabledNames.add(canonicalName);
             const suggestion = findSimilarCommand(p.name, commands, disabledNames);
             await chat.replyMessage({
