@@ -20,6 +20,7 @@ import type { CommandMap, NativeContext } from '@/engine/types/controller.types.
 import { Role } from '@/engine/constants/role.constants.js';
 // Disabled-command gate — mirrors message.handler.ts: disabled commands are invisible to users
 import { findSessionCommands } from '@/engine/repos/bot-session-commands.repo.js';
+import { isPlatformAllowed } from '@/engine/utils/platform-filter.util.js';
 
 export const config = {
   name: 'help',
@@ -118,6 +119,15 @@ export const onCommand = async ({
       disabledNames = new Set(rows.filter((r: { isEnable: boolean; commandName: string }) => !r.isEnable).map((r: { commandName: string }) => r.commandName));
     } catch {
       // DB unreachable — fail-open, show all commands rather than breaking /help
+    }
+  }
+
+  // Hide commands unsupported on this platform so they do not leak in help lists
+  for (const mod of commands.values()) {
+    const cfg = mod['config'] as Record<string, unknown> | undefined;
+    const name = (cfg?.['name'] as string | undefined)?.toLowerCase();
+    if (name && !isPlatformAllowed(mod, native.platform)) {
+      disabledNames.add(name);
     }
   }
 
