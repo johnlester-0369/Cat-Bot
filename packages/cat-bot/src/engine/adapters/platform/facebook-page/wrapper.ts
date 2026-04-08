@@ -29,6 +29,11 @@ import { logger } from '@/engine/lib/logger.lib.js';
 // ── PageApi type ──────────────────────────────────────────────────────────────
 import type { PageApi } from './pageApi.js';
 
+// FB Page has no zero-cost name endpoint — delegate to the database layer which
+// stores user/thread names from previous interactions (bot_users / bot_threads tables).
+import { getUserName as dbGetUserName } from '@/engine/repos/users.repo.js';
+import { getThreadName as dbGetThreadName } from '@/engine/repos/threads.repo.js';
+
 // ── Method lib imports ────────────────────────────────────────────────────────
 import { sendMessage } from './lib/sendMessage.js';
 import { unsendMessage } from './lib/unsendMessage.js';
@@ -101,6 +106,25 @@ class FbPageApi extends UnifiedApi {
   override getFullUserInfo(userID: string): Promise<UnifiedUserInfo> {
     logger.debug('[facebook-page] getFullUserInfo called', { userID });
     return getFullUserInfo(this.#pageApi, userID);
+  }
+
+  /**
+   * Delegates to the database layer — FB Page is always 1:1; the Graph API would
+   * require a paid /me/conversations endpoint for names. bot_users is populated on
+   * every incoming message so this reflects the most recently seen display name.
+   */
+  override getUserName(userID: string): Promise<string> {
+    logger.debug('[facebook-page] getUserName called (db fallback)', { userID });
+    return dbGetUserName(userID);
+  }
+
+  /**
+   * Delegates to the database layer — Page Messenger threads are always 1:1; names
+   * stored in bot_threads reflect the user's name at the time of their last message.
+   */
+  override getThreadName(threadID: string): Promise<string> {
+    logger.debug('[facebook-page] getThreadName called (db fallback)', { threadID });
+    return dbGetThreadName(threadID);
   }
 
   // ── Unsupported stubs (FB Page is always 1:1; no group or edit endpoints) ──
