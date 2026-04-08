@@ -17,6 +17,7 @@ import type { ChatContext } from '@/engine/adapters/models/context.model.js';
 import type { NativeContext } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
 import { banThread, unbanThread } from '@/engine/repos/banned.repo.js';
+import { OptionType } from '@/engine/constants/command-option.constants.js';
 
 export const config = {
   name: 'thread',
@@ -31,13 +32,13 @@ export const config = {
   hasPrefix: true,
   options: [
     {
-      type: 'string',
+      type: OptionType.string,
       name: 'action',
       description: 'Action to perform: ban or unban',
       required: true,
     },
     {
-      type: 'string',
+      type: OptionType.string,
       name: 'tid',
       description: 'Platform thread ID to ban or unban',
       required: false,
