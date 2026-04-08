@@ -42,6 +42,11 @@ import { getFullUserInfo } from './lib/getFullUserInfo.js';
 // Unsupported operations consolidated into single file for discoverability
 import { removeGroupImage } from './unsupported.js';
 
+// FB Messenger has no zero-cost name endpoint — delegate to the database layer which
+// stores user/thread names from previous interactions (bot_users / bot_threads tables).
+import { getUserName as dbGetUserName } from '@/engine/repos/users.repo.js';
+import { getThreadName as dbGetThreadName } from '@/engine/repos/threads.repo.js';
+
 // Re-export normalizeMessageEvent from its dedicated module so existing
 // consumers (index.ts dynamic import) continue to resolve it through wrapper.js
 export { normalizeMessageEvent } from './utils/normalize-event.js';
@@ -143,6 +148,24 @@ class FacebookApi extends UnifiedApi {
   override getFullUserInfo(userID: string): Promise<UnifiedUserInfo> {
     logger.debug('[facebook-messenger] getFullUserInfo called', { userID });
     return getFullUserInfo(this.#api, userID);
+  }
+
+  /**
+   * Delegates to the database layer — fca-unofficial has no zero-cost getUserName endpoint.
+   * bot_users is populated during upsertUser calls on every incoming message, so names
+   * resolved this way reflect the most recently observed display name for the user.
+   */
+  override getUserName(userID: string): Promise<string> {
+    logger.debug('[facebook-messenger] getUserName called (db fallback)', { userID });
+    return dbGetUserName(userID);
+  }
+
+  /**
+   * Delegates to the database layer — thread names are stored in bot_threads on first encounter.
+   */
+  override getThreadName(threadID: string): Promise<string> {
+    logger.debug('[facebook-messenger] getThreadName called (db fallback)', { threadID });
+    return dbGetThreadName(threadID);
   }
 }
 
