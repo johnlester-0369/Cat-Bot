@@ -61,6 +61,7 @@ import { upsertSessionCommands } from '@/engine/repos/bot-session-commands.repo.
 import { commandRegistry, eventRegistry } from '@/engine/lib/module-registry.lib.js';
 import { upsertSessionEvents } from '@/engine/repos/bot-session-events.repo.js';
 import type { SessionConfigs } from '@/engine/utils/session-loader.util.js';
+import { isPlatformAllowed } from '@/engine/utils/platform-filter.util.js';
 import { startServer } from '@/server/server.js';
 
 // ============================================================================
@@ -206,24 +207,6 @@ async function syncCommandsAndEvents(
   eventModules: Map<string, Array<Record<string, unknown>>>,
   sessionConfigs: SessionConfigs,
 ): Promise<void> {
-  // Collect canonical command names (config.name); aliases are NOT separate rows
-  const commandNames = new Set<string>();
-  for (const mod of commands.values()) {
-    const cfg = mod['config'] as { name?: string } | undefined;
-    if (cfg?.name) commandNames.add(cfg.name.toLowerCase());
-  }
-
-  // Collect unique event module names across all eventType dispatch buckets
-  const eventNames = new Set<string>();
-  for (const handlers of eventModules.values()) {
-    for (const mod of handlers) {
-      const cfg = mod['config'] as { name?: string } | undefined;
-      if (cfg?.name) eventNames.add(cfg.name.toLowerCase());
-    }
-  }
-
-  const cmdList = [...commandNames];
-  const evtList = [...eventNames];
   const allSessions = [
     ...sessionConfigs.discord.map((s) => ({ userId: s.userId, sessionId: s.sessionId, platform: Platforms.Discord })),
     ...sessionConfigs.telegram.map((s) => ({ userId: s.userId, sessionId: s.sessionId, platform: Platforms.Telegram })),
@@ -232,12 +215,35 @@ async function syncCommandsAndEvents(
   ];
 
   for (const sess of allSessions) {
-    if (cmdList.length > 0) await upsertSessionCommands(sess.userId, sess.platform, sess.sessionId, cmdList);
-    if (evtList.length > 0) await upsertSessionEvents(sess.userId, sess.platform, sess.sessionId, evtList);
+    // Only sync commands that are structurally allowed to run on this specific platform session
+    const cmdList = new Set<string>();
+    for (const mod of commands.values()) {
+      if (isPlatformAllowed(mod, sess.platform)) {
+        const cfg = mod['config'] as { name?: string } | undefined;
+        if (cfg?.name) cmdList.add(cfg.name.toLowerCase());
+      }
+    }
+
+    // Only sync events that are structurally allowed to run on this specific platform session
+    const evtList = new Set<string>();
+    for (const handlers of eventModules.values()) {
+      for (const mod of handlers) {
+        if (isPlatformAllowed(mod, sess.platform)) {
+          const cfg = mod['config'] as { name?: string } | undefined;
+          if (cfg?.name) evtList.add(cfg.name.toLowerCase());
+        }
+      }
+    }
+
+    const cmdArr = [...cmdList];
+    const evtArr = [...evtList];
+
+    if (cmdArr.length > 0) await upsertSessionCommands(sess.userId, sess.platform, sess.sessionId, cmdArr);
+    if (evtArr.length > 0) await upsertSessionEvents(sess.userId, sess.platform, sess.sessionId, evtArr);
   }
 
   logger.info(
-    `[app] Synced ${cmdList.length} command(s) and ${evtList.length} event(s) for ${allSessions.length} session(s)`,
+    `[app] Synced commands and events for ${allSessions.length} session(s)`,
   );
 }
 
