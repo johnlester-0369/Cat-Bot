@@ -49,6 +49,7 @@ export {
   threadSessionExists,
   upsertThreadSession,
   isThreadAdmin,
+  getThreadName,
 } from '../adapters/json/src/cat-bot/threads.repo.js';
 
 // --- USERS ---
@@ -57,6 +58,7 @@ export {
   userExists,
   userSessionExists,
   upsertUserSession,
+  getUserName,
 } from '../adapters/json/src/cat-bot/users.repo.js';
 
 // --- WEBHOOKS ---

@@ -70,6 +70,8 @@ export const threadSessionExists = m.threadSessionExists;
 export const upsertThreadSession = m.upsertThreadSession;
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 export const isThreadAdmin       = m.isThreadAdmin;
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+export const getThreadName       = m.getThreadName;
 
 // --- USERS ---
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
@@ -80,6 +82,8 @@ export const userExists        = m.userExists;
 export const userSessionExists = m.userSessionExists;
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 export const upsertUserSession = m.upsertUserSession;
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+export const getUserName       = m.getUserName;
 
 // --- WEBHOOKS ---
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment

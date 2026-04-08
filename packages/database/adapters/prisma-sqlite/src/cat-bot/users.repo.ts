@@ -10,6 +10,15 @@ export async function upsertUser(data: BotUserData): Promise<void> {
   });
 }
 
+// WHY: Fulfills the fallback requirement directly at the DB layer so callers never handle undefined.
+export async function getUserName(userId: string): Promise<string> {
+  const row = await prisma.botUser.findUnique({
+    where: { id: userId },
+    select: { name: true },
+  });
+  return row?.name ?? 'Unknown user';
+}
+
 export async function userExists(platform: string, userId: string): Promise<boolean> {
   const row = await prisma.botUser.findUnique({ where: { id: userId }, select: { platformId: true } });
   return row !== null;

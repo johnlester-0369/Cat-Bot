@@ -29,4 +29,13 @@ export async function upsertUserSession(userId: string, platform: string, sessio
   const pid = toPlatformNumericId(platform);
   const rec = db.botUserSession.find((us: any) => us.userId === userId && us.platformId === pid && us.sessionId === sessionId && us.botUserId === botUserId);
   if (!rec) { db.botUserSession.push({ userId, platformId: pid, sessionId, botUserId }); await saveDb(); }
+  if (!rec) { db.botUserSession.push({ userId, platformId: pid, sessionId, botUserId }); await saveDb(); }
 }
+
+// WHY: Fulfills the fallback requirement directly at the DB layer so callers never handle undefined.
+export async function getUserName(userId: string): Promise<string> {
+  const db = await getDb();
+  const rec = db.botUser.find((u: any) => u.id === userId);
+  return rec?.name ?? 'Unknown user';
+}
+

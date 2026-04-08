@@ -56,4 +56,15 @@ export async function isThreadAdmin(threadId: string, userId: string): Promise<b
     select: { admins: { where: { id: userId }, select: { id: true } } },
   });
   return row !== null && row.admins.length > 0;
+  return row !== null && row.admins.length > 0;
 }
+
+// WHY: Fulfills the fallback requirement directly at the DB layer so callers never handle undefined.
+export async function getThreadName(threadId: string): Promise<string> {
+  const row = await prisma.botThread.findUnique({
+    where: { id: threadId },
+    select: { name: true },
+  });
+  return row?.name ?? 'Unknown thread';
+}
+
