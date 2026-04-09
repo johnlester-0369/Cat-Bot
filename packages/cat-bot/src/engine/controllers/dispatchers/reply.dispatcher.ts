@@ -8,10 +8,10 @@
  *
  * Delegates to button.dispatcher for text-menu fallback flows on platforms
  * without native button support.
- */
+*/
 
 import type { BaseCtx, CommandMap } from '@/engine/types/controller.types.js';
-import { stateStore } from '@/engine/lib/reply-state.lib.js';
+import { resolveStateEntry } from '../utils/state-lookup.util.js';
 import { createStateContext } from '@/engine/adapters/models/context.model.js';
 import { dispatchButtonFallback } from './button.dispatcher.js';
 import {
@@ -39,21 +39,15 @@ export async function dispatchOnReply(
   const repliedToID = messageReply?.['messageID'] as string | undefined;
   if (!repliedToID) return false;
 
-  // Try scoped composite keys before falling back to the bare message ID.
-  // Private key (messageID:senderID) ensures only the original sender can advance the flow.
-  // Public key (messageID:threadID) allows any group member to respond (polls, shared flows).
-  const privateKey = `${repliedToID}:${event['senderID'] as string}`;
-  const publicKey = `${repliedToID}:${event['threadID'] as string}`;
-  const privateStored = stateStore.get(privateKey);
-  const publicStored = stateStore.get(publicKey);
-  const legacyStored = stateStore.get(repliedToID);
-  const stored = privateStored ?? publicStored ?? legacyStored;
-  const lookupKey = privateStored
-    ? privateKey
-    : publicStored
-      ? publicKey
-      : repliedToID;
-  if (!stored) return false;
+  // Three-scope lookup (private → public → legacy) is centralised in resolveStateEntry —
+  // adding a new scope or changing priority only requires one edit in the utility.
+  const resolution = resolveStateEntry(
+    repliedToID,
+    event['senderID'] as string,   // private: only the triggering sender can advance
+    event['threadID'] as string,   // public:  any group member can respond (polls, shared flows)
+  );
+  if (!resolution) return false;
+  const { stored, lookupKey } = resolution;
 
   // Button fallback path: routes numbered text replies to menu[actionId].run() for platforms
   // without native button support (Facebook Messenger). State is never deleted here.

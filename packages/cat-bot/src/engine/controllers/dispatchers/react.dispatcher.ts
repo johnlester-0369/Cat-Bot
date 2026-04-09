@@ -11,7 +11,7 @@
  */
 
 import type { BaseCtx, CommandMap } from '@/engine/types/controller.types.js';
-import { stateStore } from '@/engine/lib/reply-state.lib.js';
+import { resolveStateEntry } from '../utils/state-lookup.util.js';
 import { createStateContext } from '@/engine/adapters/models/context.model.js';
 import {
   middlewareRegistry,
@@ -36,20 +36,15 @@ export async function dispatchOnReact(
   // Both fields required — a reaction event missing either cannot match a registered state.
   if (!messageID || !emoji) return false;
 
-  // Private key (messageID:senderID) — only the original reactor advances the flow.
-  // Public key (messageID:threadID) — any group member's reaction advances a shared flow.
-  const privateKey = `${messageID}:${event['userID'] as string}`;
-  const publicKey = `${messageID}:${event['threadID'] as string}`;
-  const privateStored = stateStore.get(privateKey);
-  const publicStored = stateStore.get(publicKey);
-  const legacyStored = stateStore.get(messageID);
-  const stored = privateStored ?? publicStored ?? legacyStored;
-  const lookupKey = privateStored
-    ? privateKey
-    : publicStored
-      ? publicKey
-      : messageID;
-  if (!stored) return false;
+  // Three-scope lookup (private → public → legacy) is centralised in resolveStateEntry —
+  // adding a new scope or changing priority only requires one edit in the utility.
+  const resolution = resolveStateEntry(
+    messageID,
+    event['userID'] as string,    // private: only the original reactor advances
+    event['threadID'] as string,  // public:  any group member's reaction advances a shared flow
+  );
+  if (!resolution) return false;
+  const { stored, lookupKey } = resolution;
 
   const mod = commands.get(stored.command);
   if (!mod || typeof mod['onReact'] !== 'object' || !mod['onReact'])

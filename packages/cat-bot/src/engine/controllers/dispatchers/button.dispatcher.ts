@@ -16,19 +16,11 @@ import type {
   NativeContext,
 } from '@/engine/types/controller.types.js';
 import type { UnifiedApi } from '@/engine/adapters/models/api.model.js';
-import {
-  createThreadContext,
-  createChatContext,
-  createBotContext,
-  createUserContext,
-} from '@/engine/adapters/models/context.model.js';
-import { createLogger } from '@/engine/lib/logger.lib.js';
+import { createChatContext } from '@/engine/adapters/models/context.model.js';
 // Platform filter — enforces config.platform[] declared by each command module
 import { isPlatformAllowed } from '@/engine/utils/platform-filter.util.js';
-import { PLATFORM_TO_ID } from '@/engine/constants/platform.constants.js';
-import { getUserName, getAllUserSessionData } from '@/engine/repos/users.repo.js';
-import { getThreadName } from '@/engine/repos/threads.repo.js';
-import { createCollectionManager, createThreadCollectionManager } from '@/engine/lib/db-collection.lib.js';
+// BaseCtx construction delegated to shared factory — eliminates ~35-line duplication across handlers
+import { buildBaseCtx } from '../factories/ctx.factory.js';
 
 /**
  * Routes a text-based button selection to the owning command's menu[actionId].run() handler.
@@ -103,18 +95,13 @@ export async function dispatchButtonFallback(
     actionId: `${stored.command}:${matched.id}`,
   };
 
-  // Rebuild thread/chat/bot/user contexts bound to buttonEvent so chat.reply() inside run()
-  // targets the correct messageID (the user's selection reply, not the initial command trigger).
-  const thread = createThreadContext(ctx.api, buttonEvent);
-  const chat = createChatContext(
-    ctx.api,
-    buttonEvent,
-    stored.command,
-    menu as Parameters<typeof createChatContext>[3],
-  );
-  const bot = createBotContext(ctx.api);
-  const user = createUserContext(ctx.api);
-  const buttonCtx = { ...ctx, event: buttonEvent, thread, chat, bot, user };
+  // Re-bind ctx to the synthetic buttonEvent so chat.reply() targets the selection reply's
+  // messageID rather than the original command trigger — ctx.prefix is forwarded unchanged.
+  const buttonCtx: BaseCtx = {
+    ...buildBaseCtx(ctx.api, buttonEvent, ctx.commands, ctx.native, ctx.prefix),
+    // Command-aware chat embeds "stored.command:actionId" so handleButtonAction can reverse-route
+    chat: createChatContext(ctx.api, buttonEvent, stored.command, menu as Parameters<typeof createChatContext>[3]),
+  };
 
   // State is intentionally NOT deleted — the numbered menu remains persistently re-selectable,
   // equivalent to how button components on Discord, Telegram, and FB Page stay clickable.
@@ -161,46 +148,13 @@ export async function handleButtonAction(
   const handler = menu[localActionId];
   if (!handler || typeof handler.run !== 'function') return;
 
-  // Build a full ctx mirroring what onCommand receives so run() handlers
-  // can use chat.reply(), thread.getInfo(), etc. without special-casing.
-  const thread = createThreadContext(api, event);
-  const chat = createChatContext(
-    api,
-    event,
-    commandName,
-    mod['menu'] as Parameters<typeof createChatContext>[3],
-  );
-  const bot = createBotContext(api);
-  const user = createUserContext(api);
-  const logger = createLogger({
-    userId: native.userId ?? '',
-    platformId: (PLATFORM_TO_ID as Record<string, number>)[native.platform] ?? native.platform,
-    sessionId: native.sessionId ?? '',
-  });
+  // Build a full ctx from the shared factory; override chat with the command-aware variant so
+  // button callbacks embed "commandName:actionId" and handleButtonAction can reverse-route
+  // without a global action ID registry.
   const ctx: BaseCtx = {
-    api,
-    event,
-    commands,
-    thread,
-    chat,
-    bot,
-    user,
-    native,
-    logger,
-    db: {
-      users: {
-        getName: getUserName,
-        // Pre-scoped to session — button run() handlers can access collection(botUserId)
-        collection: createCollectionManager(native.userId ?? '', native.platform, native.sessionId ?? ''),
-        // Returns all user sessions for the current bot identity
-        getAll: () => getAllUserSessionData(native.userId ?? '', native.platform, native.sessionId ?? ''),
-      },
-      threads: {
-        getName: getThreadName,
-      collection: createThreadCollectionManager(native.userId ?? '', native.platform, native.sessionId ?? ''),
-    },
-  },
-};
+    ...buildBaseCtx(api, event, commands, native),
+    chat: createChatContext(api, event, commandName, mod['menu'] as Parameters<typeof createChatContext>[3]),
+  };
 
   await handler.run(ctx).catch((err: unknown) => {
     console.error(`❌ Button action "${actionId}" failed`, err);

@@ -17,13 +17,6 @@ import type {
   NativeContext,
 } from '@/engine/types/controller.types.js';
 import type { UnifiedApi } from '@/engine/adapters/models/api.model.js';
-import {
-  createThreadContext,
-  createChatContext,
-  createBotContext,
-  createUserContext,
-} from '@/engine/adapters/models/context.model.js';
-import { createLogger } from '@/engine/lib/logger.lib.js';
 import { runOnChat } from '../on-chat-runner.js';
 import { dispatchOnReply } from '../dispatchers/reply.dispatcher.js';
 import { dispatchCommand } from '../dispatchers/command.dispatcher.js';
@@ -36,11 +29,9 @@ import type { OnChatCtx, OnCommandCtx } from '@/engine/types/middleware.types.js
 import { findSimilarCommand } from '@/engine/utils/command-suggest.util.js';
 import { OptionsMap } from '@/engine/lib/options-map.lib.js';
 import { isCommandEnabled, findSessionCommands } from '@/engine/repos/bot-session-commands.repo.js';
-import { PLATFORM_TO_ID } from '@/engine/constants/platform.constants.js';
 import { isPlatformAllowed } from '@/engine/utils/platform-filter.util.js';
-import { getUserName, getAllUserSessionData } from '@/engine/repos/users.repo.js';
-import { getThreadName } from '@/engine/repos/threads.repo.js';
-import { createCollectionManager, createThreadCollectionManager } from '@/engine/lib/db-collection.lib.js';
+// BaseCtx construction delegated to shared factory — eliminates ~35-line duplication across handlers
+import { buildBaseCtx } from '../factories/ctx.factory.js';
 
 /**
  * Returns the set of command names disabled by the bot admin for this session.
@@ -89,42 +80,9 @@ export async function handleMessage(
   prefix: string,
   native: NativeContext = { platform: 'unknown' },
 ): Promise<void> {
-  const thread = createThreadContext(api, event);
-  const chat = createChatContext(api, event);
-  const bot = createBotContext(api);
-  const user = createUserContext(api);
-  // Inject session-scoped logger so command modules have direct access to correlation context
-  const logger = createLogger({
-    userId: native.userId ?? '',
-    platformId: (PLATFORM_TO_ID as Record<string, number>)[native.platform] ?? native.platform,
-    sessionId: native.sessionId ?? '',
-  });
-  const baseCtx: BaseCtx = {
-    api,
-    event,
-    commands,
-    prefix,
-    thread,
-    chat,
-    bot,
-    user,
-    native,
-    logger,
-    db: {
-      users: {
-        getName: getUserName,
-        // Pre-scoped to (sessionOwnerUserId, platform, sessionId) — commands pass only botUserId
-        collection: createCollectionManager(native.userId ?? '', native.platform, native.sessionId ?? ''),
-        // Returns all user sessions for the current bot identity
-        getAll: () => getAllUserSessionData(native.userId ?? '', native.platform, native.sessionId ?? ''),
-      },
-      threads: {
-        getName: getThreadName,
-        // Pre-scoped to session coords — rankup and other per-thread features call collection(botThreadId) directly
-        collection: createThreadCollectionManager(native.userId ?? '', native.platform, native.sessionId ?? ''),
-      },
-    },
-  };
+  const baseCtx = buildBaseCtx(api, event, commands, native, prefix);
+  // Destructure chat for direct use in the "no prefix" and "command not found" reply paths below
+  const { chat } = baseCtx;
 
   // Run global onChat middleware chain before the module fan-out — cross-cutting
   // concerns (rate limiting, audit logging, spam detection) intercept every message

@@ -14,19 +14,10 @@ import type {
   NativeContext,
 } from '@/engine/types/controller.types.js';
 import type { UnifiedApi } from '@/engine/adapters/models/api.model.js';
-import {
-  createThreadContext,
-  createChatContext,
-  createBotContext,
-  createUserContext,
-} from '@/engine/adapters/models/context.model.js';
-import { createLogger } from '@/engine/lib/logger.lib.js';
 import { dispatchEvent } from '../dispatchers/event.dispatcher.js';
 import { dispatchOnReact } from '../dispatchers/react.dispatcher.js';
-import { PLATFORM_TO_ID } from '@/engine/constants/platform.constants.js';
-import { getUserName, getAllUserSessionData } from '@/engine/repos/users.repo.js';
-import { getThreadName } from '@/engine/repos/threads.repo.js';
-import { createCollectionManager, createThreadCollectionManager } from '@/engine/lib/db-collection.lib.js';
+// BaseCtx construction delegated to shared factory — eliminates ~35-line duplication across handlers
+import { buildBaseCtx } from '../factories/ctx.factory.js';
 
 /**
  * Entry point for platform thread-level events (member join, leave, rename, etc.)
@@ -44,44 +35,7 @@ export async function handleEvent(
   native: NativeContext = { platform: 'unknown' },
   commands: CommandMap = new Map(),
 ): Promise<void> {
-  // Inject session-scoped logger for context-aware event logging
-  const logger = createLogger({
-    userId: native.userId ?? '',
-    platformId: (PLATFORM_TO_ID as Record<string, number>)[native.platform] ?? native.platform,
-    sessionId: native.sessionId ?? '',
-  });
-
-  // Build unified context object for all events so both onReact and generic onEvent
-  // handlers have access to the same chat/thread operations as message handlers.
-  const thread = createThreadContext(api, event);
-  const chat = createChatContext(api, event);
-  const bot = createBotContext(api);
-  const user = createUserContext(api);
-  const baseCtx: BaseCtx = {
-    api,
-    event,
-    commands,
-    thread,
-    chat,
-    bot,
-    user,
-    native,
-    logger,
-    db: {
-      users: {
-        getName: getUserName,
-        // Pre-scoped to session coords — event handlers call collection(botUserId) directly
-        collection: createCollectionManager(native.userId ?? '', native.platform, native.sessionId ?? ''),
-        // Returns all user sessions for the current bot identity
-        getAll: () => getAllUserSessionData(native.userId ?? '', native.platform, native.sessionId ?? ''),
-      },
-      threads: {
-        getName: getThreadName,
-        collection: createThreadCollectionManager(native.userId ?? '', native.platform, native.sessionId ?? ''),
-      },
-    },
-  };
-
+  const baseCtx = buildBaseCtx(api, event, commands, native);
   // Check for a pending onReact state before routing to generic event handlers.
   if (event['type'] === 'message_reaction' && commands.size > 0) {
     const handled = await dispatchOnReact(commands, event, baseCtx);
