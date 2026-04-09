@@ -35,6 +35,9 @@ import {
 } from '@/engine/adapters/models/context.model.js';
 import { OptionsMap } from '@/engine/lib/options-map.lib.js';
 import { OptionType } from '@/engine/constants/command-option.constants.js';
+import { getUserName } from '@/engine/repos/users.repo.js';
+import { getThreadName } from '@/engine/repos/threads.repo.js';
+import { createCollectionManager } from '@/engine/lib/db-collection.lib.js';
 
 interface AttachEventHandlersOptions {
   client: Client;
@@ -197,6 +200,14 @@ export async function attachEventHandlers(
       bot,
       user,
       logger: sessionLogger,
+      // WHY: Provide the database adapters so Discord slash commands have uniform access to user collections and names
+      db: {
+        users: {
+          getName: getUserName,
+          collection: createCollectionManager(userId, Platforms.Discord, sessionId),
+        },
+        threads: { getName: getThreadName },
+      },
       parsed: { name: commandName, args },
       mod,
       options: new OptionsMap(optionsRecord),
