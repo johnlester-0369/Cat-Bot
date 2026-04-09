@@ -24,20 +24,10 @@ import {
   normalizeGuildMemberRemoveEvent,
   normalizeMessageCreateEvent,
   normalizeMessageReactionAddEvent,
-  normalizeMessageDeleteEvent,
-} from './utils/normalizers.util.js';
+  normalizeMessageDeleteEvent
+ } from './utils/normalizers.util.js';
 import { clearGuildCommands } from './slash-commands.js';
-import {
-  createThreadContext,
-  createChatContext,
-  createBotContext,
-  createUserContext,
-} from '@/engine/adapters/models/context.model.js';
-import { OptionsMap } from '@/engine/lib/options-map.lib.js';
 import { OptionType } from '@/engine/constants/command-option.constants.js';
-import { getUserName } from '@/engine/repos/users.repo.js';
-import { getThreadName } from '@/engine/repos/threads.repo.js';
-import { createCollectionManager } from '@/engine/lib/db-collection.lib.js';
 
 interface AttachEventHandlersOptions {
   client: Client;
@@ -71,10 +61,6 @@ export async function attachEventHandlers(
     sessionId,
     sessionLogger,
   } = options;
-
-  // dispatchCommand imported dynamically to preserve the existing lazy-loading
-  // pattern and avoid tight coupling between the transport layer and controller layer
-  const { dispatchCommand } = await import('@/engine/controllers/index.js');
 
   // ── Text-prefix message listener → emit 'message' / 'message_reply' ───────
   client.on('messageCreate', async (message) => {
@@ -172,50 +158,15 @@ export async function attachEventHandlers(
 
     const api = createDiscordApi(interaction);
     const event = normalizeInteractionEvent(interaction, args);
-    // Embed the pre-resolved options so dispatchCommand detects the Discord slash path
+    // Embed the pre-resolved options so validateCommandOptions detects the Discord slash path
     // and skips text-body parsing — the optionsRecord field is the detection signal.
     event['optionsRecord'] = optionsRecord;
+    // Mock a text message body so `message.handler.ts` routes it correctly through `parseCommand`
+    event['message'] = `${prefix}${commandName} ${args.join(' ')}`.trim();
     const native = { platform: Platforms.Discord, userId, sessionId, interaction };
-    // Slash commands arrive via interactionCreate and bypass the emitter→handleMessage
-    // pipeline that normally builds the full BaseCtx. Construct thread/chat/bot/user
-    // here so dispatchCommand spreads a complete context into commandCtx — without this,
-    // ctx.native is undefined and any command destructuring native crashes at runtime.
-    const thread = createThreadContext(api, event);
-    const chat = createChatContext(api, event);
-    const bot = createBotContext(api);
-    const user = createUserContext(api);
-    const ctx = {
-      api,
-      event,
-      commands,
-      prefix,
-      native,
-      thread,
-      chat,
-      bot,
-      user,
-      logger: sessionLogger,
-      // WHY: Provide the database adapters so Discord slash commands have uniform access to user collections and names
-      db: {
-        users: {
-          getName: getUserName,
-          collection: createCollectionManager(userId, Platforms.Discord, sessionId),
-        },
-        threads: { getName: getThreadName },
-      },
-      parsed: { name: commandName, args },
-      mod,
-      options: new OptionsMap(optionsRecord),
-    };
-
-    await dispatchCommand(
-      commands,
-      { name: commandName, args },
-      ctx,
-      api,
-      event['threadID'] as string,
-      prefix,
-    );
+    
+    // Emit 'message' so app.ts routes it to message.handler.ts, centralising ctx creation
+    emitter.emit('message', { api, event, native, prefix });
   });
 
   // ── Guild member events → emit 'event' ────────────────────────────────────
