@@ -148,15 +148,10 @@ export async function attachEventHandlers(
 
     const commandName = interaction.commandName;
     const mod = commands.get(commandName);
-    if (!mod || typeof mod['onCommand'] !== 'function') {
-      await interaction.editReply(`❓ Unknown command "/${commandName}".`);
-      return;
-    }
 
-    const cfg = mod['config'] as Record<string, unknown>;
-    // Pre-resolve interaction.options into a name→value record so dispatchCommand
-    // constructs OptionsMap from interaction values directly, preserving Discord's
-    // native type coercion and required-field guarantees without re-parsing text.
+    // Pre-resolve interaction.options into a name→value record so validateCommandOptions
+    // constructs OptionsMap from interaction values directly, preserving Discord's native type coercion.
+    const cfg = (mod?.['config'] as Record<string, unknown>) ?? {};
     const optionDefs = (cfg['options'] as Array<{ name: string; type?: string }>) ?? [];
     const optionsRecord: Record<string, string> = {};
     for (const opt of optionDefs) {
