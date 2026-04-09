@@ -39,3 +39,45 @@ export async function getUserName(userId: string): Promise<string> {
   return rec?.name ?? 'Unknown user';
 }
 
+/**
+ * Reads the JSON data blob for a specific bot_users_session record.
+ * Returns empty object on missing record, null data, or parse failure — same fail-open
+ * contract as the Prisma adapter so collection callers never need to guard against undefined.
+ */
+export async function getUserSessionData(
+  userId: string,
+  platform: string,
+  sessionId: string,
+  botUserId: string,
+): Promise<Record<string, unknown>> {
+  const db = await getDb();
+  const pid = toPlatformNumericId(platform);
+  const rec = db.botUserSession.find(
+    (us: any) => us.userId === userId && us.platformId === pid && us.sessionId === sessionId && us.botUserId === botUserId,
+  );
+  if (!rec?.data) return {};
+  try { return JSON.parse(rec.data as string) as Record<string, unknown>; }
+  catch { return {}; }
+}
+
+/**
+ * Writes the JSON data blob for a specific bot_users_session record.
+ * Silently skips when the record is absent — mirrors updateMany no-op behaviour in the Prisma adapter.
+ */
+export async function setUserSessionData(
+  userId: string,
+  platform: string,
+  sessionId: string,
+  botUserId: string,
+  data: Record<string, unknown>,
+): Promise<void> {
+  const db = await getDb();
+  const pid = toPlatformNumericId(platform);
+  const rec = db.botUserSession.find(
+    (us: any) => us.userId === userId && us.platformId === pid && us.sessionId === sessionId && us.botUserId === botUserId,
+  );
+  if (rec) {
+    rec.data = JSON.stringify(data);
+    await saveDb();
+  }
+}
