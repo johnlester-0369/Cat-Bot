@@ -23,20 +23,8 @@ import {
 // text_mention entities allow tagging users by numeric ID without a public @username — Bot API 7.0+
 import { buildTelegramMentionEntities } from '../utils/helper.util.js';
 import type {
-  ButtonItem,
-  MentionEntry,
-  NamedStreamAttachment,
-  NamedUrlAttachment,
+  ReplyMessageOptions,
 } from '@/engine/adapters/models/api.model.js';
-
-interface ReplyOpts {
-  message?: string | { body?: string };
-  attachment?: NamedStreamAttachment[];
-  attachment_url?: NamedUrlAttachment[];
-  reply_to_message_id?: string | number;
-  button?: ButtonItem[];
-  mentions?: MentionEntry[];
-}
 
 // Augment Readable to carry a path property for extension-based routing
 interface AttachmentStream extends Readable {
@@ -53,13 +41,18 @@ export async function replyMessage(
     reply_to_message_id,
     button = [],
     mentions = [],
-  }: ReplyOpts = {},
+  }: ReplyMessageOptions = {},
 ): Promise<string | undefined> {
-  const chatId = ctx.chat?.id as number;
+  // Use the explicit _threadID when it resolves to a non-zero number so the bot
+  // can send to a different chat (admin DM, support group) than the one that
+  // triggered the current update.  Falls back to ctx.chat?.id for the standard
+  // same-chat reply path.
+  const chatId = Number(_threadID) || (ctx.chat?.id as number);
   const text =
     typeof msgBody === 'string'
       ? msgBody
-      : ((msgBody as { body?: string })?.body ?? '');
+      // Fallback matches SendPayload explicitly to prevent dropping `message` vs `body` payloads
+      : ((msgBody as { message?: string })?.message ?? (msgBody as { body?: string })?.body ?? '');
 
   // Compute text_mention entities once for all send calls in this invocation
   const entities = buildTelegramMentionEntities(text, mentions);

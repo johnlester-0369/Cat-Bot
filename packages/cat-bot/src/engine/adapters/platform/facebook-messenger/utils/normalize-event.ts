@@ -51,14 +51,17 @@ export function normalizeMessageEvent(
   event: FcaMessageEvent,
 ): Record<string, unknown> {
   const message = event.body ?? '';
-  return {
+  const isReply = event.type === 'message_reply';
+
+  const base = {
     // Pass through fca's type ('message' or 'message_reply') so the emitter event name and event.type agree
     type: event.type ?? 'message',
     platform: Platforms.FacebookMessenger,
-    threadID: event.threadID,
-    senderID: event.senderID,
+    // Enforce string fallbacks so unified models never receive undefined
+    threadID: event.threadID ?? '',
+    senderID: event.senderID ?? '',
     message,
-    messageID: event.messageID,
+    messageID: event.messageID ?? '',
     args: message.trim().split(/\s+/).filter(Boolean),
     attachments: (event.attachments ?? []).map((a) => ({
       type: a.type ?? 'unknown',
@@ -66,25 +69,31 @@ export function normalizeMessageEvent(
     })),
     isGroup: !!event.isGroup,
     mentions: event.mentions ?? {},
-    timestamp: event.timestamp ?? null,
-    // fca-unofficial provides the full PROTO_REPLIED_MESSAGE shape on messageReply — pass all fields through
-    // so command/event modules can safely read senderID, attachments, timestamp, etc. on the replied message.
-    messageReply: event.messageReply
-      ? {
-          threadID: event.messageReply.threadID ?? '',
-          messageID: event.messageReply.messageID ?? '',
-          senderID: event.messageReply.senderID ?? '',
-          // Map attachments with the same type/url projection used for the outer event
-          attachments: (event.messageReply.attachments ?? []).map((a) => ({
-            type: a.type ?? 'unknown',
-            url: a.url ?? null,
-          })),
-          args: event.messageReply.args ?? [],
-          message: event.messageReply.body ?? null,
-          isGroup: event.messageReply.isGroup ?? false,
-          mentions: event.messageReply.mentions ?? {},
-          timestamp: event.messageReply.timestamp ?? null,
-        }
-      : null,
+    // PROTO_REPLIED_MESSAGE requires number; PROTO_EVENT_MESSAGE allows string|number|null
+    timestamp: isReply ? (Number(event.timestamp) || 0) : (event.timestamp ?? null),
   };
+
+  if (isReply) {
+    return {
+      ...base,
+      // fca-unofficial provides the full PROTO_REPLIED_MESSAGE shape on messageReply — pass all fields through
+      // so command/event modules can safely read senderID, attachments, timestamp, etc. on the replied message.
+      messageReply: event.messageReply ? {
+        threadID: event.messageReply.threadID ?? '',
+        messageID: event.messageReply.messageID ?? '',
+        senderID: event.messageReply.senderID ?? '',
+        attachments: (event.messageReply.attachments ?? []).map((a) => ({
+          type: a.type ?? 'unknown',
+          url: a.url ?? null,
+        })),
+        args: event.messageReply.args ?? (event.messageReply.body ?? '').trim().split(/\s+/).filter(Boolean),
+        message: event.messageReply.body ?? '',
+        isGroup: !!event.messageReply.isGroup,
+        mentions: event.messageReply.mentions ?? {},
+        timestamp: event.messageReply.timestamp ?? 0,
+      } : null,
+    };
+  }
+
+  return base;
 }

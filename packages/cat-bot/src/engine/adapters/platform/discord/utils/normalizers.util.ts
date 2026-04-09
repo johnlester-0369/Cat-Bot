@@ -40,7 +40,8 @@ export function normalizeInteractionEvent(
     platform: Platforms.Discord,
     threadID: interaction.channelId,
     senderID: interaction.user.id,
-    body,
+    // Aligned to PROTO_EVENT_MESSAGE contract — uses message instead of body
+    message: body,
     messageID: interaction.id,
     args: body.trim().split(/\s+/).filter(Boolean),
     attachments: [],

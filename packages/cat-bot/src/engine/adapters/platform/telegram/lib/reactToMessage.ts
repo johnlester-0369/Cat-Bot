@@ -9,7 +9,7 @@ import type { Context } from 'telegraf';
 export async function reactToMessage(
   ctx: Context,
   _threadID: string,
-  messageID: string | number,
+  messageID: string,
   emoji: string,
 ): Promise<void> {
   await ctx.telegram.setMessageReaction(

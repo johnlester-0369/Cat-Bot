@@ -10,6 +10,7 @@ import {
   ButtonBuilder,
   ButtonStyle,
 } from 'discord.js';
+import type { SendPayload } from '@/engine/adapters/models/api.model.js';
 import type { ButtonItem } from '@/engine/adapters/models/api.model.js';
 import { streamToBuffer, urlToStream } from '../utils/helper.util.js';
 
@@ -21,7 +22,7 @@ type SendFn = (
 ) => Promise<string | undefined>;
 
 interface ReplyOptions {
-  message?: string;
+  message?: string | SendPayload;
   attachment?: Array<{ name: string; stream: NodeJS.ReadableStream | Buffer }>;
   attachment_url?: Array<{ name: string; url: string }>;
   reply_to_message_id?: string;
@@ -42,7 +43,7 @@ export async function replyMessage(
   const content =
     typeof msgBody === 'string'
       ? msgBody
-      : ((msgBody as unknown as { body?: string })?.body ?? '');
+      : (msgBody.message ?? (msgBody as unknown as { body?: string })?.body ?? '');
   const files: AttachmentBuilder[] = [];
 
   // Destructure {name, stream} — name drives the AttachmentBuilder filename shown in Discord

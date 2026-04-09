@@ -98,19 +98,53 @@ class DiscordApi extends UnifiedApi {
     return sent as unknown as { id: string };
   }
 
+  /**
+   * Resolves a cross-channel send target when threadID differs from the interaction channel.
+   * Returns null to preserve the interaction API path (#send) for same-channel responses.
+   * Tries channels.fetch() first (guild text channels), then user.createDM() — callad passes
+   * admin user IDs as thread_id which Discord cannot resolve via channels.fetch() alone.
+   */
+  async #resolveChannel(
+    threadID: string,
+  ): Promise<import('discord.js').TextBasedChannel | null> {
+    if (!threadID || threadID === this.#interaction.channelId) return null;
+    const c = this.#interaction.client;
+    try {
+      const ch = await c.channels.fetch(threadID);
+      if (ch && 'send' in ch) return ch as import('discord.js').TextBasedChannel;
+    } catch { /* not a channel ID — fall through to DM attempt */ }
+    try {
+      const u = await c.users.fetch(threadID);
+      return await u.createDM();
+    } catch { return null; }
+  }
+
   // #send is passed as a closure so lib functions never reference DiscordApi internals
   override sendMessage(
     msg: string | SendPayload,
     _threadID: string,
   ): Promise<string | undefined> {
     logger.debug('[discord] sendMessage called', { threadID: _threadID });
-    return sendMessageLib(
-      async (c, f) => {
-        const idInfo = await this.#send(c, f);
-        return idInfo ? { id: idInfo.id } : undefined;
-      },
-      buildDiscordMentionMsg(msg) as string | SendPayload,
-    );
+    return (async () => {
+      const crossCh = await this.#resolveChannel(_threadID);
+      if (crossCh) {
+        // Cross-channel send: bypass the interaction API and route directly to the target channel.
+        // Required for callad.ts forwarding user messages to admin DMs on Discord.
+        const text =
+          typeof msg === 'string'
+            ? msg
+            : ((msg.message ?? (msg as unknown as { body?: string }).body) ?? '');
+        const sent = await crossCh.send(text);
+        return (sent as unknown as { id?: string })?.id;
+      }
+      return sendMessageLib(
+        async (c, f) => {
+          const idInfo = await this.#send(c, f);
+          return idInfo ? { id: idInfo.id } : undefined;
+        },
+        buildDiscordMentionMsg(msg) as string | SendPayload,
+      );
+    })();
   }
 
   // Slash command replies cannot be deleted via interaction API — channel=null signals no-op
@@ -191,11 +225,9 @@ class DiscordApi extends UnifiedApi {
       // Coalescing undefined to empty array avoids assignment mismatches with strict exactOptionalPropertyTypes
       mentions: options.mentions ?? (typeof options.message === 'object' ? (options.message.mentions ?? []) : []),
     }) as SendPayload;
-    return replyMessageLib(
-      // Forward button components from lib to #send so they appear on the interaction reply/followUp
-      (content, files, _replyId, components) =>
-        this.#send(content, files, components).then((r) => r?.id),
-      {
+    return (async () => {
+      const crossCh = await this.#resolveChannel(_threadID);
+      const resolvedOpts = {
         message: payloadWithMentions.message ?? '',
         // Forward attachments and buttons — these were previously silently dropped, causing
         // command modules (e.g. /example_buttons) to send messages with no button components.
@@ -204,8 +236,30 @@ class DiscordApi extends UnifiedApi {
         ...(options.attachment_url !== undefined ? { attachment_url: options.attachment_url } : {}),
         ...(options.button !== undefined ? { button: options.button } : {}),
         ...(options.reply_to_message_id !== undefined ? { reply_to_message_id: options.reply_to_message_id } : {}),
-      },
-    );
+      };
+      if (crossCh) {
+        // Cross-channel reply (e.g. callad relaying to admin DM) — bypass the interaction API
+        return replyMessageLib(
+          async (content, files, replyId, components) => {
+            const sOpts: Record<string, unknown> = { content };
+            if (replyId) sOpts['reply'] = { messageReference: replyId, failIfNotExists: false };
+            if (files.length > 0) sOpts['files'] = files;
+            if (components && components.length > 0) sOpts['components'] = components;
+            const sent = await (crossCh as import('discord.js').TextChannel).send(
+              sOpts as Parameters<import('discord.js').TextChannel['send']>[0],
+            );
+            return (sent as unknown as { id?: string })?.id;
+          },
+          resolvedOpts,
+        );
+      }
+      // Same-channel: forward button components from lib to #send so they appear on reply/followUp
+      return replyMessageLib(
+        (content, files, _replyId, components) =>
+          this.#send(content, files, components).then((r) => r?.id),
+        resolvedOpts,
+      );
+    })();
   }
 
   override reactToMessage(
@@ -334,12 +388,41 @@ export function createDiscordChannelApi(
     return sent as unknown as { id: string };
   };
 
+  /**
+   * Resolves the target channel for sends in createDiscordChannelApi.
+   * Returns the bound channel when targetId matches or client is unavailable.
+   * Falls back through guild channel fetch → user.createDM() — callad passes admin user IDs
+   * as thread_id and Discord user IDs cannot be resolved via client.channels.fetch() alone.
+   */
+  async function resolveChannel(
+    targetId: string,
+  ): Promise<import('discord.js').TextBasedChannel> {
+    if (!targetId || targetId === channel.id || !client) return channel;
+    try {
+      const ch = await client.channels.fetch(targetId);
+      if (ch && 'send' in ch) return ch as import('discord.js').TextBasedChannel;
+    } catch { /* not a channel ID — try opening a DM to this user ID */ }
+    try {
+      const u = await client.users.fetch(targetId);
+      return await u.createDM();
+    } catch { return channel; }
+  }
+
   api.sendMessage = (msg, _threadID) => {
     logger.debug('[discord] sendMessage called', { threadID: _threadID });
-    return sendMessageLib(
-      channelSendFn,
-      buildDiscordMentionMsg(msg) as string | SendPayload,
-    );
+    return (async () => {
+      const targetCh = await resolveChannel(_threadID);
+      if (targetCh !== channel) {
+        // Cross-channel: resolve the target and send directly — the primary fix for callad
+        // forwarding user messages to admin DMs or relay threads on Discord
+        const text = typeof msg === 'string'
+          ? msg
+          : ((buildDiscordMentionMsg(msg) as SendPayload).message ?? '');
+        const sent = await (targetCh as import('discord.js').TextChannel).send(text);
+        return sent.id;
+      }
+      return sendMessageLib(channelSendFn, buildDiscordMentionMsg(msg) as string | SendPayload);
+    })();
   };
   // TextBasedChannel cast — unsendMessageLib expects TextChannel but the channel path accepts any text channel
   api.unsendMessage = (messageID) => {
@@ -384,40 +467,42 @@ export function createDiscordChannelApi(
     return setGroupReactionLib();
   };
 
-  api.replyMessage = (_threadID, options) => {
+  api.replyMessage = async (_threadID, options) => {
     logger.debug('[discord] replyMessage called', { threadID: _threadID });
-    return replyMessageLib(
-      async (content, files, replyId, components) => {
-        const sendOptions: Record<string, unknown> = { content };
-        // Create a Discord quote-thread back to the original message when replyId is present
-        if (replyId)
-          sendOptions['reply'] = {
-            messageReference: replyId,
-            failIfNotExists: false,
-          };
-        if (files.length > 0) sendOptions['files'] = files;
-        // Attach button ActionRows when present so Discord renders them below the message text
-        if (components && components.length > 0)
-          sendOptions['components'] = components;
-        const sent = await channel.send(
-          sendOptions as Parameters<typeof channel.send>[0],
+    const targetCh = await resolveChannel(_threadID);
+    const msgBody = (buildDiscordMentionMsg({
+      message: typeof options?.message === 'string'
+        ? options.message
+        : (options?.message?.message ?? options?.message?.body ?? ''),
+      mentions: options?.mentions ?? (typeof options?.message === 'object' ? (options.message.mentions ?? []) : []),
+    }) as SendPayload).message ?? '';
+    const resolvedOpts = {
+      message: msgBody,
+      // Forward all option fields — same fix as DiscordApi.replyMessage; buttons, attachments,
+      // and reply threading are preserved so callad relay messages are fully featured.
+      ...(options?.attachment !== undefined ? { attachment: options.attachment } : {}),
+      ...(options?.attachment_url !== undefined ? { attachment_url: options.attachment_url } : {}),
+      ...(options?.button !== undefined ? { button: options.button } : {}),
+      ...(options?.reply_to_message_id !== undefined ? { reply_to_message_id: options.reply_to_message_id } : {}),
+    };
+    // Skip thread-pinning when sending cross-channel — the reply_to_message_id references a
+    // message in the originating channel which does not exist in the target DM/channel.
+      return replyMessageLib(
+        async (content, files, replyId, components) => {
+          const sOpts: Record<string, unknown> = { content };
+          // Apply reply threading whenever replyId is present, regardless of whether the target is
+          // the originating channel or a cross-channel DM/relay. The Discord API requires only that
+          // messageReference.message_id points to a message that exists in targetCh — callad.ts
+          // always satisfies this contract (userMessageID is in userThreadID, adminMessageID in adminThreadID).
+          if (replyId) sOpts['reply'] = { messageReference: replyId, failIfNotExists: false };
+          if (files.length > 0) sOpts['files'] = files;
+          if (components && components.length > 0) sOpts['components'] = components;
+          const sent = await (targetCh as import('discord.js').TextChannel).send(
+          sOpts as Parameters<import('discord.js').TextChannel['send']>[0],
         );
         return (sent as unknown as { id?: string })?.id;
       },
-      {
-        message: (buildDiscordMentionMsg({
-          message: typeof options?.message === 'string'
-            ? options.message
-            : (options?.message?.message ?? options?.message?.body ?? ''),
-          mentions: options?.mentions ?? (typeof options?.message === 'object' ? (options.message.mentions ?? []) : []),
-        }) as SendPayload).message ?? '',
-        // Same fix as DiscordApi.replyMessage — forward all three option fields so channel-path
-        // sends (messageCreate events, guildMemberAdd, etc.) also render buttons and attachments.
-        ...(options?.attachment !== undefined ? { attachment: options.attachment } : {}),
-        ...(options?.attachment_url !== undefined ? { attachment_url: options.attachment_url } : {}),
-        ...(options?.button !== undefined ? { button: options.button } : {}),
-        ...(options?.reply_to_message_id !== undefined ? { reply_to_message_id: options.reply_to_message_id } : {}),
-      },
+      resolvedOpts,
     );
   };
 

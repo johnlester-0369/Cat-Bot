@@ -17,6 +17,7 @@ import type { Context } from 'telegraf';
 import { Platforms } from '@/engine/constants/platform.constants.js';
 import type { Message, MessageEntity, PhotoSize } from 'telegraf/types';
 import type { MentionEntry } from '@/engine/adapters/models/api.model.js';
+import { EventType, LogMessageType } from '@/engine/adapters/models/enums/index.js';
 
 // ── Attachment shape used before CDN URL resolution ────────────────────────────
 
@@ -117,7 +118,7 @@ export function normalizeTelegramEvent(
 
   return {
     // Emit 'message_reply' when user tapped "Reply" so handler and command modules can distinguish
-    type: msg?.reply_to_message ? 'message_reply' : 'message',
+    type: msg?.reply_to_message ? EventType.MESSAGE_REPLY : EventType.MESSAGE,
     platform: Platforms.Telegram,
     threadID: String(ctx.chat?.id ?? ''),
     senderID: String(ctx.from?.id ?? ''),
@@ -197,14 +198,15 @@ export function normalizeNewChatMembersEvent(
   const names = addedParticipants.map((p) => p.fullName).join(', ');
 
   return {
-    type: 'event',
+    type: EventType.EVENT,
     platform: Platforms.Telegram,
     threadID: String(ctx.chat?.id ?? ''),
-    logMessageType: 'log:subscribe',
+    logMessageType: LogMessageType.SUBSCRIBE,
     logMessageData: { addedParticipants },
     logMessageBody: names ? `${names} joined the group.` : '',
     // Telegram new_chat_members does not expose who added the member
     author: '',
+    timestamp: ctx.message?.date ? ctx.message.date * 1000 : null,
   };
 }
 
@@ -238,14 +240,15 @@ export function normalizeLeftChatMemberEvent(
     String(m?.id ?? '');
 
   return {
-    type: 'event',
+    type: EventType.EVENT,
     platform: Platforms.Telegram,
     threadID: String(ctx.chat?.id ?? ''),
-    logMessageType: 'log:unsubscribe',
+    logMessageType: LogMessageType.UNSUBSCRIBE,
     logMessageData: { leftParticipantFbId: String(m?.id ?? '') },
     logMessageBody: `${fullName} left the group.`,
     // Telegram left_chat_member does not distinguish kick vs voluntary leave
     author: '',
+    timestamp: ctx.message?.date ? ctx.message.date * 1000 : null,
   };
 }
 
@@ -287,7 +290,7 @@ export function normalizeTelegramReactionEvent(
     reactionEntry?.emoji ?? reactionEntry?.custom_emoji_id ?? '';
 
   return {
-    type: 'message_reaction',
+    type: EventType.MESSAGE_REACTION,
     platform: Platforms.Telegram,
     threadID: String(mr.chat.id),
     messageID: String(mr.message_id),

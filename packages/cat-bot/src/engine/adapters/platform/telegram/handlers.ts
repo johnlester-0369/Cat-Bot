@@ -21,6 +21,7 @@ import type { Telegraf } from 'telegraf';
 import { message } from 'telegraf/filters';
 import type { Message } from 'telegraf/types';
 import { Platforms } from '@/engine/constants/platform.constants.js';
+import { EventType } from '@/engine/adapters/models/enums/index.js';
 import { createTelegramApi } from './wrapper.js';
 import {
   normalizeTelegramEvent,
@@ -53,7 +54,7 @@ export function attachHandlers(
     const api = createTelegramApi(ctx);
     const event = normalizeNewChatMembersEvent(ctx);
     const native = { platform: Platforms.Telegram, userId, sessionId, ctx };
-    emitter.emit('event', { api, event, native, prefix });
+    emitter.emit(EventType.EVENT, { api, event, native, prefix });
   });
 
   // ── Member leave → emit 'event' (log:unsubscribe) ─────────────────────────
@@ -61,7 +62,7 @@ export function attachHandlers(
     const api = createTelegramApi(ctx);
     const event = normalizeLeftChatMemberEvent(ctx);
     const native = { platform: Platforms.Telegram, userId, sessionId, ctx };
-    emitter.emit('event', { api, event, native, prefix });
+    emitter.emit(EventType.EVENT, { api, event, native, prefix });
   });
 
   // ── Message handler → emit 'message' or 'message_reply' ──────────────────
@@ -107,7 +108,7 @@ export function attachHandlers(
 
     const native = { platform: Platforms.Telegram, userId, sessionId, ctx };
     // reply_to_message is set when the user taps "Reply" on an existing message
-    const eventType = msg.reply_to_message ? 'message_reply' : 'message';
+    const eventType = msg.reply_to_message ? EventType.MESSAGE_REPLY : EventType.MESSAGE;
     emitter.emit(eventType, { api, event, native, prefix });
   });
 
@@ -119,7 +120,7 @@ export function attachHandlers(
     const api = createTelegramApi(ctx);
     const event = normalizeTelegramReactionEvent(ctx);
     const native = { platform: Platforms.Telegram, userId, sessionId, ctx };
-    emitter.emit('message_reaction', { api, event, native, prefix });
+    emitter.emit(EventType.MESSAGE_REACTION, { api, event, native, prefix });
   });
 
   // ── Inline keyboard button press → emit 'button_action' ─────────────────────
@@ -136,7 +137,7 @@ export function attachHandlers(
       from: { id: number };
     };
     const event = {
-      type: 'button_action',
+      type: EventType.BUTTON_ACTION,
       platform: Platforms.Telegram,
       actionId: cbq.data ?? '',
       threadID: String(cbq.message?.chat?.id ?? ''),
@@ -145,6 +146,6 @@ export function attachHandlers(
       timestamp: Date.now(),
     };
     const native = { platform: Platforms.Telegram, userId, sessionId, ctx };
-    emitter.emit('button_action', { api, event, native, prefix });
+    emitter.emit(EventType.BUTTON_ACTION, { api, event, native, prefix });
   });
 }

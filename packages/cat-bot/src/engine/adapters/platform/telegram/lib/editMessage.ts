@@ -9,7 +9,7 @@ import type { Context } from 'telegraf';
 
 export async function editMessage(
   ctx: Context,
-  messageID: string | number,
+  messageID: string,
   newBody: string,
 ): Promise<void> {
   await ctx.telegram.editMessageText(

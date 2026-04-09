@@ -19,23 +19,35 @@ import type {
 import type { UnifiedThreadInfo } from '../thread.model.js';
 import type { UnifiedUserInfo } from '../user.model.js';
 
+/** Shared thread override options for context functions */
+export interface ThreadOptions {
+  threadID?: string;
+  thread_id?: string;
+}
+
+/** Shared message override options for context functions */
+export interface MessageOptions {
+  messageID?: string;
+  reply_to_message_id?: string;
+}
+
 /**
  * Thread-scoped context for group/server operations.
  * Created by createThreadContext() and injected as ctx.thread.
  */
 export interface ThreadContext {
-  setName(name: string): Promise<void>;
+  setName(name: string | ({ name: string } & ThreadOptions)): Promise<void>;
   setImage(
-    imageSource: Buffer | import('stream').Readable | string,
+    imageSource: Buffer | import('stream').Readable | string | ({ imageSource: Buffer | import('stream').Readable | string } & ThreadOptions),
   ): Promise<void>;
-  removeImage(): Promise<void>;
-  addUser(userID: string): Promise<void>;
-  removeUser(userID: string): Promise<void>;
-  setReaction(emoji: string): Promise<void>;
-  setNickname(options: { nickname: string; user_id: string }): Promise<void>;
-  getInfo(targetThreadID?: string): Promise<UnifiedThreadInfo>;
+  removeImage(options?: ThreadOptions): Promise<void>;
+  addUser(userID: string | ({ userID: string } & ThreadOptions)): Promise<void>;
+  removeUser(userID: string | ({ userID: string } & ThreadOptions)): Promise<void>;
+  setReaction(emoji: string | ({ emoji: string } & ThreadOptions)): Promise<void>;
+  setNickname(options: { nickname: string; user_id: string } & ThreadOptions): Promise<void>;
+  getInfo(targetThreadID?: string | ThreadOptions): Promise<UnifiedThreadInfo>;
   /** Returns the display name of this thread/group using cached/in-flight data (Discord/Telegram) or the DB (FB). Falls back to "Thread {id}". */
-  getName(threadID?: string): Promise<string>;
+  getName(targetThreadID?: string | ThreadOptions): Promise<string>;
 }
 
 /**
@@ -46,6 +58,10 @@ export interface ReplyOptions {
   attachment?: NamedStreamAttachment[];
   attachment_url?: NamedUrlAttachment[];
   button?: string[];
+  threadID?: string;
+  thread_id?: string;
+  messageID?: string;
+  reply_to_message_id?: string;
 }
 
 /**
@@ -55,8 +71,8 @@ export interface ReplyOptions {
 export interface ChatContext {
   reply(options?: ReplyOptions): Promise<unknown>;
   replyMessage(options?: ReplyOptions): Promise<unknown>;
-  reactMessage(emoji: string): Promise<void>;
-  unsendMessage(targetMessageID: string): Promise<void>;
+  reactMessage(options: string | ({ emoji: string } & ThreadOptions & MessageOptions)): Promise<void>;
+  unsendMessage(options: string | ({ targetMessageID?: string; messageID?: string } & MessageOptions)): Promise<void>;
 }
 
 /**

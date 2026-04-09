@@ -17,10 +17,10 @@ export function setNickname(
   api: FcaApi,
   threadID: string,
   userID: string,
-  nickname: string | null,
+  nickname: string,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
-    api.changeNickname(nickname ?? '', threadID, userID, (err) =>
+    api.changeNickname(nickname, threadID, userID, (err) =>
       err ? reject(err) : resolve(),
     );
   });

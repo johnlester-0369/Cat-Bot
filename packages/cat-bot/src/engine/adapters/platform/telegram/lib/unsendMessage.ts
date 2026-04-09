@@ -9,7 +9,7 @@ import type { Context } from 'telegraf';
 
 export async function unsendMessage(
   ctx: Context,
-  messageID: string | number,
+  messageID: string,
 ): Promise<void> {
   try {
     await ctx.deleteMessage(Number(messageID));

@@ -29,7 +29,14 @@ export async function replyMessage(
   threadID: string,
   options: ReplyMessageOptions = {},
 ): Promise<string | undefined> {
-  const message = typeof options.message === 'string' ? options.message : '';
+  let message = '';
+  if (typeof options.message === 'string') {
+    message = options.message;
+  } else if (options.message && typeof options.message === 'object') {
+    // Support unified SendPayload objects if explicitly forwarded without ChatContext flattening
+    message = options.message.message ?? options.message.body ?? '';
+  }
+
   const attachment = options.attachment ?? [];
   const attachment_url = options.attachment_url ?? [];
   const reply_to_message_id = options.reply_to_message_id;
