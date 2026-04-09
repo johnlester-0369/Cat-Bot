@@ -10,6 +10,45 @@ export async function upsertUser(data: BotUserData): Promise<void> {
   });
 }
 
+/**
+ * Reads the JSON data blob for a specific bot_users_session row.
+ * Returns an empty object when the row is missing, data is null, or JSON is malformed —
+ * callers always receive a safe default so collection operations never throw on first access.
+ */
+export async function getUserSessionData(
+  userId: string,
+  platform: string,
+  sessionId: string,
+  botUserId: string,
+): Promise<Record<string, unknown>> {
+  const platformId = toPlatformNumericId(platform);
+  const row = await prisma.botUserSession.findUnique({
+    where: { userId_platformId_sessionId_botUserId: { userId, platformId, sessionId, botUserId } },
+    select: { data: true },
+  });
+  if (!row?.data) return {};
+  try { return JSON.parse(row.data) as Record<string, unknown>; }
+  catch { return {}; }
+}
+
+/**
+ * Writes the JSON data blob for a specific bot_users_session row.
+ * Uses updateMany instead of update to silently no-op when the row is absent —
+ * avoids P2025 in the unlikely race where data is written before upsertUserSession commits.
+ */
+export async function setUserSessionData(
+  userId: string,
+  platform: string,
+  sessionId: string,
+  botUserId: string,
+  data: Record<string, unknown>,
+): Promise<void> {
+  const platformId = toPlatformNumericId(platform);
+  await prisma.botUserSession.updateMany({
+    where: { userId, platformId, sessionId, botUserId },
+    data: { data: JSON.stringify(data) },
+  });
+}
 // WHY: Fulfills the fallback requirement directly at the DB layer so callers never handle undefined.
 export async function getUserName(userId: string): Promise<string> {
   const row = await prisma.botUser.findUnique({
