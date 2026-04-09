@@ -50,6 +50,7 @@ export const onCommand = async ({
   args,
   native,
   thread,
+  prefix = '',
 }: AppCtx): Promise<void> => {
   const { userId, platform, sessionId } = native;
 
@@ -64,7 +65,7 @@ export const onCommand = async ({
   if (sub === 'ban') {
     const tid = args[1];
     if (!tid) {
-      await chat.replyMessage({ message: '❌ Usage: /thread ban <tid> [reason]' });
+      await chat.replyMessage({ message: `❌ Usage: ${prefix}thread ban <tid> [reason]` });
       return;
     }
     // Remaining args after tid are joined as the reason so multi-word reasons work
@@ -81,7 +82,7 @@ export const onCommand = async ({
   if (sub === 'unban') {
     const tid = args[1];
     if (!tid) {
-      await chat.replyMessage({ message: '❌ Usage: /thread unban <tid>' });
+      await chat.replyMessage({ message: `❌ Usage: ${prefix}thread unban <tid>` });
       return;
     }
     await unbanThread(userId, platform, sessionId, tid);
@@ -95,8 +96,8 @@ export const onCommand = async ({
   await chat.replyMessage({
     message: [
       'Usage:',
-      '  /thread ban <tid> [reason]  — Ban a thread from this session',
-      '  /thread unban <tid>         — Lift an existing thread ban',
+      `  ${prefix}thread ban <tid> [reason]  — Ban a thread from this session`,
+      `  ${prefix}thread unban <tid>         — Lift an existing thread ban`,
     ].join('\n'),
   });
 };

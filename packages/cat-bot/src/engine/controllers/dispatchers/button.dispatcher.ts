@@ -28,7 +28,7 @@ import { isPlatformAllowed } from '@/engine/utils/platform-filter.util.js';
 import { PLATFORM_TO_ID } from '@/engine/constants/platform.constants.js';
 import { getUserName } from '@/engine/repos/users.repo.js';
 import { getThreadName } from '@/engine/repos/threads.repo.js';
-import { createCollectionManager } from '@/engine/lib/db-collection.lib.js';
+import { createCollectionManager, createThreadCollectionManager } from '@/engine/lib/db-collection.lib.js';
 
 /**
  * Routes a text-based button selection to the owning command's menu[actionId].run() handler.
@@ -190,12 +190,15 @@ export async function handleButtonAction(
     db: {
       users: {
         getName: getUserName,
-        // Pre-scoped to session — button run() handlers can access collection(botUserId)
-        collection: createCollectionManager(native.userId ?? '', native.platform, native.sessionId ?? ''),
-      },
-      threads: { getName: getThreadName },
+      // Pre-scoped to session — button run() handlers can access collection(botUserId)
+      collection: createCollectionManager(native.userId ?? '', native.platform, native.sessionId ?? ''),
     },
-  };
+    threads: {
+      getName: getThreadName,
+      collection: createThreadCollectionManager(native.userId ?? '', native.platform, native.sessionId ?? ''),
+    },
+  },
+};
 
   await handler.run(ctx).catch((err: unknown) => {
     console.error(`❌ Button action "${actionId}" failed`, err);

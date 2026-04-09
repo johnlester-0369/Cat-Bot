@@ -64,6 +64,8 @@ export interface BaseCtx {
     };
     threads: {
       getName: (threadId: string) => Promise<string>;
+      /** Returns a CollectionManager bound to the calling thread's bot_threads_session row. */
+      collection: (botThreadId: string) => CollectionManager;
     };
   };
 }

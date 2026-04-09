@@ -50,6 +50,7 @@ export const onCommand = async ({
   user,
   args,
   native,
+  prefix = '',
 }: AppCtx): Promise<void> => {
   const { userId, platform, sessionId } = native;
 
@@ -64,7 +65,7 @@ export const onCommand = async ({
   if (sub === 'ban') {
     const uid = args[1];
     if (!uid) {
-      await chat.replyMessage({ message: '❌ Usage: /user ban <uid> [reason]' });
+      await chat.replyMessage({ message: `❌ Usage: ${prefix}user ban <uid> [reason]` });
       return;
     }
     // Remaining args after uid are joined as the reason so multi-word reasons work
@@ -80,7 +81,7 @@ export const onCommand = async ({
   if (sub === 'unban') {
     const uid = args[1];
     if (!uid) {
-      await chat.replyMessage({ message: '❌ Usage: /user unban <uid>' });
+      await chat.replyMessage({ message: `❌ Usage: ${prefix}user unban <uid>` });
       return;
     }
     await unbanUser(userId, platform, sessionId, uid);
@@ -93,8 +94,8 @@ export const onCommand = async ({
   await chat.replyMessage({
     message: [
       'Usage:',
-      '  /user ban <uid> [reason]  — Ban a user from this session',
-      '  /user unban <uid>         — Lift an existing user ban',
+      `  ${prefix}user ban <uid> [reason]  — Ban a user from this session`,
+      `  ${prefix}user unban <uid>         — Lift an existing user ban`,
     ].join('\n'),
   });
 };

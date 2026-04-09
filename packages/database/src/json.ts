@@ -50,6 +50,8 @@ export {
   upsertThreadSession,
   isThreadAdmin,
   getThreadName,
+  getThreadSessionData,
+  setThreadSessionData,
 } from '../adapters/json/src/cat-bot/threads.repo.js';
 
 // --- USERS ---
@@ -61,6 +63,7 @@ export {
   getUserName,
   getUserSessionData,
   setUserSessionData,
+  getAllUserSessionData,
 } from '../adapters/json/src/cat-bot/users.repo.js';
 
 // --- WEBHOOKS ---

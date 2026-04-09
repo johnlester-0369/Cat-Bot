@@ -29,7 +29,6 @@ export async function upsertUserSession(userId: string, platform: string, sessio
   const pid = toPlatformNumericId(platform);
   const rec = db.botUserSession.find((us: any) => us.userId === userId && us.platformId === pid && us.sessionId === sessionId && us.botUserId === botUserId);
   if (!rec) { db.botUserSession.push({ userId, platformId: pid, sessionId, botUserId }); await saveDb(); }
-  if (!rec) { db.botUserSession.push({ userId, platformId: pid, sessionId, botUserId }); await saveDb(); }
 }
 
 // WHY: Fulfills the fallback requirement directly at the DB layer so callers never handle undefined.
@@ -80,4 +79,25 @@ export async function setUserSessionData(
     rec.data = JSON.stringify(data);
     await saveDb();
   }
+}
+
+/**
+ * Returns all bot_users_session records for a given (userId, platform, sessionId) tuple.
+ * Used by the rank command to sort all users by EXP and compute leaderboard position.
+ */
+export async function getAllUserSessionData(
+  userId: string,
+  platform: string,
+  sessionId: string,
+): Promise<Array<{ botUserId: string; data: Record<string, unknown> }>> {
+  const db = await getDb();
+  const pid = toPlatformNumericId(platform);
+  return db.botUserSession
+    .filter((us: any) => us.userId === userId && us.platformId === pid && us.sessionId === sessionId)
+    .map((us: any) => {
+      let data: Record<string, unknown> = {};
+      try { if (us.data) data = JSON.parse(us.data as string) as Record<string, unknown>; }
+      catch { /* malformed JSON — default to empty object */ }
+      return { botUserId: us.botUserId as string, data };
+    });
 }

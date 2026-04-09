@@ -40,6 +40,7 @@ export const onCommand = async ({
   user,
   args,
   native,
+  prefix = '',
 }: AppCtx): Promise<void> => {
   const { userId, platform, sessionId } = native;
 
@@ -76,7 +77,7 @@ export const onCommand = async ({
   if (sub === 'add') {
     const uid = args[1];
     if (!uid) {
-      await chat.replyMessage({ message: '❌ Usage: /admin add <uid>' });
+      await chat.replyMessage({ message: `❌ Usage: ${prefix}admin add <uid>` });
       return;
     }
     await addBotAdmin(userId, platform, sessionId, uid);
@@ -106,7 +107,7 @@ export const onCommand = async ({
   if (sub === 'delete') {
     const uid = args[1];
     if (!uid) {
-      await chat.replyMessage({ message: '❌ Usage: /admin delete <uid>' });
+      await chat.replyMessage({ message: `❌ Usage: ${prefix}admin delete <uid>` });
       return;
     }
     await removeBotAdmin(userId, platform, sessionId, uid);
@@ -119,9 +120,9 @@ export const onCommand = async ({
   await chat.replyMessage({
     message: [
       'Usage:',
-      '  /admin add <uid>    — Grant bot admin rights',
-      '  /admin list         — List all bot admins',
-      '  /admin delete <uid> — Revoke bot admin rights',
+      `  ${prefix}admin add <uid>    — Grant bot admin rights`,
+      `  ${prefix}admin list         — List all bot admins`,
+      `  ${prefix}admin delete <uid> — Revoke bot admin rights`,
     ].join('\n'),
   });
 };

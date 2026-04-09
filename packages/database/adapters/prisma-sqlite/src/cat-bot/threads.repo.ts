@@ -56,7 +56,6 @@ export async function isThreadAdmin(threadId: string, userId: string): Promise<b
     select: { admins: { where: { id: userId }, select: { id: true } } },
   });
   return row !== null && row.admins.length > 0;
-  return row !== null && row.admins.length > 0;
 }
 
 // WHY: Fulfills the fallback requirement directly at the DB layer so callers never handle undefined.
@@ -68,3 +67,44 @@ export async function getThreadName(threadId: string): Promise<string> {
   return row?.name ?? 'Unknown thread';
 }
 
+// ── Thread Session Data ────────────────────────────────────────────────────────
+
+/**
+ * Reads the JSON data blob for a specific bot_threads_session row.
+ * Returns an empty object when the row is missing, data is null, or JSON is malformed —
+ * callers always receive a safe default so collection operations never throw on first access.
+ */
+export async function getThreadSessionData(
+  userId: string,
+  platform: string,
+  sessionId: string,
+  botThreadId: string,
+): Promise<Record<string, unknown>> {
+  const platformId = toPlatformNumericId(platform);
+  const row = await prisma.botThreadSession.findUnique({
+    where: { userId_platformId_sessionId_botThreadId: { userId, platformId, sessionId, botThreadId } },
+    select: { data: true },
+  });
+  if (!row?.data) return {};
+  try { return JSON.parse(row.data) as Record<string, unknown>; }
+  catch { return {}; }
+}
+
+/**
+ * Writes the JSON data blob for a specific bot_threads_session row.
+ * Uses updateMany instead of update to silently no-op when the row is absent —
+ * avoids P2025 in the unlikely race where data is written before upsertThreadSession commits.
+ */
+export async function setThreadSessionData(
+  userId: string,
+  platform: string,
+  sessionId: string,
+  botThreadId: string,
+  data: Record<string, unknown>,
+): Promise<void> {
+  const platformId = toPlatformNumericId(platform);
+  await prisma.botThreadSession.updateMany({
+    where: { userId, platformId, sessionId, botThreadId },
+    data: { data: JSON.stringify(data) },
+  });
+}

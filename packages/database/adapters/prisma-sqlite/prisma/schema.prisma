@@ -77,10 +77,12 @@ model BotUserSession {
 // Same composite PK pattern as BotUserSession — four-column unique marker.
 model BotThreadSession {
   userId       String
-  // platformId mirrors bot_threads.platformId — same compact integer encoding (PLATFORM_TO_ID)
   platformId   Int
   sessionId   String
   botThreadId String
+  // JSON blob — stores named collections for thread-scoped bot settings (e.g. rankup toggle, custom messages)
+  // without dynamic tables. Parsed and serialized entirely at the adapter layer.
+  data        String?
 
   botThread BotThread @relation("ThreadSessions", fields: [botThreadId], references: [id])
 

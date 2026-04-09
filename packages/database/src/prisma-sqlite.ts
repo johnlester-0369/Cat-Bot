@@ -52,6 +52,8 @@ export {
   upsertThreadSession,
   isThreadAdmin,
   getThreadName,
+  getThreadSessionData,
+  setThreadSessionData,
 } from '../adapters/prisma-sqlite/src/cat-bot/threads.repo.js';
 
 // --- USERS ---
@@ -63,6 +65,7 @@ export {
   getUserName,
   getUserSessionData,
   setUserSessionData,
+  getAllUserSessionData,
 } from '../adapters/prisma-sqlite/src/cat-bot/users.repo.js';
 
 // --- WEBHOOKS ---

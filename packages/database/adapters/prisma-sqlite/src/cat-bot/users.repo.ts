@@ -79,3 +79,28 @@ export async function upsertUserSession(userId: string, platform: string, sessio
     update: {},
   });
 }
+
+/**
+ * Returns all bot_users_session records for a given (userId, platform, sessionId) tuple,
+ * with their parsed data blobs. Used by the rank command to sort all users by EXP and
+ * compute a leaderboard position without a separate ranking table.
+ */
+export async function getAllUserSessionData(
+  userId: string,
+  platform: string,
+  sessionId: string,
+): Promise<Array<{ botUserId: string; data: Record<string, unknown> }>> {
+  const platformId = toPlatformNumericId(platform);
+  const rows = await prisma.botUserSession.findMany({
+    where: { userId, platformId, sessionId },
+    select: { botUserId: true, data: true },
+  });
+  return rows.map((row) => {
+    let data: Record<string, unknown> = {};
+    if (row.data) {
+      try { data = JSON.parse(row.data) as Record<string, unknown>; }
+      catch { /* malformed JSON — default to empty object */ }
+    }
+    return { botUserId: row.botUserId, data };
+  });
+}

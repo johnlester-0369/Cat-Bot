@@ -20,6 +20,7 @@
  */
 
 import { getUserSessionData, setUserSessionData } from '@/engine/repos/users.repo.js';
+import { getThreadSessionData, setThreadSessionData } from '@/engine/repos/threads.repo.js';
 
 // ── Dot-path helpers ──────────────────────────────────────────────────────────
 
@@ -333,6 +334,50 @@ export function createCollectionManager(
     const readAll = () => getUserSessionData(sessionOwnerUserId, platform, sessionId, botUserId);
     const writeAll = (data: Record<string, unknown>) =>
       setUserSessionData(sessionOwnerUserId, platform, sessionId, botUserId, data);
+
+    return {
+      async isCollectionExist(name: string): Promise<boolean> {
+        const data = await readAll();
+        return Object.prototype.hasOwnProperty.call(data, name);
+      },
+
+      async createCollection(name: string): Promise<void> {
+        const data = await readAll();
+        // Idempotent — never overwrites an existing collection
+        if (!Object.prototype.hasOwnProperty.call(data, name)) {
+          data[name] = {};
+          await writeAll(data);
+        }
+      },
+
+      async getCollection(name: string): Promise<CollectionHandle> {
+        return createCollectionHandle(name, readAll, writeAll);
+      },
+    };
+  };
+}
+
+/**
+ * Returns a factory function bound to (sessionOwnerUserId, platform, sessionId).
+ * Call the returned function with botThreadId to get a CollectionManager scoped to
+ * that specific bot_threads_session row.
+ *
+ * Symmetric with createCollectionManager but reads/writes bot_threads_session.data
+ * instead of bot_users_session.data — enables per-thread feature flags like the
+ * rankup notification toggle without a separate database table.
+ *
+ * Called once per message/event in the handler layer so command modules never
+ * need to know session context coordinates.
+ */
+export function createThreadCollectionManager(
+  sessionOwnerUserId: string,
+  platform: string,
+  sessionId: string,
+): (botThreadId: string) => CollectionManager {
+  return (botThreadId: string): CollectionManager => {
+    const readAll = () => getThreadSessionData(sessionOwnerUserId, platform, sessionId, botThreadId);
+    const writeAll = (data: Record<string, unknown>) =>
+      setThreadSessionData(sessionOwnerUserId, platform, sessionId, botThreadId, data);
 
     return {
       async isCollectionExist(name: string): Promise<boolean> {

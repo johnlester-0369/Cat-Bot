@@ -20,6 +20,7 @@ import { Role } from '@/engine/constants/role.constants.js';
 // Disabled-command gate — mirrors message.handler.ts: disabled commands are invisible to users
 import { findSessionCommands } from '@/engine/repos/bot-session-commands.repo.js';
 import { isPlatformAllowed } from '@/engine/utils/platform-filter.util.js';
+import { OptionType } from '@/engine/constants/command-option.constants.js';
 
 export const config = {
   name: 'help',
@@ -32,6 +33,14 @@ export const config = {
   usage: '[command | page]',
   cooldown: 5,
   hasPrefix: true,
+  options: [
+    {
+      type: OptionType.string,
+      name: 'query',
+      description: 'Command name for details or page number',
+      required: false,
+    },
+  ],
 };
 
 /** Commands shown per page — kept small enough to fit a typical mobile chat window. */

@@ -26,7 +26,7 @@ import { dispatchOnReact } from '../dispatchers/react.dispatcher.js';
 import { PLATFORM_TO_ID } from '@/engine/constants/platform.constants.js';
 import { getUserName } from '@/engine/repos/users.repo.js';
 import { getThreadName } from '@/engine/repos/threads.repo.js';
-import { createCollectionManager } from '@/engine/lib/db-collection.lib.js';
+import { createCollectionManager, createThreadCollectionManager } from '@/engine/lib/db-collection.lib.js';
 
 /**
  * Entry point for platform thread-level events (member join, leave, rename, etc.)
@@ -73,7 +73,10 @@ export async function handleEvent(
         // Pre-scoped to session coords — event handlers call collection(botUserId) directly
         collection: createCollectionManager(native.userId ?? '', native.platform, native.sessionId ?? ''),
       },
-      threads: { getName: getThreadName },
+      threads: {
+        getName: getThreadName,
+        collection: createThreadCollectionManager(native.userId ?? '', native.platform, native.sessionId ?? ''),
+      },
     },
   };
 

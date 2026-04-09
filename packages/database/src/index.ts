@@ -72,6 +72,10 @@ export const upsertThreadSession = m.upsertThreadSession;
 export const isThreadAdmin       = m.isThreadAdmin;
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 export const getThreadName       = m.getThreadName;
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+export const getThreadSessionData = m.getThreadSessionData;
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+export const setThreadSessionData = m.setThreadSessionData;
 
 // --- USERS ---
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
@@ -88,6 +92,8 @@ export const getUserName       = m.getUserName;
 export const getUserSessionData = m.getUserSessionData;
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 export const setUserSessionData = m.setUserSessionData;
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+export const getAllUserSessionData = m.getAllUserSessionData;
 
 // --- WEBHOOKS ---
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
