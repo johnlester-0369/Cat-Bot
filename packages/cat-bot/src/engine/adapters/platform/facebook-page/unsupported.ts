@@ -11,6 +11,8 @@
  * user-friendly message rather than letting the rejection bubble to the handler.
  */
 
+import type { Readable } from 'stream';
+
 export async function editMessage(
   _messageID: string,
   _newBody: string,
@@ -28,8 +30,8 @@ export async function setNickname(
 }
 
 export async function setGroupName(
-  _threadID?: string,
-  _name?: string,
+  _threadID: string,
+  _name: string,
 ): Promise<void> {
   // Page Messenger is always 1:1 — group name concept does not exist
   throw new Error(
@@ -39,7 +41,7 @@ export async function setGroupName(
 
 export async function setGroupImage(
   _threadID: string,
-  _imageSource: unknown,
+  _imageSource: Buffer | Readable | string,
 ): Promise<void> {
   throw new Error('setGroupImage is not supported on Facebook Pages.');
 }

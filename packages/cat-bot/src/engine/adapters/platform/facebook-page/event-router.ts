@@ -26,6 +26,7 @@ import {
 } from './utils/helper.util.js';
 import type { MessageReplyData } from './utils/helper.util.js';
 import { Platforms } from '@/engine/constants/platform.constants.js';
+import { EventType } from '@/engine/adapters/models/enums/index.js';
 /**
  * Creates the onMessage callback consumed by startServer().
  * Each call to the returned function processes one webhook messaging entry.
@@ -79,7 +80,7 @@ export function createEventRouter(
       const postback = messaging['postback'] as Record<string, unknown>;
       const unifiedApi = createFbPageApi(pageApi);
       const event = {
-        type: 'button_action',
+        type: EventType.BUTTON_ACTION,
         platform: Platforms.FacebookPage,
         actionId: postback['payload'] ?? '',
         // Page Messenger is always 1:1 — sender PSID is both senderID and threadID
@@ -123,6 +124,6 @@ export function createEventRouter(
       messageReply,
     );
     const native = { platform: Platforms.FacebookPage, userId, sessionId, messaging };
-    emitter.emit('message', { api: unifiedApi, event, native, prefix });
+    emitter.emit(event.type as string, { api: unifiedApi, event, native, prefix });
   };
 }

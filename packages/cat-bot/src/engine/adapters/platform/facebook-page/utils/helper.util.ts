@@ -13,6 +13,7 @@
  *   normalizeFbPageReactionEvent — reaction webhook → unified message_reaction shape
  */
 
+import { AttachmentType, EventType } from '@/engine/adapters/models/enums/index.js';
 import { Platforms } from '@/engine/constants/platform.constants.js';
 
 // ── Attachment types ──────────────────────────────────────────────────────────
@@ -55,7 +56,7 @@ export function mapAttachment(
   switch (type) {
     case 'image':
       return {
-        type: 'photo',
+        type: AttachmentType.PHOTO,
         ID: payload['attachment_id'] ?? null,
         url: payload['url'] ?? null,
         thumbnailUrl: payload['url'] ?? null,
@@ -70,7 +71,7 @@ export function mapAttachment(
 
     case 'audio':
       return {
-        type: 'audio',
+        type: AttachmentType.AUDIO,
         ID: payload['attachment_id'] ?? null,
         url: payload['url'] ?? null,
         filename: null,
@@ -78,7 +79,7 @@ export function mapAttachment(
 
     case 'video':
       return {
-        type: 'video',
+        type: AttachmentType.VIDEO,
         ID: payload['attachment_id'] ?? null,
         url: payload['url'] ?? null,
         title: null,
@@ -90,7 +91,7 @@ export function mapAttachment(
 
     case 'file':
       return {
-        type: 'file',
+        type: AttachmentType.FILE,
         ID: payload['attachment_id'] ?? null,
         url: payload['url'] ?? null,
         filename: null,
@@ -98,7 +99,7 @@ export function mapAttachment(
 
     case 'sticker':
       return {
-        type: 'sticker',
+        type: AttachmentType.STICKER,
         ID: String(payload['sticker_id'] ?? ''),
         url: payload['url'] ?? null,
         packID: null,
@@ -119,7 +120,7 @@ export function mapAttachment(
         | { lat?: number; long?: number }
         | undefined;
       return {
-        type: 'location',
+        type: AttachmentType.LOCATION,
         latitude: coords?.lat ?? null,
         longitude: coords?.long ?? null,
       };
@@ -127,7 +128,7 @@ export function mapAttachment(
 
     default:
       return {
-        type: type || 'unknown',
+        type: type || AttachmentType.UNKNOWN,
         ID: payload['attachment_id'] ?? null,
         url: payload['url'] ?? null,
         title: payload['title'] ?? null,
@@ -154,7 +155,7 @@ export function mapGetApiAttachment(
     const img = att.image_data ?? {};
     if (img.render_as_sticker) {
       return {
-        type: 'sticker',
+        type: AttachmentType.STICKER,
         ID: att.id ?? null,
         url: img.url ?? null,
         packID: null,
@@ -171,7 +172,7 @@ export function mapGetApiAttachment(
       };
     }
     return {
-      type: 'photo',
+      type: AttachmentType.PHOTO,
       ID: att.id ?? null,
       url: img.url ?? null,
       filename: att.name ?? null,
@@ -187,7 +188,7 @@ export function mapGetApiAttachment(
 
   if (mime.startsWith('audio/')) {
     return {
-      type: 'audio',
+      type: AttachmentType.AUDIO,
       ID: att.id ?? null,
       url: att.file_url ?? null,
       filename: att.name ?? null,
@@ -196,7 +197,7 @@ export function mapGetApiAttachment(
 
   if (mime.startsWith('video/')) {
     return {
-      type: 'video',
+      type: AttachmentType.VIDEO,
       ID: att.id ?? null,
       url: att.file_url ?? null,
       filename: att.name ?? null,
@@ -209,7 +210,7 @@ export function mapGetApiAttachment(
   }
 
   return {
-    type: 'file',
+    type: AttachmentType.FILE,
     ID: att.id ?? null,
     url: att.file_url ?? null,
     filename: att.name ?? null,
@@ -255,6 +256,8 @@ export function normalizeFbPageEvent(
     : [];
 
   return {
+    // Differentiate between message and message_reply so the router handles threading correctly
+    type: messageReply ? EventType.MESSAGE_REPLY : EventType.MESSAGE,
     platform: Platforms.FacebookPage,
     threadID: sender.id,
     senderID: sender.id,
@@ -318,7 +321,7 @@ export function normalizeFbPageReactionEvent(
 ): Record<string, unknown> {
   const r = messaging.reaction ?? {};
   return {
-    type: 'message_reaction',
+    type: EventType.MESSAGE_REACTION,
     platform: Platforms.FacebookPage,
     // Page Messenger is always 1:1 — the sender PSID doubles as the threadID
     threadID: messaging.sender?.id ?? '',
