@@ -61,6 +61,8 @@ export {
   userSessionExists,
   upsertUserSession,
   getUserName,
+  getUserSessionData,
+  setUserSessionData,
 } from '../adapters/prisma-sqlite/src/cat-bot/users.repo.js';
 
 // --- WEBHOOKS ---

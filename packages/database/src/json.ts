@@ -59,6 +59,8 @@ export {
   userSessionExists,
   upsertUserSession,
   getUserName,
+  getUserSessionData,
+  setUserSessionData,
 } from '../adapters/json/src/cat-bot/users.repo.js';
 
 // --- WEBHOOKS ---
