@@ -20,7 +20,6 @@
 
 import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
-import { getAllUserSessionData } from '@/engine/repos/users.repo.js';
 import { OptionType } from '@/engine/constants/command-option.constants.js';
 
 /** Controls how quickly users level up — higher = slower progression. */
@@ -93,7 +92,7 @@ export const onCommand = async ({ chat, event, db, native }: AppCtx): Promise<vo
   const { userId, platform, sessionId } = native;
   if (userId && platform && sessionId) {
     try {
-      const allSessions = await getAllUserSessionData(userId, platform, sessionId);
+      const allSessions = await db.users.getAll();
       const leaderboard = allSessions
         .map(({ botUserId, data }) => {
           const xpData = data['xp'] as Record<string, unknown> | undefined;
