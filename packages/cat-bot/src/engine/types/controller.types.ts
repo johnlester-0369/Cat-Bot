@@ -61,6 +61,8 @@ export interface BaseCtx {
       getName: (userId: string) => Promise<string>;
       /** Returns a CollectionManager bound to the calling user's bot_users_session row. */
       collection: (botUserId: string) => CollectionManager;
+      /** Returns all bot_users_session records for the current bot session. */
+      getAll: () => Promise<Array<{ botUserId: string; data: Record<string, unknown> }>>;
     };
     threads: {
       getName: (threadId: string) => Promise<string>;
