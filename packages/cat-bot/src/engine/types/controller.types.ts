@@ -55,6 +55,12 @@ export interface BaseCtx {
   native: NativeContext;
   logger: SessionLogger;
 
+  /**
+   * Timestamp captured at the exact moment the context was built in the factory.
+   * Used to measure internal controller pipeline latency.
+   */
+  startTime: number;
+
   // WHY: Provides uniform database queries across all command modules natively inside ctx
   db: {
     users: {
