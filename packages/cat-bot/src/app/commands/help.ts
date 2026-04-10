@@ -6,25 +6,47 @@
  *   /help <page>         → paginated command list, specific page
  *   /help <command_name> → full detail card for a single command
  *
- * Pagination: 20 commands per page, alphabetically sorted by canonical config.name.
- * Aliases collapse — the CommandMap stores multiple keys per aliased module, so
- * getCanonicalMods() deduplicates by config.name before counting or rendering.
+ * ── Output Format ─────────────────────────────────────────────────────────────
+ * List view:
  *
- * Context shape: onCommand receives { chat, args, commands, prefix } because
- * command.dispatcher.ts spreads commandCtx (which carries the full BaseCtx including
- * commands and prefix) before appending args and state.
+ *   ▸ Commands
+ *   ──────────────
+ *    1. !ping — Ping the bot
+ *    2. !help — Shows all available commands
+ *   ──────────────
+ *   Page 1 of 3 · 25 commands
+ *   !help <page> · !help <command>
+ *
+ * Detail view:
+ *
+ *   ▸ ping
+ *   ──────────────
+ *   Desc    : Ping the bot
+ *   Category: Info
+ *   Aliases : p, pong
+ *   Usage   : !ping
+ *   ──────────────
+ *   Role    : 0 (All users)
+ *   Cooldown: 5s
+ *   Version : 1.0.0
+ *   Author  : John Lester
+ *
+ * Pagination: 20 commands per page, alphabetically sorted by canonical config.name.
+ * Aliases collapse — getCanonicalMods() deduplicates by config.name before rendering.
+ *
+ * Context shape: onCommand receives { chat, args, commands, prefix, native } because
+ * command.dispatcher.ts spreads commandCtx before appending args and state.
  */
 
 import type { CommandMap, AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
-// Disabled-command gate — mirrors message.handler.ts: disabled commands are invisible to users
 import { findSessionCommands } from '@/engine/modules/session/bot-session-commands.repo.js';
 import { isPlatformAllowed } from '@/engine/modules/platform/platform-filter.util.js';
 import { OptionType } from '@/engine/modules/command/command-option.constants.js';
 
 export const config = {
   name: 'help',
-  aliases: ["start"] as string[],
+  aliases: ['start'] as string[],
   version: '1.0.0',
   role: Role.ANYONE,
   author: 'John Lester',
@@ -52,10 +74,13 @@ const COMMANDS_PER_PAGE = 20;
  * independent from any future Role additions that might not have display labels yet.
  */
 const ROLE_LABEL: Record<number, string> = {
-  [Role.ANYONE]: 'Anyone',
-  [Role.THREAD_ADMIN]: 'Group Admin',
-  [Role.BOT_ADMIN]: 'Bot Admin',
+  [Role.ANYONE]: '0 (All users)',
+  [Role.THREAD_ADMIN]: '1 (Group administrators)',
+  [Role.BOT_ADMIN]: '2 (Bot admin)',
 };
+
+/** Thin horizontal rule used as a section separator. */
+const HR = '─────────────────';
 
 /**
  * Returns a deduplicated, alphabetically-sorted array of command modules.
@@ -86,23 +111,28 @@ function getCanonicalMods(
   // Stable alphabetical order so the list is predictable across restarts regardless
   // of dynamic import resolution order (which is non-deterministic in Node ESM).
   result.sort((a, b) => {
-    const an = String(
-      (a['config'] as Record<string, unknown> | undefined)?.['name'] ?? '',
-    );
-    const bn = String(
-      (b['config'] as Record<string, unknown> | undefined)?.['name'] ?? '',
-    );
+    const an = String((a['config'] as Record<string, unknown> | undefined)?.['name'] ?? '');
+    const bn = String((b['config'] as Record<string, unknown> | undefined)?.['name'] ?? '');
     return an.localeCompare(bn);
   });
 
   return result;
 }
 
+/**
+ * Crops a description string to max characters, appending "…" when truncated.
+ * Prevents long descriptions from wrapping across multiple chat lines in the list view.
+ */
+function crop(text: string, max: number): string {
+  if (text.length <= max) return text;
+  return `${text.slice(0, max - 3)}...`;
+}
+
 export const onCommand = async ({
   chat,
   args,
   commands,
-  prefix = '', // Optional property fallback
+  prefix = '',
   native,
 }: AppCtx): Promise<void> => {
   // noUncheckedIndexedAccess — args[0] is string | undefined
@@ -118,7 +148,11 @@ export const onCommand = async ({
   if (sessionUserId && sessionId) {
     try {
       const rows = await findSessionCommands(sessionUserId, native.platform, sessionId);
-      disabledNames = new Set(rows.filter((r: { isEnable: boolean; commandName: string }) => !r.isEnable).map((r: { commandName: string }) => r.commandName));
+      disabledNames = new Set(
+        rows
+          .filter((r: { isEnable: boolean; commandName: string }) => !r.isEnable)
+          .map((r: { commandName: string }) => r.commandName),
+      );
     } catch {
       // DB unreachable — fail-open, show all commands rather than breaking /help
     }
@@ -142,7 +176,7 @@ export const onCommand = async ({
     const mod = commands.get(arg);
     if (!mod) {
       await chat.replyMessage({
-        message: `❓ No command "${arg}" found. Type ${prefix}help for the command list.`,
+        message: `Command "${arg}" was not found.\nType ${prefix}help to see all available commands.`,
       });
       return;
     }
@@ -150,54 +184,52 @@ export const onCommand = async ({
     // Treat disabled commands as non-existent — return the same "not found" message
     // to avoid leaking the existence of commands the bot admin has suppressed.
     const modCfg = mod['config'] as Record<string, unknown> | undefined;
-    const canonicalModName = (modCfg?.['name'] as string | undefined)?.toLowerCase() ?? arg;
-    if (disabledNames.has(canonicalModName)) {
+    const canonicalName = (modCfg?.['name'] as string | undefined)?.toLowerCase() ?? arg;
+    if (disabledNames.has(canonicalName)) {
       await chat.replyMessage({
-        message: `❓ No command "${arg}" found. Type ${prefix}help for the command list.`,
+        message: `Command "${arg}" was not found.\nType ${prefix}help to see all available commands.`,
       });
       return;
     }
 
-    const cfg = mod['config'] as Record<string, unknown>;
-    const name = String(cfg['name'] ?? arg);
-    const aliasArr = Array.isArray(cfg['aliases'])
-      ? (cfg['aliases'] as string[])
-      : [];
-    // Display empty string (not "[]") when there are no aliases — cleaner chat output
-    const aliases = aliasArr.length > 0 ? aliasArr.join(', ') : '';
-    const version = String(cfg['version'] ?? '');
-    const category = String(cfg['category'] ?? '');
-    // Map numeric role to readable label; fall back to raw string for unknown future values
-    const roleNum = Number(cfg['role'] ?? Role.ANYONE);
-    const role = ROLE_LABEL[roleNum] ?? String(roleNum);
-    const cooldown =
-      cfg['cooldown'] != null ? `${String(cfg['cooldown'])}s` : '';
-    const description = String(cfg['description'] ?? '');
-    const usage = String(cfg['usage'] ?? '');
+    const cfg         = mod['config'] as Record<string, unknown>;
+    const name        = String(cfg['name'] ?? arg);
+    const aliasArr    = Array.isArray(cfg['aliases']) ? (cfg['aliases'] as string[]) : [];
+    const aliases     = aliasArr.length > 0 ? aliasArr.join(', ') : 'None';
+    const version     = String(cfg['version'] ?? 'N/A');
+    const category    = String(cfg['category'] ?? 'Uncategorized');
+    const roleNum     = Number(cfg['role'] ?? Role.ANYONE);
+    const role        = ROLE_LABEL[roleNum] ?? String(roleNum);
+    const cooldown    = cfg['cooldown'] != null ? `${String(cfg['cooldown'])}s` : 'None';
+    const description = String(cfg['description'] ?? 'No description.');
+    const usage       = String(cfg['usage'] ?? '');
+    const author      = String(cfg['author'] ?? 'Unknown');
+    // Compose the full usage line shown in the USAGE card section
+    const usageLine   = `${prefix}${name}${usage ? ` ${usage}` : ''}`;
 
     await chat.replyMessage({
       message: [
-        `Name: ${name}`,
-        `Aliases: ${aliases}`,
-        `Version: ${version}`,
+        `『 ${name} 』`,
+        `» ${description}`,
+        ``,
+        HR,
         `Category: ${category}`,
-        `Role: ${role}`,
+        `Aliases : ${aliases}`,
+        `Usage   : ${usageLine}`,
+        HR,
+        `Role    : ${role}`,
         `Cooldown: ${cooldown}`,
-        ``,
-        `Description:`,
-        description,
-        ``,
-        `Usage:`,
-        // Omit trailing space when usage is empty so the line stays clean
-        `${prefix}${name}${usage ? ` ${usage}` : ''}`,
+        `Version : ${version}`,
+        `Author  : ${author}`
       ].join('\n'),
     });
     return;
   }
 
   // ── Paginated list view ──────────────────────────────────────────────────────
-  const allMods = getCanonicalMods(commands, disabledNames);
-  const totalPages = Math.max(1, Math.ceil(allMods.length / COMMANDS_PER_PAGE));
+  const allMods    = getCanonicalMods(commands, disabledNames);
+  const totalCmds  = allMods.length;
+  const totalPages = Math.max(1, Math.ceil(totalCmds / COMMANDS_PER_PAGE));
 
   // arg is '' (no argument) or a numeric string; clamp to [1, totalPages] so
   // /help 0 and /help 999 both resolve gracefully without an error message.
@@ -208,21 +240,29 @@ export const onCommand = async ({
   const startIdx = (page - 1) * COMMANDS_PER_PAGE;
   const pageMods = allMods.slice(startIdx, startIdx + COMMANDS_PER_PAGE);
 
-  const lines: string[] = [];
-  for (const mod of pageMods) {
-    const cfg = mod['config'] as Record<string, unknown> | undefined;
-    const name = String(cfg?.['name'] ?? '');
-    const desc = String(cfg?.['description'] ?? '');
-    lines.push(`${prefix}${name}`);
-    lines.push(`  - ${desc}`);
-    // Blank line between entries improves readability in dense chat windows
-    lines.push('');
-  }
+  // Build numbered command rows — global index (not page-local) so the number
+  // is stable when the user navigates between pages and compares entries.
+  const cmdLines = pageMods.map((mod, i) => {
+    const cfg    = mod['config'] as Record<string, unknown> | undefined;
+    const name   = String(cfg?.['name'] ?? '');
+    const desc   = String(cfg?.['description'] ?? '');
+    const num    = startIdx + i + 1;
+    // Right-align numbers up to 99 so entries line up cleanly in monospace chat
+    const padNum = String(num).padStart(2, ' ');
+    // Crop long descriptions so a single entry never wraps across two chat lines
+    return `${padNum}. ${prefix}${name} — ${crop(desc, 38)}`;
+  });
 
-  lines.push(`Page: ${page}/${totalPages}`);
-  lines.push(`Type ${prefix}help <command> for more information`);
-  lines.push('');
-  lines.push(`Type ${prefix}help <page_number> to navigate pages`);
-
-  await chat.replyMessage({ message: lines.join('\n') });
+  await chat.replyMessage({
+    message: [
+      `Commands`,
+      HR,
+      ...cmdLines,
+      HR,
+      `Page (${page}/${totalPages})`,
+      `Currently the bot has ${totalCmds} command(s) `,
+      `» ${prefix}help <page> to navigate pages`,
+      `» ${prefix}help <command> to view command details`
+    ].join('\n'),
+  });
 };
