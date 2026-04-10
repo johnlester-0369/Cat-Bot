@@ -25,7 +25,7 @@ import {
   normalizeFbPageReactionEvent,
 } from './utils/helper.util.js';
 import type { MessageReplyData } from './utils/helper.util.js';
-import { Platforms } from '@/engine/constants/platform.constants.js';
+import { Platforms } from '@/engine/modules/platform/platform.constants.js';
 import { EventType } from '@/engine/adapters/models/enums/index.js';
 /**
  * Creates the onMessage callback consumed by startServer().

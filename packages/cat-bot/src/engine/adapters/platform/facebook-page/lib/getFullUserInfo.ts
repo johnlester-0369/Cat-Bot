@@ -6,7 +6,7 @@
  * Defaults to "User {userID}" when the profile fetch fails.
  */
 
-import { Platforms } from '@/engine/constants/platform.constants.js';
+import { Platforms } from '@/engine/modules/platform/platform.constants.js';
 
 import { createUnifiedUserInfo } from '@/engine/adapters/models/user.model.js';
 import type { UnifiedUserInfo } from '@/engine/adapters/models/user.model.js';

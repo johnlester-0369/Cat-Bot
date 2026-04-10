@@ -34,7 +34,7 @@ import { createEventRouter } from './event-router.js';
 import { createPageApi } from './pageApi.js';
 import { createLogger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 import { sessionManager } from '@/engine/modules/session/session-manager.lib.js';
-import { PLATFORM_TO_ID, Platforms } from '@/engine/constants/platform.constants.js';
+import { PLATFORM_TO_ID, Platforms } from '@/engine/modules/platform/platform.constants.js';
 
 /**
  * Creates a Facebook Page platform listener.

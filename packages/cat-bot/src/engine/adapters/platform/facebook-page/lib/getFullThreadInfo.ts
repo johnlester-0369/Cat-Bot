@@ -8,7 +8,7 @@
  * crashes command handling.
  */
 
-import { Platforms } from '@/engine/constants/platform.constants.js';
+import { Platforms } from '@/engine/modules/platform/platform.constants.js';
 
 import { createUnifiedThreadInfo } from '@/engine/adapters/models/thread.model.js';
 import type { UnifiedThreadInfo } from '@/engine/adapters/models/thread.model.js';

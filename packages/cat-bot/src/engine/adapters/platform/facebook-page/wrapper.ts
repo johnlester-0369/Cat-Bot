@@ -13,7 +13,7 @@
  * Normalise functions are NOT re-exported here — consumers import directly
  * from utils/helper.util.js to maintain clear ownership boundaries.
  */
-import { Platforms } from '@/engine/constants/platform.constants.js';
+import { Platforms } from '@/engine/modules/platform/platform.constants.js';
 
 import { UnifiedApi } from '@/engine/adapters/models/api.model.js';
 import type {

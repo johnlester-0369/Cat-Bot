@@ -14,7 +14,7 @@
  */
 
 import { AttachmentType, EventType } from '@/engine/adapters/models/enums/index.js';
-import { Platforms } from '@/engine/constants/platform.constants.js';
+import { Platforms } from '@/engine/modules/platform/platform.constants.js';
 
 // ── Attachment types ──────────────────────────────────────────────────────────
 
