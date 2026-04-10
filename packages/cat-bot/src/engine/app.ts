@@ -308,7 +308,25 @@ async function main(): Promise<void> {
   // no platform branching or special-casing needed here.
   platform.on('message', async (payload: Record<string, unknown>) => {
     const native = payload.native as import('@/engine/types/controller.types.js').NativeContext;
-    const livePrefix = prefixManager.getPrefix(native.userId ?? '', native.platform, native.sessionId ?? '');
+    const threadID = (payload.event as Record<string, unknown>)['threadID'] as string | undefined;
+    const sessionPrefix = prefixManager.getPrefix(native.userId ?? '', native.platform, native.sessionId ?? '');
+    const threadPrefix = threadID ? prefixManager.getThreadPrefix(threadID) : undefined;
+    // On Discord and Telegram, slash commands are registered globally per-session and cannot be
+    // scoped to individual threads. When the session prefix is '/' and a group admin has set a
+    // custom thread prefix (e.g. '!'), both must work simultaneously: '!ping' uses the thread
+    // prefix and '/help' uses the registered slash menu. Detect by inspecting the message body.
+    const livePrefix = (() => {
+      if (
+        sessionPrefix === '/' &&
+        threadPrefix !== undefined &&
+        threadPrefix !== '/' &&
+        (native.platform === Platforms.Discord || native.platform === Platforms.Telegram)
+      ) {
+        const body = ((payload.event as Record<string, unknown>)['message'] ?? '') as string;
+        if (body.startsWith('/')) return '/';
+      }
+      return threadPrefix ?? sessionPrefix;
+    })();
     await handleMessage(
       payload.api as UnifiedApi,
       payload.event as Record<string, unknown>,
@@ -321,7 +339,24 @@ async function main(): Promise<void> {
 
   platform.on('message_reply', async (payload: Record<string, unknown>) => {
     const native = payload.native as import('@/engine/types/controller.types.js').NativeContext;
-    const livePrefix = prefixManager.getPrefix(native.userId ?? '', native.platform, native.sessionId ?? '');
+    const threadID = (payload.event as Record<string, unknown>)['threadID'] as string | undefined;
+    const sessionPrefix = prefixManager.getPrefix(native.userId ?? '', native.platform, native.sessionId ?? '');
+    const threadPrefix = threadID ? prefixManager.getThreadPrefix(threadID) : undefined;
+    // message_reply: same dual-prefix logic as 'message' — on Discord and Telegram when the
+    // session prefix is '/' and a thread has a custom prefix, inspect the message body to
+    // select the correct routing prefix so slash commands remain functional in all threads.
+    const livePrefix = (() => {
+      if (
+        sessionPrefix === '/' &&
+        threadPrefix !== undefined &&
+        threadPrefix !== '/' &&
+        (native.platform === Platforms.Discord || native.platform === Platforms.Telegram)
+      ) {
+        const body = ((payload.event as Record<string, unknown>)['message'] ?? '') as string;
+        if (body.startsWith('/')) return '/';
+      }
+      return threadPrefix ?? sessionPrefix;
+    })();
     // message_reply shares handleMessage — command modules read event.messageReply for the quoted message.
     await handleMessage(
       payload.api as UnifiedApi,
