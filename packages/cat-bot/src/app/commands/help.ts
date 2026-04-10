@@ -18,7 +18,7 @@
 import type { CommandMap, AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
 // Disabled-command gate — mirrors message.handler.ts: disabled commands are invisible to users
-import { findSessionCommands } from '@/engine/repos/bot-session-commands.repo.js';
+import { findSessionCommands } from '@/engine/modules/session/bot-session-commands.repo.js';
 import { isPlatformAllowed } from '@/engine/utils/platform-filter.util.js';
 import { OptionType } from '@/engine/constants/command-option.constants.js';
 

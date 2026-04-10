@@ -1,4 +1,4 @@
-import { sessionManager } from '@/engine/lib/session-manager.lib.js';
+import { sessionManager } from '@/engine/modules/session/session-manager.lib.js';
 import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
 
