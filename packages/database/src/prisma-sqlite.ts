@@ -42,6 +42,7 @@ export {
   addBotAdmin,
   removeBotAdmin,
   listBotAdmins,
+  updateBotSessionPrefix,
 } from '../adapters/prisma-sqlite/src/cat-bot/credentials.repo.js';
 
 // --- THREADS ---

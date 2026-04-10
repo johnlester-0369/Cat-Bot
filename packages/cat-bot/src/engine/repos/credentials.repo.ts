@@ -3,5 +3,5 @@ export {
   findDiscordCredentialState, updateDiscordCredentialCommandHash, findAllDiscordCredentials,
   findTelegramCredentialState, updateTelegramCredentialCommandHash, findAllTelegramCredentials,
   findAllFbPageCredentials, findAllFbMessengerCredentials, findAllBotSessions, isBotAdmin,
-  addBotAdmin, removeBotAdmin, listBotAdmins
+  addBotAdmin, removeBotAdmin, listBotAdmins, updateBotSessionPrefix,
 } from 'database';

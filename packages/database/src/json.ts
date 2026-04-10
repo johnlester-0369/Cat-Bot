@@ -40,6 +40,7 @@ export {
   addBotAdmin,
   removeBotAdmin,
   listBotAdmins,
+  updateBotSessionPrefix,
 } from '../adapters/json/src/cat-bot/credentials.repo.js';
 
 // --- THREADS ---

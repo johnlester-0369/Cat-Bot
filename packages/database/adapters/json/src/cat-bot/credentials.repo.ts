@@ -75,3 +75,25 @@ export async function listBotAdmins(userId: string, platform: string, sessionId:
     .map((a: any) => a.adminId as string)
     .sort();
 }
+
+/**
+ * Persists a system prefix change to the bot_session row so the admin's choice
+ * survives a process restart. updateMany semantics — silently no-ops when the
+ * session row is absent (matches the fail-open contract of other session mutations).
+ */
+export async function updateBotSessionPrefix(
+  userId: string,
+  platform: string,
+  sessionId: string,
+  prefix: string,
+): Promise<void> {
+  const db = await getDb();
+  const platformId = toPlatformNumericId(platform);
+  const rec = db.botSession.find(
+    (s: any) => s.userId === userId && s.platformId === platformId && s.sessionId === sessionId,
+  );
+  if (rec) {
+    rec.prefix = prefix;
+    await saveDb();
+  }
+}
