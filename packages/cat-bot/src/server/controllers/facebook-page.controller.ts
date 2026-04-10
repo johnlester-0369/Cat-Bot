@@ -12,7 +12,7 @@ import { logger } from '@/engine/modules/logger/logger.lib.js'; // Relocated mod
 import {
   getSession,
   findAnySessionForUserId,
-} from '../lib/facebook-page-session.lib.js';
+} from '../../engine/modules/session/facebook-page-session.lib.js';
 import type { FacebookWebhookBody } from '../models/page-session.model.js';
 import { generateVerifyToken } from '../utils/hash.util.js';
 import {

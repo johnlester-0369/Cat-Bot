@@ -25,7 +25,7 @@ import type { PageSessionConfig } from '@/server/models/page-session.model.js';
 import {
   registerPageSession,
   unregisterPageSession,
-} from '@/server/lib/facebook-page-session.lib.js';
+} from '@/engine/modules/session/facebook-page-session.lib.js';
 // Re-export types so adapters/platform/index.ts import path stays unchanged
 export type { FacebookPageConfig, PlatformEmitter } from './types.js';
 

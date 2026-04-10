@@ -9,7 +9,7 @@ import { logger } from '@/engine/modules/logger/logger.lib.js'; // Relocated mod
 import { createServer } from 'node:http';
 import { env } from '@/engine/config/env.config.js';
 import { createApp } from './app.js';
-import { getAllUserIds } from './lib/facebook-page-session.lib.js';
+import { getAllUserIds } from '../engine/modules/session/facebook-page-session.lib.js';
 // Socket.IO: attach to the raw HTTP server before listen() so the WS upgrade
 // event is captured at the Node.js level rather than going through Express.
 import { initSocketIO } from './socket/socket.lib.js';
