@@ -25,17 +25,23 @@
 import type { MiddlewareFn, OnChatCtx } from '@/engine/types/middleware.types.js';
 import { syncThreadAndParticipants } from '@/engine/services/threads.service.js';
 import { syncUser } from '@/engine/services/users.service.js';
-import { threadSessionExists } from '@/engine/repos/threads.repo.js';
-import { userSessionExists } from '../repos/users.repo.js';
+import { getThreadSessionUpdatedAt } from '@/engine/repos/threads.repo.js';
+import { getUserSessionUpdatedAt } from '../repos/users.repo.js';
 import { logger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
+
+// ── Resync policy ────────────────────────────────────────────────────────────
+// Single named constant so the entire hourly-resync behaviour is controlled here.
+// Changing this value is the only edit needed to adjust the refetch frequency.
+const SYNC_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 
 /**
  * Syncs the current thread and message sender into the database on first encounter,
+ * and re-syncs when their session rows are older than SYNC_INTERVAL_MS (1 hour),
  * then calls next() to continue the middleware chain.
  *
  * The DB check (findUnique selecting only id) is a cheap index-only read. On
- * subsequent messages from a known thread the entire sync block is skipped —
- * the overhead is negligible in steady state.
+ * subsequent messages within the 1-hour window only a lightweight timestamp
+ * read occurs — the overhead is negligible in steady state.
  */
 export const chatPassthrough: MiddlewareFn<OnChatCtx> = async function (
   ctx,
@@ -55,17 +61,24 @@ export const chatPassthrough: MiddlewareFn<OnChatCtx> = async function (
   // Platform listeners that do not yet set userId/sessionId in native context skip sync entirely.
   if (platform && threadID && sessionUserId && sessionId) {
     try {
-      const knownThread = await threadSessionExists(sessionUserId, platform, sessionId, threadID);
-      if (!knownThread) {
-        // Thread sync also walks participantIDs so the sender is likely upserted here too
+      const threadUpdatedAt = await getThreadSessionUpdatedAt(sessionUserId, platform, sessionId, threadID);
+      // Null means the thread has never been synced; a timestamp older than SYNC_INTERVAL_MS means the
+      // cached metadata (name, member count, admin list) may have drifted from the platform's state.
+      const threadStale = threadUpdatedAt === null || (Date.now() - threadUpdatedAt.getTime()) > SYNC_INTERVAL_MS;
+      if (threadStale) {
+        // Thread sync also walks participantIDs so the sender is likely upserted here too.
+        // upsertThreadSession inside syncThreadAndParticipants will stamp lastUpdatedAt on completion.
         await syncThreadAndParticipants(ctx, threadID, sessionUserId, sessionId);
       }
 
       // Always check the sender explicitly — they may not appear in participantIDs on
-      // FB Page 1:1 (participant list only contains the page bot) or Telegram private DMs
+      // FB Page 1:1 (participant list only contains the page bot) or Telegram private DMs.
+      // Also re-sync if the sender's session row is stale even when the thread row is fresh.
       if (senderID) {
-        const knownSender = await userSessionExists(sessionUserId, platform, sessionId, senderID);
-        if (!knownSender) {
+        const senderUpdatedAt = await getUserSessionUpdatedAt(sessionUserId, platform, sessionId, senderID);
+        const senderStale = senderUpdatedAt === null || (Date.now() - senderUpdatedAt.getTime()) > SYNC_INTERVAL_MS;
+        if (senderStale) {
+          // upsertUserSession inside syncUser will stamp lastUpdatedAt on completion.
           await syncUser(ctx, senderID, sessionUserId, sessionId);
         }
       }
