@@ -9,7 +9,7 @@
  * helper.util.ts keeps stream/mention utilities without pulling in 6 normalizers.
  */
 
-import { Platforms } from '@/engine/constants/platform.constants.js';
+import { Platforms } from '@/engine/modules/platform/platform.constants.js';
 
 import type {
   ChatInputCommandInteraction,

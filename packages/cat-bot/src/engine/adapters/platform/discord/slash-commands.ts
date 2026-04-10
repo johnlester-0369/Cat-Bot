@@ -18,15 +18,15 @@
 import { SlashCommandBuilder, REST, Routes } from 'discord.js';
 import type { SessionLogger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 import type { Client } from 'discord.js';
-import { computeCommandHash } from '@/engine/utils/command-hash.util.js';
+import { computeCommandHash } from '@/engine/modules/command/command-hash.util.js';
 import {
   findDiscordCredentialState,
   updateDiscordCredentialCommandHash,
 } from '@/engine/repos/credentials.repo.js';
-import { OptionType } from '@/engine/constants/command-option.constants.js';
-import type { OptionTypeValue } from '@/engine/constants/command-option.constants.js';
-import { isPlatformAllowed } from '@/engine/utils/platform-filter.util.js';
-import { Platforms } from '@/engine/constants/platform.constants.js';
+import { OptionType } from '@/engine/modules/command/command-option.constants.js';
+import type { OptionTypeValue } from '@/engine/modules/command/command-option.constants.js';
+import { isPlatformAllowed } from '@/engine/modules/platform/platform-filter.util.js';
+import { Platforms } from '@/engine/modules/platform/platform.constants.js';
 
 // Shape of each option entry in a command module's config.options array
 interface SlashOption {

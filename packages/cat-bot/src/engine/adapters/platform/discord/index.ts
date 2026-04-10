@@ -24,7 +24,7 @@ import { createDiscordClient } from './client.js';
 import { registerSlashCommands } from './slash-commands.js';
 import { attachEventHandlers } from './event-handlers.js';
 import { sessionManager } from '@/engine/modules/session/session-manager.lib.js';
-import { PLATFORM_TO_ID, Platforms } from '@/engine/constants/platform.constants.js';
+import { PLATFORM_TO_ID, Platforms } from '@/engine/modules/platform/platform.constants.js';
 // Slash sync: register a re-registration callback so the dashboard toggle can update the live '/' menu
 import { registerSlashSync, unregisterSlashSync } from '@/engine/modules/prefix/slash-sync.lib.js';
 // Read enabled/disabled state from DB when the dashboard triggers a sync

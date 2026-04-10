@@ -33,7 +33,7 @@ import type { UnifiedUserInfo } from '@/engine/adapters/models/user.model.js';
 import { buildDiscordMentionMsg } from './utils/helper.util.js';
 import { logger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 
-import { Platforms } from '@/engine/constants/platform.constants.js';
+import { Platforms } from '@/engine/modules/platform/platform.constants.js';
 import { sendMessage as sendMessageLib } from './lib/sendMessage.js';
 import { unsendMessage as unsendMessageLib } from './lib/unsendMessage.js';
 import { getUserInfo as getUserInfoLib } from './lib/getUserInfo.js';

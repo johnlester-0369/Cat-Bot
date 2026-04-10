@@ -16,7 +16,7 @@
 import { EventEmitter } from 'events';
 import type { Client } from 'discord.js';
 import type { SessionLogger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
-import { Platforms } from '@/engine/constants/platform.constants.js';
+import { Platforms } from '@/engine/modules/platform/platform.constants.js';
 import { createDiscordApi, createDiscordChannelApi } from './wrapper.js';
 import {
   normalizeInteractionEvent,
@@ -27,7 +27,7 @@ import {
   normalizeMessageDeleteEvent
  } from './utils/normalizers.util.js';
 import { clearGuildCommands } from './slash-commands.js';
-import { OptionType } from '@/engine/constants/command-option.constants.js';
+import { OptionType } from '@/engine/modules/command/command-option.constants.js';
 
 interface AttachEventHandlersOptions {
   client: Client;

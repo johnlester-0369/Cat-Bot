@@ -7,7 +7,7 @@
  *   4. Stub with id only — ensures callers always receive a valid object
  */
 import type { Client, Guild, User } from 'discord.js';
-import { Platforms } from '@/engine/constants/platform.constants.js';
+import { Platforms } from '@/engine/modules/platform/platform.constants.js';
 // @/ alias resolves via tsc-alias at build / tsx at dev time — replaces ../../../../models/
 import { createUnifiedUserInfo } from '@/engine/adapters/models/user.model.js';
 import type { UnifiedUserInfo } from '@/engine/adapters/models/user.model.js';

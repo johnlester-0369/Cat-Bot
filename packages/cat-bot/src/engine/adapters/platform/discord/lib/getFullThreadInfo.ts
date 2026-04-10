@@ -5,7 +5,7 @@
  * by accepting the relevant context objects as explicit parameters.
  */
 import type { Client, TextChannel, Guild } from 'discord.js';
-import { Platforms } from '@/engine/constants/platform.constants.js';
+import { Platforms } from '@/engine/modules/platform/platform.constants.js';
 // @/ alias resolves via tsc-alias at build / tsx at dev time — replaces ../../../../models/
 import { createUnifiedThreadInfo } from '@/engine/adapters/models/thread.model.js';
 import type { UnifiedThreadInfo } from '@/engine/adapters/models/thread.model.js';
