@@ -76,3 +76,21 @@ export async function listBotAdmins(userId: string, platform: string, sessionId:
   });
   return rows.map((r) => r.adminId);
 }
+
+/**
+ * Persists a system prefix change to the bot_session row so the admin's choice
+ * survives a process restart. updateMany avoids P2025 when the row is absent —
+ * same fail-open contract as other updateMany mutations in this adapter.
+ */
+export async function updateBotSessionPrefix(
+  userId: string,
+  platform: string,
+  sessionId: string,
+  prefix: string,
+): Promise<void> {
+  const platformId = toPlatformNumericId(platform);
+  await prisma.botSession.updateMany({
+    where: { userId, platformId, sessionId },
+    data: { prefix },
+  });
+}
