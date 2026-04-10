@@ -11,6 +11,9 @@ import { logger } from '@/engine/modules/logger/logger.lib.js'; // Relocated mod
 class PrefixManager {
   // Key format: `${userId}:${platform}:${sessionId}` (e.g. "cuid123:discord:uuid456")
   private prefixes = new Map<string, string>();
+  // Thread-level prefix overrides — keyed by platform threadId (Discord channelId, FB threadId, etc.).
+  // A thread entry wins over the session prefix so individual groups can customise the trigger character.
+  private threadPrefixes = new Map<string, string>();
 
   private getKey(userId: string, platform: string, sessionId: string): string {
     return `${userId}:${platform}:${sessionId}`;
@@ -31,6 +34,33 @@ class PrefixManager {
   getPrefix(userId: string, platform: string, sessionId: string): string {
     const key = this.getKey(userId, platform, sessionId);
     return this.prefixes.get(key) ?? '/';
+  }
+
+  /**
+   * Stores a thread-level prefix override, used by /prefix command to customise
+   * the trigger character for a specific group without affecting other threads.
+   */
+  setThreadPrefix(threadId: string, prefix: string): void {
+    this.threadPrefixes.set(threadId, prefix);
+    logger.debug(`[prefix-manager] Thread prefix for ${threadId} set to "${prefix}"`);
+  }
+
+  /**
+   * Returns the thread-level prefix override, or undefined when no override is registered.
+   * Callers must fall back to getPrefix() when this returns undefined — this is intentional
+   * so the system prefix remains the default without explicitly storing it per-thread.
+   */
+  getThreadPrefix(threadId: string): string | undefined {
+    return this.threadPrefixes.get(threadId);
+  }
+
+  /**
+   * Removes a thread-level prefix override (/prefix reset).
+   * After clearing, getThreadPrefix() returns undefined and the session default takes over.
+   */
+  clearThreadPrefix(threadId: string): void {
+    this.threadPrefixes.delete(threadId);
+    logger.debug(`[prefix-manager] Thread prefix cleared for ${threadId} — reverting to session default`);
   }
 }
 
