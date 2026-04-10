@@ -186,7 +186,15 @@ export const enforcePermission: MiddlewareFn<OnCommandCtx> = async function (
   if (role === Role.THREAD_ADMIN) {
     // Thread-admin gate: on-chat.middleware has already synced the thread before
     // any command dispatcher runs, so bot_threads should contain the admins list.
-    const allowed = await isThreadAdmin(threadID, senderID);
+    let allowed = await isThreadAdmin(threadID, senderID);
+
+    // Bot admins implicitly inherit thread admin privileges across all threads
+    if (!allowed) {
+      const sessionUserId = ctx.native.userId ?? '';
+      const sessionId = ctx.native.sessionId ?? '';
+      allowed = await isBotAdmin(sessionUserId, ctx.native.platform, sessionId, senderID);
+    }
+
     if (!allowed) {
       await ctx.chat.replyMessage({
         message: '🚫 This command is restricted to group admins.',
