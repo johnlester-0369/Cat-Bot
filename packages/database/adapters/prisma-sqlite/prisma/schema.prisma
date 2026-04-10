@@ -3,6 +3,7 @@ generator client {
   provider = "prisma-client"
   // output is required in v7 — generates the client into src/ so tsc and tsx can resolve it
   output   = "../src/generated/prisma"
+  compilerBuild = "fast"
 }
 
 datasource db {
