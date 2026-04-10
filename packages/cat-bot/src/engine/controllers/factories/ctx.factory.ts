@@ -21,7 +21,7 @@ import {
 import { createLogger } from '@/engine/lib/logger.lib.js';
 import { PLATFORM_TO_ID } from '@/engine/constants/platform.constants.js';
 import { getUserName, getAllUserSessionData } from '@/engine/repos/users.repo.js';
-import { getThreadName } from '@/engine/repos/threads.repo.js';
+import { getThreadName, getAllGroupThreadIds } from '@/engine/repos/threads.repo.js';
 import {
   createCollectionManager,
   createThreadCollectionManager,
@@ -81,6 +81,8 @@ export function buildBaseCtx(
         getName: getThreadName,
         // Pre-scoped to session coords — per-thread features call collection(botThreadId) directly
         collection: createThreadCollectionManager(native.userId ?? '', native.platform, native.sessionId ?? ''),
+        // Pre-scoped closure mirrors db.users.getAll — command modules call getGroupIds() with no args
+        getGroupIds: () => getAllGroupThreadIds(native.userId ?? '', native.platform, native.sessionId ?? ''),
       },
     },
   };
