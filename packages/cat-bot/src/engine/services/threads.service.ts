@@ -16,7 +16,7 @@
 
 import type { BaseCtx } from '@/engine/types/controller.types.js';
 import { toBotThreadData } from '@/engine/models/threads.model.js';
-import { upsertThread, threadSessionExists, upsertThreadSession } from '@/engine/repos/threads.repo.js';
+import { upsertThread, upsertThreadSession } from '@/engine/repos/threads.repo.js';
 import { syncUsers } from '@/engine/services/users.service.js';
 import { logger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 
@@ -36,11 +36,9 @@ export async function syncThreadAndParticipants(
   sessionId: string,
 ): Promise<void> {
   try {
-    // Session table is the existence gate — if this (userId, platform, sessionId, threadId)
-    // tuple already exists, the data is current; skip the API round-trip entirely.
-    const alreadySynced = await threadSessionExists(sessionUserId, ctx.native.platform, sessionId, threadId);
-    if (alreadySynced) return;
-
+    // Staleness is now determined by on-chat.middleware before calling this function —
+    // the middleware compares lastUpdatedAt against SYNC_INTERVAL_MS and only calls here
+    // when the session row is absent or older than 1 hour. No guard needed here.
     const info = await ctx.thread.getInfo(threadId);
 
     // Sync users FIRST to guarantee Prisma connect operations find foreign keys in bot_users

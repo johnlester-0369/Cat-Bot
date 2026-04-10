@@ -50,6 +50,21 @@ export async function upsertThreadSession(userId: string, platform: string, sess
   });
 }
 
+/**
+ * Returns the lastUpdatedAt timestamp for a (session × thread) pair, or null when no row exists.
+ * Consumed by on-chat.middleware to determine staleness against SYNC_INTERVAL_MS — the threshold
+ * constant lives in the middleware, not here, so this function is purely a data accessor.
+ */
+export async function getThreadSessionUpdatedAt(
+  userId: string, platform: string, sessionId: string, threadId: string,
+): Promise<Date | null> {
+  const row = await prisma.botThreadSession.findUnique({
+    where: { userId_platformId_sessionId_botThreadId: { userId, platformId: toPlatformNumericId(platform), sessionId, botThreadId: threadId } },
+    select: { lastUpdatedAt: true },
+  });
+  return row?.lastUpdatedAt ?? null;
+}
+
 export async function isThreadAdmin(threadId: string, userId: string): Promise<boolean> {
   const row = await prisma.botThread.findUnique({
     where: { id: threadId },

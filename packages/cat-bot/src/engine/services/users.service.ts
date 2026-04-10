@@ -12,7 +12,7 @@
 
 import type { BaseCtx } from '@/engine/types/controller.types.js';
 import { toBotUserData } from '@/engine/models/users.model.js';
-import { upsertUser, userSessionExists, upsertUserSession } from '@/engine/repos/users.repo.js';
+import { upsertUser, upsertUserSession } from '@/engine/repos/users.repo.js';
 import { logger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 
 /**
@@ -28,11 +28,9 @@ export async function syncUser(
   sessionId: string,
 ): Promise<void> {
   try {
-    // Session table is the existence gate — if this (userId, platform, sessionId, userId)
-    // tuple already exists, the data is current; skip the API round-trip entirely.
-    const alreadySynced = await userSessionExists(sessionUserId, ctx.native.platform, sessionId, userId);
-    if (alreadySynced) return;
-
+    // Staleness is now determined by on-chat.middleware before calling this function —
+    // the middleware compares lastUpdatedAt against SYNC_INTERVAL_MS and only calls here
+    // when the session row is absent or older than 1 hour. No guard needed here.
     const info = await ctx.user.getInfo(userId);
     await upsertUser(toBotUserData(info));
     // Mark this session as having seen this user — subsequent messages short-circuit here
