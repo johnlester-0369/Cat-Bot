@@ -14,10 +14,9 @@ export const config = {
   hasPrefix: true,
 };
 
-export const onCommand = async ({ chat }: AppCtx) => {
-  const start = Date.now();
+export const onCommand = async ({ chat, startTime }: AppCtx) => {
   // Delegate to uniform context to automatically route response back to the origin
   await chat.replyMessage({
-    message: `🏓 Pong! Latency: ${Date.now() - start}ms`,
+    message: `🏓 Pong! Latency: ${Date.now() - startTime}ms`,
   });
 };
