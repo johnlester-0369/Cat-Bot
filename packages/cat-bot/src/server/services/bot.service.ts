@@ -6,7 +6,7 @@ import { sessionManager } from '@/engine/modules/session/session-manager.lib.js'
 import { logger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 import { prefixManager } from '@/engine/modules/prefix/prefix-manager.lib.js';
 import { triggerSlashSync } from '@/engine/modules/prefix/slash-sync.lib.js';
-import { Platforms } from '@/engine/constants/platform.constants.js';
+import { Platforms } from '@/engine/modules/platform/platform.constants.js';
 import { withRetry, isNetworkError, isAuthError } from '@/engine/lib/retry.lib.js';
 import type {
   CreateBotRequestDto,

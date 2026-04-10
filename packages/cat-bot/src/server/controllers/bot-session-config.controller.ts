@@ -17,7 +17,7 @@
 import type { Request, Response } from 'express';
 import { auth } from '@/server/lib/better-auth.lib.js';
 import { botRepo } from '@/server/repos/bot.repo.js';
-import { ID_TO_PLATFORM } from '@/engine/constants/platform.constants.js';
+import { ID_TO_PLATFORM } from '@/engine/modules/platform/platform.constants.js';
 import {
   findSessionCommands,
   setCommandEnabled,
@@ -31,7 +31,7 @@ import type { ToggleEnabledRequestDto } from '@/server/dtos/bot-session-config.d
 // Triggers slash command re-registration on live Discord/Telegram sessions when a command is toggled.
 // Resolves as a no-op for platforms without a registered sync (FB Messenger, FB Page) or stopped sessions.
 import { triggerSlashSync } from '@/engine/modules/prefix/slash-sync.lib.js';
-import { isPlatformAllowed } from '@/engine/utils/platform-filter.util.js';
+import { isPlatformAllowed } from '@/engine/modules/platform/platform-filter.util.js';
 
 // ── Shared Auth Helper ────────────────────────────────────────────────────────
 
