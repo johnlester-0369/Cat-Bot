@@ -64,6 +64,10 @@ model BotUserSession {
   platformId Int
   sessionId String
   botUserId String
+  // Tracks the last time this (session × user) pair was refreshed from the platform API.
+  // The middleware uses this to decide whether a re-fetch is needed — stale after SYNC_INTERVAL_MS (1 h).
+  // @updatedAt makes Prisma auto-stamp this on every ORM update, so upsertUserSession needs no explicit field.
+  lastUpdatedAt DateTime @default(now()) @updatedAt
   // JSON blob — stores named collections (e.g. "daily", "inventory") without dynamic tables.
   // Parsed and serialized entirely at the adapter layer; business logic never sees raw JSON.
   data      String?
@@ -81,6 +85,10 @@ model BotThreadSession {
   platformId   Int
   sessionId   String
   botThreadId String
+  // Tracks the last time this (session × thread) pair was refreshed from the platform API.
+  // The middleware uses this to decide whether a re-fetch is needed — stale after SYNC_INTERVAL_MS (1 h).
+  // @updatedAt makes Prisma auto-stamp this on every ORM update, so upsertThreadSession needs no explicit field.
+  lastUpdatedAt DateTime @default(now()) @updatedAt
   // JSON blob — stores named collections for thread-scoped bot settings (e.g. rankup toggle, custom messages)
   // without dynamic tables. Parsed and serialized entirely at the adapter layer.
   data        String?
