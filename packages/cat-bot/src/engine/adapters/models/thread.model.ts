@@ -24,7 +24,7 @@
 // Concrete IDs are owned by each adapters/platform/{name}/index.ts and aggregated
 // into a union at adapters/platform/index.ts — models never enumerate platform names.
 export type PlatformId = string;
-import { logger } from '@/engine/lib/logger.lib.js';
+import { logger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 
 /**
  * Unified shape for thread / group / server metadata across all platforms.

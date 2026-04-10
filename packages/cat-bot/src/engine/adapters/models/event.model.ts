@@ -24,7 +24,7 @@ export * from './prototypes/index.js';
 // ── Local imports for formatEvent() implementation ────────────────────────────
 // AttachmentType is re-exported via ./enums/index.js barrel but not used locally here.
 import { EventType, LogMessageType } from './enums/index.js';
-import { logger } from '@/engine/lib/logger.lib.js';
+import { logger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 
 // ── Re-export types needed for UnifiedEvent union ─────────────────────────────
 export type {

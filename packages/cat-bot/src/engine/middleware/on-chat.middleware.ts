@@ -27,7 +27,7 @@ import { syncThreadAndParticipants } from '@/engine/services/threads.service.js'
 import { syncUser } from '@/engine/services/users.service.js';
 import { threadSessionExists } from '@/engine/repos/threads.repo.js';
 import { userSessionExists } from '../repos/users.repo.js';
-import { logger } from '@/engine/lib/logger.lib.js';
+import { logger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 
 /**
  * Syncs the current thread and message sender into the database on first encounter,

@@ -27,7 +27,7 @@ import {
 import type { UnifiedThreadInfo } from '@/engine/adapters/models/thread.model.js';
 import type { UnifiedUserInfo } from '@/engine/adapters/models/user.model.js';
 
-import { logger } from '@/engine/lib/logger.lib.js';
+import { logger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 // buildTelegramMentionEntities translates {tag, user_id} entries to Bot API text_mention entity format
 import { buildTelegramMentionEntities } from './utils/helper.util.js';
 

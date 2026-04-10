@@ -23,7 +23,7 @@ import { auth } from '@/server/lib/better-auth.lib.js';
 import { getSocketIO } from './socket.lib.js';
 import { getFbPageWebhookVerification } from '@/engine/repos/webhooks.repo.js';
 import { sendTextMessage } from '@/engine/adapters/platform/facebook-page/pageApi-helpers.js';
-import { logger } from '@/engine/lib/logger.lib.js';
+import { logger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 import { generateVerifyToken } from '@/server/utils/hash.util.js';
 
 // ── Pending validation queue ───────────────────────────────────────────────────

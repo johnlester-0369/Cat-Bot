@@ -15,7 +15,7 @@
  *   SKIP     otherwise — menu is already in the desired state
  */
 import type { Telegraf } from 'telegraf';
-import type { SessionLogger } from '@/engine/lib/logger.lib.js';
+import type { SessionLogger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 import { computeCommandHash } from '@/engine/utils/command-hash.util.js';
 import {
   findTelegramCredentialState,

@@ -14,7 +14,7 @@
  */
 
 import type { FcaApi, StartBotConfig, StartBotResult } from './types.js';
-import type { SessionLogger } from '@/engine/lib/logger.lib.js';
+import type { SessionLogger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 
 // fca-unofficial has no published @types package — import as unknown and cast at call sites
 // @ts-expect-error - no published @types package

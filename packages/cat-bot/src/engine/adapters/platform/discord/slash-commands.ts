@@ -16,7 +16,7 @@
  */
 
 import { SlashCommandBuilder, REST, Routes } from 'discord.js';
-import type { SessionLogger } from '@/engine/lib/logger.lib.js';
+import type { SessionLogger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 import type { Client } from 'discord.js';
 import { computeCommandHash } from '@/engine/utils/command-hash.util.js';
 import {

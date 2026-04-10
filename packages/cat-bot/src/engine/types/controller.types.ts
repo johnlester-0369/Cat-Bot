@@ -13,7 +13,7 @@ import {
   createUserContext,
 } from '@/engine/adapters/models/context.model.js';
 import type { StateContext } from '@/engine/adapters/models/context.model.js';
-import type { SessionLogger } from '@/engine/lib/logger.lib.js';
+import type { SessionLogger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 import type { OptionsMap } from '@/engine/lib/options-map.lib.js';
 import type { CollectionManager } from '@/engine/lib/db-collection.lib.js';
 

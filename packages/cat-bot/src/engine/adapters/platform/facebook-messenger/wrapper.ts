@@ -20,7 +20,7 @@ import type { UnifiedThreadInfo } from '@/engine/adapters/models/thread.model.js
 import type { UnifiedUserInfo } from '@/engine/adapters/models/user.model.js';
 import type { Readable } from 'stream';
 
-import { logger } from '@/engine/lib/logger.lib.js';
+import { logger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 import type { FcaApi } from './types.js';
 
 import { sendMessage } from './lib/sendMessage.js';

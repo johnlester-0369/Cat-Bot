@@ -20,7 +20,7 @@ import { stateStore } from '@/engine/lib/reply-state.lib.js';
 // ButtonItem is used locally in resolveButtons(); others are referenced only in re-exported types.
 import type { UnifiedApi } from './api.model.js';
 import type { ButtonItem } from './interfaces/index.js';
-import { logger } from '@/engine/lib/logger.lib.js';
+import { logger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 import { ButtonStyle, type ButtonStyleValue } from '@/engine/constants/button-style.constants.js';
 
 // Re-export interfaces for backward compatibility

@@ -18,7 +18,7 @@ import type { BaseCtx } from '@/engine/types/controller.types.js';
 import { toBotThreadData } from '@/engine/models/threads.model.js';
 import { upsertThread, threadSessionExists, upsertThreadSession } from '@/engine/repos/threads.repo.js';
 import { syncUsers } from '@/engine/services/users.service.js';
-import { logger } from '@/engine/lib/logger.lib.js';
+import { logger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 
 /**
  * Fetches full thread metadata, explicitly hydrates participants via

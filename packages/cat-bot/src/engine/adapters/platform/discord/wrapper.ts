@@ -31,7 +31,7 @@ import type { UnifiedThreadInfo } from '@/engine/adapters/models/thread.model.js
 import type { UnifiedUserInfo } from '@/engine/adapters/models/user.model.js';
 
 import { buildDiscordMentionMsg } from './utils/helper.util.js';
-import { logger } from '@/engine/lib/logger.lib.js';
+import { logger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 
 import { Platforms } from '@/engine/constants/platform.constants.js';
 import { sendMessage as sendMessageLib } from './lib/sendMessage.js';

@@ -5,7 +5,7 @@
  * Handles graceful shutdown and binds the unified Express app.
  */
 
-import { logger } from '@/engine/lib/logger.lib.js';
+import { logger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 import { createServer } from 'node:http';
 import { env } from '@/engine/config/env.config.js';
 import { createApp } from './app.js';

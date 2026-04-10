@@ -15,7 +15,7 @@
 
 import { EventEmitter } from 'events';
 import type { Client } from 'discord.js';
-import type { SessionLogger } from '@/engine/lib/logger.lib.js';
+import type { SessionLogger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 import { Platforms } from '@/engine/constants/platform.constants.js';
 import { createDiscordApi, createDiscordChannelApi } from './wrapper.js';
 import {

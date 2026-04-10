@@ -42,7 +42,7 @@ export type {
 // Import from leaf models to keep dependency direction: api.model → thread/user, never the reverse
 import type { UnifiedThreadInfo } from './thread.model.js';
 import type { UnifiedUserInfo } from './user.model.js';
-import { logger } from '@/engine/lib/logger.lib.js';
+import { logger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 
 /**
  * UnifiedApi base class — all platform wrappers extend this.

@@ -15,7 +15,7 @@ import axios from 'axios';
 import type { PageApi, GetMessageResult } from './pageApi-types.js';
 import { FB_API_BASE } from './pageApi-helpers.js';
 import { sendTextMessage, sendTemplateMessage } from './pageApi-helpers.js';
-import type { SessionLogger } from '@/engine/lib/logger.lib.js';
+import type { SessionLogger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 import { isAuthError } from '@/engine/lib/retry.lib.js';
 
 // Re-export interfaces so lib/* imports from '../pageApi.js' remain valid

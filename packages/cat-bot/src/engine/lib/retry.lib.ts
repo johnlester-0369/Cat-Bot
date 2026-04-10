@@ -13,7 +13,7 @@
  * and gives a single place to tune retry behavior for the whole system.
  */
 
-import { logger } from '@/engine/lib/logger.lib.js';
+import { logger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

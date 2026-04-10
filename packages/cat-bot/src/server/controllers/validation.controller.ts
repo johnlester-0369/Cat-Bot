@@ -20,7 +20,7 @@
 
 import type { Request, Response } from 'express';
 import { auth } from '@/server/lib/better-auth.lib.js';
-import { logger, createLogger } from '@/engine/lib/logger.lib.js';
+import { logger, createLogger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 import axios from 'axios';
 import { startBot } from '@/engine/adapters/platform/facebook-messenger/index.js';
 import { isAuthError, withRetry, isNetworkError } from '@/engine/lib/retry.lib.js';

@@ -8,7 +8,7 @@
 
 import type { Request, Response } from 'express';
 import { upsertFbPageWebhookVerification } from '@/engine/repos/webhooks.repo.js';
-import { logger } from '@/engine/lib/logger.lib.js';
+import { logger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 import {
   getSession,
   findAnySessionForUserId,

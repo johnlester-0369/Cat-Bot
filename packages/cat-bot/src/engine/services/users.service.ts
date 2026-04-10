@@ -13,7 +13,7 @@
 import type { BaseCtx } from '@/engine/types/controller.types.js';
 import { toBotUserData } from '@/engine/models/users.model.js';
 import { upsertUser, userSessionExists, upsertUserSession } from '@/engine/repos/users.repo.js';
-import { logger } from '@/engine/lib/logger.lib.js';
+import { logger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 
 /**
  * Fetches user info from the platform for a single user ID and upserts the result.

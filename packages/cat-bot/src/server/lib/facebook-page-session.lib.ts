@@ -6,7 +6,7 @@
  * no Express dependency anywhere in this module.
  */
 
-import { logger } from '@/engine/lib/logger.lib.js';
+import { logger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 import type { PageSessionConfig } from '../models/page-session.model.js';
 
 // Keyed by `userId:pageId` — POST /facebook-page/:user_id resolves sessions via

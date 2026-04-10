@@ -11,7 +11,7 @@
  */
 
 import { Client, GatewayIntentBits, Partials, Events } from 'discord.js';
-import type { SessionLogger } from '@/engine/lib/logger.lib.js';
+import type { SessionLogger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 import { isAuthError } from '@/engine/lib/retry.lib.js';
 
 /**
