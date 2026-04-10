@@ -32,6 +32,8 @@ interface EnvConfig {
   readonly LOG_LEVEL: string;
   readonly LOG_FILE_PATH?: string | undefined;
   readonly ERROR_LOG_FILE_PATH?: string | undefined;
+  // Telegram transport — bare HTTPS domain routes webhook mode; absent = long-polling fallback
+  readonly TELEGRAM_WEBHOOK_DOMAIN?: string | undefined;
 
   // Derived boolean helpers
   readonly isDevelopment: boolean;
@@ -167,6 +169,8 @@ export const env: EnvConfig = {
   LOG_LEVEL: getLogLevel(),
   LOG_FILE_PATH: getOptionalEnv('LOG_FILE_PATH'),
   ERROR_LOG_FILE_PATH: getOptionalEnv('ERROR_LOG_FILE_PATH'),
+  // Consumed by telegram/listener.ts — centralised here so dotenv is guaranteed to have run first
+  TELEGRAM_WEBHOOK_DOMAIN: getOptionalEnv('TELEGRAM_WEBHOOK_DOMAIN'),
 
   // Derived boolean helpers for convenience
   isDevelopment: nodeEnv === 'development',

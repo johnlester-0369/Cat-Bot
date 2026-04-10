@@ -22,6 +22,7 @@ import { attachHandlers } from './handlers.js';
 import { sessionManager } from '@/engine/lib/session-manager.lib.js';
 import { isAuthError } from '@/engine/lib/retry.lib.js';
 import { PLATFORM_TO_ID, Platforms } from '@/engine/constants/platform.constants.js';
+import { env } from '@/engine/config/env.config.js';
 
 // Slash sync: register a re-registration callback so the dashboard toggle can update the live '/' menu
 import { registerSlashSync, unregisterSlashSync } from '@/engine/lib/slash-sync.lib.js';
@@ -103,7 +104,7 @@ export function createTelegramListener(
     //     RequestListener. The handler is stored in the registry so server/app.ts can route
     //     incoming POST requests to this session without an extra port or server.
     // Polling mode (default): no public domain required; works in local development.
-    const rawWebhookDomain = process.env['TELEGRAM_WEBHOOK_DOMAIN'];
+    const rawWebhookDomain = env.TELEGRAM_WEBHOOK_DOMAIN;
     if (rawWebhookDomain) {
       // Strip any protocol prefix — Telegraf builds the full HTTPS URL from the bare domain.
       const domain = rawWebhookDomain.replace(/^https?:\/\//, '');
