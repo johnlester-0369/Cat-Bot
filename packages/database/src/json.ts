@@ -54,6 +54,7 @@ export {
   getThreadSessionData,
   setThreadSessionData,
   getAllGroupThreadIds,
+  getThreadSessionUpdatedAt,
 } from '../adapters/json/src/cat-bot/threads.repo.js';
 
 // --- USERS ---
@@ -66,6 +67,7 @@ export {
   getUserSessionData,
   setUserSessionData,
   getAllUserSessionData,
+  getUserSessionUpdatedAt,
 } from '../adapters/json/src/cat-bot/users.repo.js';
 
 // --- WEBHOOKS ---
