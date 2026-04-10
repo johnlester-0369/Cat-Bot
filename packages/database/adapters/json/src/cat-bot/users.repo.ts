@@ -27,8 +27,34 @@ export async function userSessionExists(userId: string, platform: string, sessio
 export async function upsertUserSession(userId: string, platform: string, sessionId: string, botUserId: string): Promise<void> {
   const db = await getDb();
   const pid = toPlatformNumericId(platform);
+  const now = new Date().toISOString();
   const rec = db.botUserSession.find((us: any) => us.userId === userId && us.platformId === pid && us.sessionId === sessionId && us.botUserId === botUserId);
-  if (!rec) { db.botUserSession.push({ userId, platformId: pid, sessionId, botUserId }); await saveDb(); }
+  if (!rec) {
+    // First encounter — create the row with lastUpdatedAt so the middleware has a baseline timestamp.
+    db.botUserSession.push({ userId, platformId: pid, sessionId, botUserId, lastUpdatedAt: now });
+    await saveDb();
+  } else {
+    // Re-sync — update lastUpdatedAt so subsequent staleness checks see the fresh timestamp.
+    rec.lastUpdatedAt = now;
+    await saveDb();
+  }
+}
+
+/**
+ * Returns the lastUpdatedAt timestamp for a (session × user) pair, or null when no row exists.
+ * The JSON adapter stores timestamps as ISO strings; they are parsed to Date here so the
+ * middleware can compare them uniformly regardless of which adapter is active.
+ */
+export async function getUserSessionUpdatedAt(
+  userId: string, platform: string, sessionId: string, botUserId: string,
+): Promise<Date | null> {
+  const db = await getDb();
+  const pid = toPlatformNumericId(platform);
+  const rec = db.botUserSession.find(
+    (us: any) => us.userId === userId && us.platformId === pid && us.sessionId === sessionId && us.botUserId === botUserId,
+  );
+  if (!rec?.lastUpdatedAt) return null;
+  return new Date(rec.lastUpdatedAt as string);
 }
 
 // WHY: Fulfills the fallback requirement directly at the DB layer so callers never handle undefined.

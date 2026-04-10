@@ -27,8 +27,34 @@ export async function threadSessionExists(userId: string, platform: string, sess
 export async function upsertThreadSession(userId: string, platform: string, sessionId: string, threadId: string): Promise<void> {
   const db = await getDb();
   const pid = toPlatformNumericId(platform);
+  const now = new Date().toISOString();
   const rec = db.botThreadSession.find((ts: any) => ts.userId === userId && ts.platformId === pid && ts.sessionId === sessionId && ts.botThreadId === threadId);
-  if (!rec) { db.botThreadSession.push({ userId, platformId: pid, sessionId, botThreadId: threadId }); await saveDb(); }
+  if (!rec) {
+    // First encounter — create the row with lastUpdatedAt so the middleware has a baseline timestamp.
+    db.botThreadSession.push({ userId, platformId: pid, sessionId, botThreadId: threadId, lastUpdatedAt: now });
+    await saveDb();
+  } else {
+    // Re-sync — update lastUpdatedAt so subsequent staleness checks see the fresh timestamp.
+    rec.lastUpdatedAt = now;
+    await saveDb();
+  }
+}
+
+/**
+ * Returns the lastUpdatedAt timestamp for a (session × thread) pair, or null when no row exists.
+ * The JSON adapter stores timestamps as ISO strings; they are parsed to Date here so the
+ * middleware can compare them uniformly regardless of which adapter is active.
+ */
+export async function getThreadSessionUpdatedAt(
+  userId: string, platform: string, sessionId: string, threadId: string,
+): Promise<Date | null> {
+  const db = await getDb();
+  const pid = toPlatformNumericId(platform);
+  const rec = db.botThreadSession.find(
+    (ts: any) => ts.userId === userId && ts.platformId === pid && ts.sessionId === sessionId && ts.botThreadId === threadId,
+  );
+  if (!rec?.lastUpdatedAt) return null;
+  return new Date(rec.lastUpdatedAt as string);
 }
 
 export async function isThreadAdmin(threadId: string, userId: string): Promise<boolean> {
