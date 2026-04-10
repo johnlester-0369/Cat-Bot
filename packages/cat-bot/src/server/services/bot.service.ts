@@ -2,10 +2,10 @@ import { randomUUID } from 'node:crypto';
 import axios from 'axios';
 import { botRepo } from '@/server/repos/bot.repo.js';
 import { spawnDynamicSession } from '@/engine/adapters/platform/index.js';
-import { sessionManager } from '@/engine/lib/session-manager.lib.js';
-import { logger } from '@/engine/lib/logger.lib.js';
-import { prefixManager } from '@/engine/lib/prefix-manager.lib.js';
-import { triggerSlashSync } from '@/engine/lib/slash-sync.lib.js';
+import { sessionManager } from '@/engine/modules/session/session-manager.lib.js';
+import { logger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
+import { prefixManager } from '@/engine/modules/prefix/prefix-manager.lib.js';
+import { triggerSlashSync } from '@/engine/modules/prefix/slash-sync.lib.js';
 import { Platforms } from '@/engine/constants/platform.constants.js';
 import { withRetry, isNetworkError, isAuthError } from '@/engine/lib/retry.lib.js';
 import type {

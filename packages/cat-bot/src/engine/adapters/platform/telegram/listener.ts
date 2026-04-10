@@ -15,20 +15,20 @@
  */
 import { EventEmitter } from 'events';
 import { Telegraf } from 'telegraf';
-import { createLogger } from '@/engine/lib/logger.lib.js';
+import { createLogger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 import type { TelegramConfig, TelegramEmitter } from './types.js';
 import { registerSlashMenu } from './slash-commands.js';
 import { attachHandlers } from './handlers.js';
-import { sessionManager } from '@/engine/lib/session-manager.lib.js';
+import { sessionManager } from '@/engine/modules/session/session-manager.lib.js';
 import { isAuthError } from '@/engine/lib/retry.lib.js';
 import { PLATFORM_TO_ID, Platforms } from '@/engine/constants/platform.constants.js';
 import { env } from '@/engine/config/env.config.js';
 
 // Slash sync: register a re-registration callback so the dashboard toggle can update the live '/' menu
-import { registerSlashSync, unregisterSlashSync } from '@/engine/lib/slash-sync.lib.js';
+import { registerSlashSync, unregisterSlashSync } from '@/engine/modules/prefix/slash-sync.lib.js';
 // Read enabled/disabled state from DB when the dashboard triggers a sync
-import { findSessionCommands } from '@/engine/repos/bot-session-commands.repo.js';
-import { prefixManager } from '@/engine/lib/prefix-manager.lib.js';
+import { findSessionCommands } from '@/engine/modules/session/bot-session-commands.repo.js';
+import { prefixManager } from '@/engine/modules/prefix/prefix-manager.lib.js';
 // Webhook handler registry — shared with server/app.ts so the existing Express HTTP server
 // can route Telegram Bot API POST requests to the correct Telegraf session handler.
 import {

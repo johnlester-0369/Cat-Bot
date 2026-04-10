@@ -18,8 +18,8 @@ import {
   findAllFbMessengerCredentials,
   findAllBotSessions,
 } from '@/engine/repos/credentials.repo.js';
-import { logger } from '@/engine/lib/logger.lib.js';
-import { prefixManager } from '@/engine/lib/prefix-manager.lib.js';
+import { logger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
+import { prefixManager } from '@/engine/modules/prefix/prefix-manager.lib.js';
 import { fromPlatformNumericId } from '@/engine/utils/platform-id.util.js';
 
 // ── Resolved config shapes (exported for consumers) ───────────────────────────

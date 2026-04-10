@@ -19,8 +19,8 @@
  */
 
 import type { Server as SocketIOServer } from 'socket.io';
-import { sessionManager } from '@/engine/lib/session-manager.lib.js';
-import { logRelay } from '@/engine/lib/log-relay.lib.js';
+import { sessionManager } from '@/engine/modules/session/session-manager.lib.js';
+import { logRelay } from '@/engine/modules/logger/log-relay.lib.js';
 
 export function registerBotMonitorHandlers(io: SocketIOServer): void {
   // ── Global log broadcast ─────────────────────────────────────────────────────

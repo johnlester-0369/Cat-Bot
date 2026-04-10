@@ -21,16 +21,16 @@ import { ID_TO_PLATFORM } from '@/engine/constants/platform.constants.js';
 import {
   findSessionCommands,
   setCommandEnabled,
-} from '@/engine/repos/bot-session-commands.repo.js';
+} from '@/engine/modules/session/bot-session-commands.repo.js';
 import {
   findSessionEvents,
   setEventEnabled,
-} from '@/engine/repos/bot-session-events.repo.js';
+} from '@/engine/modules/session/bot-session-events.repo.js';
 import { commandRegistry, eventRegistry } from '@/engine/lib/module-registry.lib.js';
 import type { ToggleEnabledRequestDto } from '@/server/dtos/bot-session-config.dto.js';
 // Triggers slash command re-registration on live Discord/Telegram sessions when a command is toggled.
 // Resolves as a no-op for platforms without a registered sync (FB Messenger, FB Page) or stopped sessions.
-import { triggerSlashSync } from '@/engine/lib/slash-sync.lib.js';
+import { triggerSlashSync } from '@/engine/modules/prefix/slash-sync.lib.js';
 import { isPlatformAllowed } from '@/engine/utils/platform-filter.util.js';
 
 // ── Shared Auth Helper ────────────────────────────────────────────────────────

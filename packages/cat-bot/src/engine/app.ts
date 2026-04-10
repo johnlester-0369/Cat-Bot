@@ -37,9 +37,9 @@ import { fileURLToPath, pathToFileURL } from 'url';
 
 // ── Core config and logging ───────────────────────────────────────────────────
 import { env } from '@/engine/config/env.config.js';
-import { logger } from '@/engine/lib/logger.lib.js';
+import { logger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 import { loadSessionConfigs } from '@/engine/utils/session-loader.util.js';
-import { prefixManager } from '@/engine/lib/prefix-manager.lib.js';
+import { prefixManager } from '@/engine/modules/prefix/prefix-manager.lib.js';
 
 // ── Handler — imported via @/ alias for consistency with the rest of the codebase ──
 import {
@@ -54,12 +54,12 @@ import { createUnifiedPlatformListener } from '@/engine/adapters/platform/index.
 // Side-effect import — registers the default middleware pipeline (validateCommandOptions,
 // chatPassthrough, etc.) so the registry is fully populated before platform.start() fires.
 import '@/engine/middleware/index.js';
-import { sessionManager } from '@/engine/lib/session-manager.lib.js';
+import { sessionManager } from '@/engine/modules/session/session-manager.lib.js';
 // Command/event registry sync — needed to populate bot_session_commands/events at boot
 import { Platforms } from '@/engine/constants/platform.constants.js';
-import { upsertSessionCommands } from '@/engine/repos/bot-session-commands.repo.js';
+import { upsertSessionCommands } from '@/engine/modules/session/bot-session-commands.repo.js';
 import { commandRegistry, eventRegistry } from '@/engine/lib/module-registry.lib.js';
-import { upsertSessionEvents } from '@/engine/repos/bot-session-events.repo.js';
+import { upsertSessionEvents } from '@/engine/modules/session/bot-session-events.repo.js';
 import type { SessionConfigs } from '@/engine/utils/session-loader.util.js';
 import { isPlatformAllowed } from '@/engine/utils/platform-filter.util.js';
 import { startServer } from '@/server/server.js';

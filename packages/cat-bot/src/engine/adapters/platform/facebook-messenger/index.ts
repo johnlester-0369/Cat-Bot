@@ -31,11 +31,11 @@ import type { FacebookMessengerEmitter } from './types.js';
 import type { FcaApi } from './types.js';
 export type { StartBotConfig, StartBotResult } from './types.js';
 
-import { createLogger } from '@/engine/lib/logger.lib.js';
+import { createLogger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 import { startBot } from './login.js';
 import { routeRawEvent } from './event-router.js';
 import { withRetry, isAuthError } from '@/engine/lib/retry.lib.js';
-import { sessionManager } from '@/engine/lib/session-manager.lib.js';
+import { sessionManager } from '@/engine/modules/session/session-manager.lib.js';
 
 import { PLATFORM_TO_ID, Platforms } from '@/engine/constants/platform.constants.js';
 

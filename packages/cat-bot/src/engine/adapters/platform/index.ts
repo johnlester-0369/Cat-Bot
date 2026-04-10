@@ -25,13 +25,13 @@ import { createDiscordListener } from './discord/index.js';
 import { createTelegramListener } from './telegram/index.js';
 import { createFacebookMessengerListener } from './facebook-messenger/index.js';
 import { createFacebookPageListener } from './facebook-page/index.js';
-import { createLogger } from '@/engine/lib/logger.lib.js';
-import type { SessionLogger } from '@/engine/lib/logger.lib.js';
-import { sessionManager } from '@/engine/lib/session-manager.lib.js';
+import { createLogger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
+import type { SessionLogger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
+import { sessionManager } from '@/engine/modules/session/session-manager.lib.js';
 import { withRetry, isAuthError } from '@/engine/lib/retry.lib.js';
 import { Platforms, PLATFORM_TO_ID } from '@/engine/constants/platform.constants.js';
-import { upsertSessionCommands } from '@/engine/repos/bot-session-commands.repo.js';
-import { upsertSessionEvents } from '@/engine/repos/bot-session-events.repo.js';
+import { upsertSessionCommands } from '@/engine/modules/session/bot-session-commands.repo.js';
+import { upsertSessionEvents } from '@/engine/modules/session/bot-session-events.repo.js';
 import { commandRegistry, eventRegistry } from '@/engine/lib/module-registry.lib.js';
 
 /**

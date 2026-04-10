@@ -19,17 +19,17 @@
 
 import { EventEmitter } from 'events';
 
-import { createLogger } from '@/engine/lib/logger.lib.js';
+import { createLogger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 import { createDiscordClient } from './client.js';
 import { registerSlashCommands } from './slash-commands.js';
 import { attachEventHandlers } from './event-handlers.js';
-import { sessionManager } from '@/engine/lib/session-manager.lib.js';
+import { sessionManager } from '@/engine/modules/session/session-manager.lib.js';
 import { PLATFORM_TO_ID, Platforms } from '@/engine/constants/platform.constants.js';
 // Slash sync: register a re-registration callback so the dashboard toggle can update the live '/' menu
-import { registerSlashSync, unregisterSlashSync } from '@/engine/lib/slash-sync.lib.js';
+import { registerSlashSync, unregisterSlashSync } from '@/engine/modules/prefix/slash-sync.lib.js';
 // Read enabled/disabled state from DB when the dashboard triggers a sync
-import { findSessionCommands } from '@/engine/repos/bot-session-commands.repo.js';
-import { prefixManager } from '@/engine/lib/prefix-manager.lib.js';
+import { findSessionCommands } from '@/engine/modules/session/bot-session-commands.repo.js';
+import { prefixManager } from '@/engine/modules/prefix/prefix-manager.lib.js';
 
 interface DiscordConfig {
   token: string;

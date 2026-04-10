@@ -32,8 +32,8 @@ export type { FacebookPageConfig, PlatformEmitter } from './types.js';
 import type { FacebookPageConfig, PlatformEmitter } from './types.js';
 import { createEventRouter } from './event-router.js';
 import { createPageApi } from './pageApi.js';
-import { createLogger } from '@/engine/lib/logger.lib.js';
-import { sessionManager } from '@/engine/lib/session-manager.lib.js';
+import { createLogger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
+import { sessionManager } from '@/engine/modules/session/session-manager.lib.js';
 import { PLATFORM_TO_ID, Platforms } from '@/engine/constants/platform.constants.js';
 
 /**
