@@ -81,6 +81,21 @@ export async function upsertUserSession(userId: string, platform: string, sessio
 }
 
 /**
+ * Returns the lastUpdatedAt timestamp for a (session × user) pair, or null when no row exists.
+ * Consumed by on-chat.middleware to determine staleness against SYNC_INTERVAL_MS — the threshold
+ * constant lives in the middleware, not here, so this function is purely a data accessor.
+ */
+export async function getUserSessionUpdatedAt(
+  userId: string, platform: string, sessionId: string, botUserId: string,
+): Promise<Date | null> {
+  const row = await prisma.botUserSession.findUnique({
+    where: { userId_platformId_sessionId_botUserId: { userId, platformId: toPlatformNumericId(platform), sessionId, botUserId } },
+    select: { lastUpdatedAt: true },
+  });
+  return row?.lastUpdatedAt ?? null;
+}
+
+/**
  * Returns all bot_users_session records for a given (userId, platform, sessionId) tuple,
  * with their parsed data blobs. Used by the rank command to sort all users by EXP and
  * compute a leaderboard position without a separate ranking table.
