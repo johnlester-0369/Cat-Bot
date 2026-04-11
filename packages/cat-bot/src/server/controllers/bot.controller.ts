@@ -1,7 +1,10 @@
 import type { Request, Response } from 'express';
 import { auth } from '@/server/lib/better-auth.lib.js';
 import { botService } from '@/server/services/bot.service.js';
-import type { CreateBotRequestDto, UpdateBotRequestDto } from '@/server/dtos/bot.dto.js';
+import type {
+  CreateBotRequestDto,
+  UpdateBotRequestDto,
+} from '@/server/dtos/bot.dto.js';
 
 export class BotController {
   // Session verification happens before any business logic so the service layer
@@ -34,7 +37,8 @@ export class BotController {
       !dto.credentials.platform
     ) {
       res.status(400).json({
-        error: 'Missing required fields: botNickname, botPrefix, credentials.platform',
+        error:
+          'Missing required fields: botNickname, botPrefix, credentials.platform',
       });
       return;
     }
@@ -147,10 +151,16 @@ export class BotController {
       headers.set(key, Array.isArray(val) ? val.join(', ') : val);
     }
     const sessionData = await auth.api.getSession({ headers });
-    if (!sessionData) { res.status(401).json({ error: 'Unauthorized' }); return; }
+    if (!sessionData) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
 
     const sessionId = String(req.params['id']);
-    if (!sessionId) { res.status(400).json({ error: 'Missing session ID' }); return; }
+    if (!sessionId) {
+      res.status(400).json({ error: 'Missing session ID' });
+      return;
+    }
 
     try {
       await botService.startBot(sessionData.user.id, sessionId);
@@ -169,10 +179,16 @@ export class BotController {
       headers.set(key, Array.isArray(val) ? val.join(', ') : val);
     }
     const sessionData = await auth.api.getSession({ headers });
-    if (!sessionData) { res.status(401).json({ error: 'Unauthorized' }); return; }
+    if (!sessionData) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
 
     const sessionId = String(req.params['id']);
-    if (!sessionId) { res.status(400).json({ error: 'Missing session ID' }); return; }
+    if (!sessionId) {
+      res.status(400).json({ error: 'Missing session ID' });
+      return;
+    }
 
     try {
       await botService.stopBot(sessionData.user.id, sessionId);
@@ -191,10 +207,16 @@ export class BotController {
       headers.set(key, Array.isArray(val) ? val.join(', ') : val);
     }
     const sessionData = await auth.api.getSession({ headers });
-    if (!sessionData) { res.status(401).json({ error: 'Unauthorized' }); return; }
+    if (!sessionData) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
 
     const sessionId = String(req.params['id']);
-    if (!sessionId) { res.status(400).json({ error: 'Missing session ID' }); return; }
+    if (!sessionId) {
+      res.status(400).json({ error: 'Missing session ID' });
+      return;
+    }
 
     try {
       await botService.restartBot(sessionData.user.id, sessionId);

@@ -25,9 +25,10 @@ export function createPageApi(
   pageAccessToken: string,
   pageId: string,
   sessionLogger: SessionLogger,
-  onAuthError?: (err: unknown) => void
+  onAuthError?: (err: unknown) => void,
 ): PageApi {
-  const logError = (msg: string, extra?: Record<string, unknown>) => sessionLogger.error(msg, extra);
+  const logError = (msg: string, extra?: Record<string, unknown>) =>
+    sessionLogger.error(msg, extra);
 
   // Page ID is provided at construction time from credential.json (FB_PAGE_ID), eliminating
   // the GET /me call that requires the pages_read_engagement permission or app review.
@@ -157,17 +158,17 @@ export function createPageApi(
           sticker: res.data.sticker ?? null,
         };
       } catch (err) {
-          const axiosErr = err as {
-            response?: { data: unknown };
-            message?: string;
-          };
-          // Handled passively on incoming fetch instead of active listener
-          if (isAuthError(err)) {
-            onAuthError?.(err);
-          }
-          logError('❌ getMessage (page) failed', {
-            error: axiosErr?.response?.data || axiosErr.message,
-          });
+        const axiosErr = err as {
+          response?: { data: unknown };
+          message?: string;
+        };
+        // Handled passively on incoming fetch instead of active listener
+        if (isAuthError(err)) {
+          onAuthError?.(err);
+        }
+        logError('❌ getMessage (page) failed', {
+          error: axiosErr?.response?.data || axiosErr.message,
+        });
         return null;
       }
     },

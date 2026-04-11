@@ -36,7 +36,7 @@ const SETTINGS_COLLECTION = 'rankup_settings';
 /** Converts raw EXP to a level number. Mirrors rank.ts implementation. */
 function expToLevel(exp: number): number {
   if (exp <= 0) return 0;
-  return Math.floor((1 + Math.sqrt(1 + 8 * exp / DELTA_NEXT)) / 2);
+  return Math.floor((1 + Math.sqrt(1 + (8 * exp) / DELTA_NEXT)) / 2);
 }
 
 export const config = {
@@ -45,7 +45,8 @@ export const config = {
   version: '1.0.0',
   role: Role.THREAD_ADMIN,
   author: 'John Lester',
-  description: 'Toggle level-up notifications for this thread (on/off). Gains EXP passively on every message.',
+  description:
+    'Toggle level-up notifications for this thread (on/off). Gains EXP passively on every message.',
   category: 'Economy',
   usage: '[on | off]',
   cooldown: 5,
@@ -76,11 +77,11 @@ export const onChat = async ({ event, db, chat }: AppCtx): Promise<void> => {
   // Ensure the xp collection exists before reading to avoid silent {} returns on first use
   const userColl = db.users.collection(senderID);
   try {
-    if (!await userColl.isCollectionExist('xp')) {
+    if (!(await userColl.isCollectionExist('xp'))) {
       await userColl.createCollection('xp');
     }
     const xpColl = await userColl.getCollection('xp');
-    const oldExp = (await xpColl.get('exp') as number | undefined) ?? 0;
+    const oldExp = ((await xpColl.get('exp')) as number | undefined) ?? 0;
     const newExp = oldExp + 1;
     // Write streak before any notification so EXP is durable even if message.send fails
     await xpColl.set('exp', newExp);
@@ -96,7 +97,8 @@ export const onChat = async ({ event, db, chat }: AppCtx): Promise<void> => {
       const threadColl = db.threads.collection(threadID);
       if (await threadColl.isCollectionExist(SETTINGS_COLLECTION)) {
         const settings = await threadColl.getCollection(SETTINGS_COLLECTION);
-        rankupEnabled = (await settings.get('enabled') as boolean | undefined) ?? true;
+        rankupEnabled =
+          ((await settings.get('enabled')) as boolean | undefined) ?? true;
       }
     } catch {
       rankupEnabled = true;
@@ -120,10 +122,19 @@ export const onChat = async ({ event, db, chat }: AppCtx): Promise<void> => {
  * The row is only persisted after the thread has been synced (upsertThreadSession),
  * which happens automatically via on-chat.middleware before commands run.
  */
-export const onCommand = async ({ chat, args, event, db, prefix = '' }: AppCtx): Promise<void> => {
+export const onCommand = async ({
+  chat,
+  args,
+  event,
+  db,
+  prefix = '',
+}: AppCtx): Promise<void> => {
   const threadID = event['threadID'] as string | undefined;
   if (!threadID) {
-    await chat.replyMessage({ style: MessageStyle.MARKDOWN, message: '❌ This command can only be used in a thread.' });
+    await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
+      message: '❌ This command can only be used in a thread.',
+    });
     return;
   }
 
@@ -136,9 +147,12 @@ export const onCommand = async ({ chat, args, event, db, prefix = '' }: AppCtx):
       const threadColl = db.threads.collection(threadID);
       if (await threadColl.isCollectionExist(SETTINGS_COLLECTION)) {
         const settings = await threadColl.getCollection(SETTINGS_COLLECTION);
-        current = (await settings.get('enabled') as boolean | undefined) ?? true;
+        current =
+          ((await settings.get('enabled')) as boolean | undefined) ?? true;
       }
-    } catch { /* fail-open */ }
+    } catch {
+      /* fail-open */
+    }
     await chat.replyMessage({
       style: MessageStyle.MARKDOWN,
       message: [
@@ -151,7 +165,7 @@ export const onCommand = async ({ chat, args, event, db, prefix = '' }: AppCtx):
 
   const enabled = sub === 'on';
   const threadColl = db.threads.collection(threadID);
-  if (!await threadColl.isCollectionExist(SETTINGS_COLLECTION)) {
+  if (!(await threadColl.isCollectionExist(SETTINGS_COLLECTION))) {
     await threadColl.createCollection(SETTINGS_COLLECTION);
   }
   const settings = await threadColl.getCollection(SETTINGS_COLLECTION);

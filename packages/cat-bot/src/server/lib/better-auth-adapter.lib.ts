@@ -29,9 +29,17 @@ interface JsonAdapterConfig {
 // ── Where-clause helpers ──────────────────────────────────────────────────────
 
 type Operator =
-  | 'eq' | 'ne'
-  | 'lt' | 'lte' | 'gt' | 'gte'
-  | 'in' | 'not_in' | 'contains' | 'starts_with' | 'ends_with';
+  | 'eq'
+  | 'ne'
+  | 'lt'
+  | 'lte'
+  | 'gt'
+  | 'gte'
+  | 'in'
+  | 'not_in'
+  | 'contains'
+  | 'starts_with'
+  | 'ends_with';
 
 interface WhereClause {
   field: string;
@@ -61,17 +69,38 @@ function matchesWhere(
     let match: boolean;
 
     switch (operator) {
-      case 'eq':          match = rv === value; break;
-      case 'ne':          match = rv !== value; break;
-      case 'lt':          match = (rv as number) < (value as number); break;
-      case 'lte':         match = (rv as number) <= (value as number); break;
-      case 'gt':          match = (rv as number) > (value as number); break;
-      case 'gte':         match = (rv as number) >= (value as number); break;
-      case 'in':          match = Array.isArray(value) && (value as unknown[]).includes(rv); break;
-      case 'contains':    match = typeof rv === 'string' && rv.includes(String(value)); break;
-      case 'starts_with': match = typeof rv === 'string' && rv.startsWith(String(value)); break;
-      case 'ends_with':   match = typeof rv === 'string' && rv.endsWith(String(value)); break;
-      default:            match = rv === value;
+      case 'eq':
+        match = rv === value;
+        break;
+      case 'ne':
+        match = rv !== value;
+        break;
+      case 'lt':
+        match = (rv as number) < (value as number);
+        break;
+      case 'lte':
+        match = (rv as number) <= (value as number);
+        break;
+      case 'gt':
+        match = (rv as number) > (value as number);
+        break;
+      case 'gte':
+        match = (rv as number) >= (value as number);
+        break;
+      case 'in':
+        match = Array.isArray(value) && (value as unknown[]).includes(rv);
+        break;
+      case 'contains':
+        match = typeof rv === 'string' && rv.includes(String(value));
+        break;
+      case 'starts_with':
+        match = typeof rv === 'string' && rv.startsWith(String(value));
+        break;
+      case 'ends_with':
+        match = typeof rv === 'string' && rv.endsWith(String(value));
+        break;
+      default:
+        match = rv === value;
     }
 
     if (connector === 'OR') {
@@ -127,7 +156,15 @@ export const jsonAdapter = (config: JsonAdapterConfig = {}) =>
 
       // ── Find one ───────────────────────────────────────────────────────────
       // select and join accepted to match CustomAdapter contract; unused because we return the full record
-      findOne: async <T>({ model, where }: { model: string; where: WhereClause[]; select?: string[] | undefined; join?: unknown }) => {
+      findOne: async <T>({
+        model,
+        where,
+      }: {
+        model: string;
+        where: WhereClause[];
+        select?: string[] | undefined;
+        join?: unknown;
+      }) => {
         const db = (await getDb()) as Record<string, Record<string, unknown>[]>;
         const table = getTable(db, model);
         const record = table.find((r) =>
@@ -141,7 +178,13 @@ export const jsonAdapter = (config: JsonAdapterConfig = {}) =>
 
       // ── Find many ──────────────────────────────────────────────────────────
       // select and join accepted to satisfy CustomAdapter; createAdapterFactory handles field projection
-      findMany: async <T>({ model, where, limit, offset, sortBy }: {
+      findMany: async <T>({
+        model,
+        where,
+        limit,
+        offset,
+        sortBy,
+      }: {
         model: string;
         // where can arrive as undefined when no filter is provided — must include | undefined
         where?: WhereClause[] | undefined;
@@ -162,32 +205,44 @@ export const jsonAdapter = (config: JsonAdapterConfig = {}) =>
 
         // Sort — copy before sorting to avoid mutating the stored reference
         if (sortBy) {
-          const { field, direction } = sortBy as { field: string; direction: 'asc' | 'desc' };
+          const { field, direction } = sortBy as {
+            field: string;
+            direction: 'asc' | 'desc';
+          };
           table.sort((a, b) => {
             const av = a[field];
             const bv = b[field];
-            const cmp = av === bv ? 0 : (av as string) < (bv as string) ? -1 : 1;
+            const cmp =
+              av === bv ? 0 : (av as string) < (bv as string) ? -1 : 1;
             return direction === 'desc' ? -cmp : cmp;
           });
         }
 
         // Paginate
-        if (typeof offset === 'number' && offset > 0) table = table.slice(offset);
-        if (typeof limit === 'number' && limit > 0) table = table.slice(0, limit);
+        if (typeof offset === 'number' && offset > 0)
+          table = table.slice(offset);
+        if (typeof limit === 'number' && limit > 0)
+          table = table.slice(0, limit);
 
         return table as unknown as T[];
       },
 
       // ── Update (single) ────────────────────────────────────────────────────
       // update typed as T to match CustomAdapter<T> contract; cast to Record for Object.assign
-      update: async <T>({ model, where, update }: {
+      update: async <T>({
+        model,
+        where,
+        update,
+      }: {
         model: string;
         where: WhereClause[];
         update: T;
       }) => {
         const db = (await getDb()) as Record<string, Record<string, unknown>[]>;
         const table = getTable(db, model);
-        const record = table.find((r) => matchesWhere(r, where as WhereClause[]));
+        const record = table.find((r) =>
+          matchesWhere(r, where as WhereClause[]),
+        );
         if (record) {
           Object.assign(record, update as Record<string, unknown>);
           await saveDb();
@@ -242,7 +297,8 @@ export const jsonAdapter = (config: JsonAdapterConfig = {}) =>
         const db = (await getDb()) as Record<string, Record<string, unknown>[]>;
         const table = getTable(db, model);
         if (!where || !(where as WhereClause[]).length) return table.length;
-        return table.filter((r) => matchesWhere(r, where as WhereClause[])).length;
+        return table.filter((r) => matchesWhere(r, where as WhereClause[]))
+          .length;
       },
     }),
   });

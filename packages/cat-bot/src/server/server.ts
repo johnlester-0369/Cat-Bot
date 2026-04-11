@@ -27,7 +27,9 @@ export function startServer(): void {
   // app.listen() internally does the same thing, but we need the handle before listen().
   const httpServer = createServer(app);
 
-  const corsOrigin = process.env['VITE_URL'] ? [process.env['VITE_URL']] : (true as const);
+  const corsOrigin = process.env['VITE_URL']
+    ? [process.env['VITE_URL']]
+    : (true as const);
   const io = initSocketIO(httpServer, corsOrigin);
   registerValidationHandlers(io);
   registerBotMonitorHandlers(io);
@@ -37,15 +39,17 @@ export function startServer(): void {
     logger.info('Registered Facebook Page session routes:');
 
     for (const uid of getAllUserIds()) {
-      logger.info(`GET/POST https://your-domain.com/api/v1/facebook-page/${uid}`);
+      logger.info(
+        `GET/POST https://your-domain.com/api/v1/facebook-page/${uid}`,
+      );
     }
   });
 
-  server.on("error", (err: NodeJS.ErrnoException) => {
-    if (err.code === "EADDRINUSE") {
+  server.on('error', (err: NodeJS.ErrnoException) => {
+    if (err.code === 'EADDRINUSE') {
       logger.error(`[server] Port ${port} is already in use`);
     } else {
-      logger.error("[server] Fatal server error:", err);
+      logger.error('[server] Fatal server error:', err);
     }
     process.exit(1);
   });
@@ -53,4 +57,3 @@ export function startServer(): void {
   // Note: SIGTERM handling for graceful shutdown is managed globally by
   // the Cat-Bot orchestrator in packages/bot/src/app.ts.
 }
-

@@ -21,7 +21,10 @@ import { stateStore } from '@/engine/lib/reply-state.lib.js';
 import type { UnifiedApi } from './api.model.js';
 import type { ButtonItem } from './interfaces/index.js';
 import { logger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
-import { ButtonStyle, type ButtonStyleValue } from '@/engine/constants/button-style.constants.js';
+import {
+  ButtonStyle,
+  type ButtonStyleValue,
+} from '@/engine/constants/button-style.constants.js';
 
 // Re-export interfaces for backward compatibility
 export type {
@@ -46,7 +49,9 @@ export function createThreadContext(
   event: Record<string, unknown>,
 ): import('./interfaces/index.js').ThreadContext {
   const defaultThreadID = event['threadID'] as string;
-  logger.debug('[context.model] createThreadContext called', { threadID: defaultThreadID });
+  logger.debug('[context.model] createThreadContext called', {
+    threadID: defaultThreadID,
+  });
 
   // Extract explicit thread ID from options, fallback to event context
   function getThreadID(opts: unknown): string {
@@ -59,39 +64,76 @@ export function createThreadContext(
 
   return {
     setName: (nameOrOpts) => {
-      const name = typeof nameOrOpts === 'object' && nameOrOpts !== null ? (nameOrOpts as any).name : nameOrOpts;
+      const name =
+        typeof nameOrOpts === 'object' && nameOrOpts !== null
+          ? (nameOrOpts as any).name
+          : nameOrOpts;
       const targetThreadID = getThreadID(nameOrOpts);
-      logger.debug('[context.model] ThreadContext.setName called', { threadID: targetThreadID, name });
+      logger.debug('[context.model] ThreadContext.setName called', {
+        threadID: targetThreadID,
+        name,
+      });
       return api.setGroupName(targetThreadID, name as string);
     },
     setImage: (sourceOrOpts) => {
-      const isObj = typeof sourceOrOpts === 'object' && sourceOrOpts !== null && !Buffer.isBuffer(sourceOrOpts) && !('pipe' in sourceOrOpts);
-      const imageSource = isObj ? (sourceOrOpts as any).imageSource : sourceOrOpts;
+      const isObj =
+        typeof sourceOrOpts === 'object' &&
+        sourceOrOpts !== null &&
+        !Buffer.isBuffer(sourceOrOpts) &&
+        !('pipe' in sourceOrOpts);
+      const imageSource = isObj
+        ? (sourceOrOpts as any).imageSource
+        : sourceOrOpts;
       const targetThreadID = getThreadID(isObj ? sourceOrOpts : null);
-      logger.debug('[context.model] ThreadContext.setImage called', { threadID: targetThreadID });
-      return api.setGroupImage(targetThreadID, imageSource as Buffer | import('stream').Readable | string);
+      logger.debug('[context.model] ThreadContext.setImage called', {
+        threadID: targetThreadID,
+      });
+      return api.setGroupImage(
+        targetThreadID,
+        imageSource as Buffer | import('stream').Readable | string,
+      );
     },
     removeImage: (opts) => {
       const targetThreadID = getThreadID(opts);
-      logger.debug('[context.model] ThreadContext.removeImage called', { threadID: targetThreadID });
+      logger.debug('[context.model] ThreadContext.removeImage called', {
+        threadID: targetThreadID,
+      });
       return api.removeGroupImage(targetThreadID);
     },
     addUser: (userOrOpts) => {
-      const userID = typeof userOrOpts === 'object' && userOrOpts !== null ? (userOrOpts as any).userID : userOrOpts;
+      const userID =
+        typeof userOrOpts === 'object' && userOrOpts !== null
+          ? (userOrOpts as any).userID
+          : userOrOpts;
       const targetThreadID = getThreadID(userOrOpts);
-      logger.debug('[context.model] ThreadContext.addUser called', { threadID: targetThreadID, userID });
+      logger.debug('[context.model] ThreadContext.addUser called', {
+        threadID: targetThreadID,
+        userID,
+      });
       return api.addUserToGroup(targetThreadID, userID as string);
     },
     removeUser: (userOrOpts) => {
-      const userID = typeof userOrOpts === 'object' && userOrOpts !== null ? (userOrOpts as any).userID : userOrOpts;
+      const userID =
+        typeof userOrOpts === 'object' && userOrOpts !== null
+          ? (userOrOpts as any).userID
+          : userOrOpts;
       const targetThreadID = getThreadID(userOrOpts);
-      logger.debug('[context.model] ThreadContext.removeUser called', { threadID: targetThreadID, userID });
+      logger.debug('[context.model] ThreadContext.removeUser called', {
+        threadID: targetThreadID,
+        userID,
+      });
       return api.removeUserFromGroup(targetThreadID, userID as string);
     },
     setReaction: (emojiOrOpts) => {
-      const emoji = typeof emojiOrOpts === 'object' && emojiOrOpts !== null ? (emojiOrOpts as any).emoji : emojiOrOpts;
+      const emoji =
+        typeof emojiOrOpts === 'object' && emojiOrOpts !== null
+          ? (emojiOrOpts as any).emoji
+          : emojiOrOpts;
       const targetThreadID = getThreadID(emojiOrOpts);
-      logger.debug('[context.model] ThreadContext.setReaction called', { threadID: targetThreadID, emoji });
+      logger.debug('[context.model] ThreadContext.setReaction called', {
+        threadID: targetThreadID,
+        emoji,
+      });
       return api.setGroupReaction(targetThreadID, emoji as string);
     },
 
@@ -101,7 +143,11 @@ export function createThreadContext(
      */
     setNickname: (options) => {
       const targetThreadID = getThreadID(options);
-      logger.debug('[context.model] ThreadContext.setNickname called', { threadID: targetThreadID, user_id: options.user_id, nickname: options.nickname });
+      logger.debug('[context.model] ThreadContext.setNickname called', {
+        threadID: targetThreadID,
+        user_id: options.user_id,
+        nickname: options.nickname,
+      });
       return api.setNickname(targetThreadID, options.user_id, options.nickname);
     },
 
@@ -110,8 +156,13 @@ export function createThreadContext(
      * Defaults to the current event thread; pass a different ID to query any accessible thread.
      */
     getInfo: (targetThreadID) => {
-      const target = typeof targetThreadID === 'object' && targetThreadID !== null ? getThreadID(targetThreadID) : (targetThreadID || defaultThreadID);
-      logger.debug('[context.model] ThreadContext.getInfo called', { threadID: target });
+      const target =
+        typeof targetThreadID === 'object' && targetThreadID !== null
+          ? getThreadID(targetThreadID)
+          : targetThreadID || defaultThreadID;
+      logger.debug('[context.model] ThreadContext.getInfo called', {
+        threadID: target,
+      });
       return api.getFullThreadInfo(target as string);
     },
     /**
@@ -119,8 +170,13 @@ export function createThreadContext(
      * Defaults to the triggering event's own threadID so callers can omit the argument.
      */
     getName: (targetThreadID) => {
-      const target = typeof targetThreadID === 'object' && targetThreadID !== null ? getThreadID(targetThreadID) : (targetThreadID || defaultThreadID);
-      logger.debug('[context.model] ThreadContext.getName called', { threadID: target });
+      const target =
+        typeof targetThreadID === 'object' && targetThreadID !== null
+          ? getThreadID(targetThreadID)
+          : targetThreadID || defaultThreadID;
+      logger.debug('[context.model] ThreadContext.getName called', {
+        threadID: target,
+      });
       return api.getThreadName(target as string);
     },
   };
@@ -148,7 +204,10 @@ export function createChatContext(
 ): import('./interfaces/index.js').ChatContext {
   const defaultThreadID = event['threadID'] as string;
   const defaultMessageID = event['messageID'] as string;
-  logger.debug('[context.model] createChatContext called', { threadID: defaultThreadID, messageID: defaultMessageID });
+  logger.debug('[context.model] createChatContext called', {
+    threadID: defaultThreadID,
+    messageID: defaultMessageID,
+  });
 
   // Extract explicit thread ID from options, fallback to event context
   function getThreadID(opts: unknown): string {
@@ -163,7 +222,12 @@ export function createChatContext(
   function getMessageID(opts: unknown): string {
     if (typeof opts === 'object' && opts !== null) {
       const o = opts as any;
-      return o.messageID || o.reply_to_message_id || o.targetMessageID || defaultMessageID;
+      return (
+        o.messageID ||
+        o.reply_to_message_id ||
+        o.targetMessageID ||
+        defaultMessageID
+      );
     }
     return defaultMessageID;
   }
@@ -174,7 +238,9 @@ export function createChatContext(
    * here avoids duplicating label/style lookups in every platform lib.
    */
   function resolveButtons(buttonIds: string[] = []): ButtonItem[] {
-    logger.debug('[context.model] resolveButtons called', { count: buttonIds.length });
+    logger.debug('[context.model] resolveButtons called', {
+      count: buttonIds.length,
+    });
     if (!buttonIds.length) return [];
     return buttonIds.map((id) => ({
       // Prefix with commandName so the platform embeds "commandName:actionId" as callback data.
@@ -213,7 +279,9 @@ export function createChatContext(
     msgId: string,
     buttonIds: string[],
   ): void {
-    logger.debug('[context.model] registerButtonFallbackState called', { msgId });
+    logger.debug('[context.model] registerButtonFallbackState called', {
+      msgId,
+    });
     // Private key (msgId:senderID) so only the user who ran the command can select from this menu
     const key = `${msgId}:${event['senderID'] as string}`;
     stateStore.create(key, {
@@ -244,7 +312,11 @@ export function createChatContext(
     } = {}) => {
       const targetThreadID = getThreadID(opts);
       const customMessageID = opts.messageID || opts.reply_to_message_id;
-      logger.debug('[context.model] ChatContext.reply called', { threadID: targetThreadID, hasMessage: !!message, buttonCount: button.length });
+      logger.debug('[context.model] ChatContext.reply called', {
+        threadID: targetThreadID,
+        hasMessage: !!message,
+        buttonCount: button.length,
+      });
       // Facebook Messenger (fca-unofficial) has no native button components — append a numbered
       // text menu and auto-register an onReply state so user selections route to menu[id].run().
       // The state is never deleted so the menu remains re-selectable like native button platforms.
@@ -289,7 +361,12 @@ export function createChatContext(
     } = {}) => {
       const targetThreadID = getThreadID(opts);
       const targetMessageID = getMessageID(opts);
-      logger.debug('[context.model] ChatContext.replyMessage called', { threadID: targetThreadID, messageID: targetMessageID, hasMessage: !!message, buttonCount: button.length });
+      logger.debug('[context.model] ChatContext.replyMessage called', {
+        threadID: targetThreadID,
+        messageID: targetMessageID,
+        hasMessage: !!message,
+        buttonCount: button.length,
+      });
       // Same FB Messenger fallback as chat.reply() — preserves reply_to_message_id so
       // the numbered menu is threaded to the triggering message for clearer context
       if (
@@ -327,8 +404,16 @@ export function createChatContext(
       const emoji = isObj ? (options as any).emoji : options;
       const targetThreadID = getThreadID(isObj ? options : null);
       const targetMessageID = getMessageID(isObj ? options : null);
-      logger.debug('[context.model] ChatContext.reactMessage called', { threadID: targetThreadID, messageID: targetMessageID, emoji });
-      return api.reactToMessage(targetThreadID, targetMessageID, emoji as string);
+      logger.debug('[context.model] ChatContext.reactMessage called', {
+        threadID: targetThreadID,
+        messageID: targetMessageID,
+        emoji,
+      });
+      return api.reactToMessage(
+        targetThreadID,
+        targetMessageID,
+        emoji as string,
+      );
     },
 
     /**
@@ -338,7 +423,9 @@ export function createChatContext(
     unsendMessage: (options) => {
       const isObj = typeof options === 'object' && options !== null;
       const targetMessageID = isObj ? getMessageID(options) : options;
-      logger.debug('[context.model] ChatContext.unsendMessage called', { targetMessageID });
+      logger.debug('[context.model] ChatContext.unsendMessage called', {
+        targetMessageID,
+      });
       return api.unsendMessage(targetMessageID as string);
     },
   };
@@ -413,7 +500,10 @@ export function createStateContext(
        * Public: `${id}:${threadID}` — any group member can advance (polls, shared flows).
        */
       generateID({ id, public: isPublic = false }) {
-        logger.debug('[context.model] state.generateID called', { id, isPublic });
+        logger.debug('[context.model] state.generateID called', {
+          id,
+          isPublic,
+        });
         if (event['type'] === 'message_reaction') {
           return isPublic
             ? `${id}:${event['threadID'] as string}`

@@ -23,11 +23,18 @@ import { auth } from '@/server/lib/better-auth.lib.js';
 import { logger, createLogger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 import axios from 'axios';
 import { startBot } from '@/engine/adapters/platform/facebook-messenger/index.js';
-import { isAuthError, withRetry, isNetworkError } from '@/engine/lib/retry.lib.js';
+import {
+  isAuthError,
+  withRetry,
+  isNetworkError,
+} from '@/engine/lib/retry.lib.js';
 
 // ── Auth helper ───────────────────────────────────────────────────────────────
 
-async function requireAuth(req: Request, res: Response): Promise<string | null> {
+async function requireAuth(
+  req: Request,
+  res: Response,
+): Promise<string | null> {
   const headers = new Headers();
   for (const [key, val] of Object.entries(req.headers)) {
     if (val === undefined) continue;
@@ -50,7 +57,10 @@ async function requireAuth(req: Request, res: Response): Promise<string | null> 
  * Calls GET /v10/users/@me with Bot token authentication.
  * A 200 response proves the token is a valid bot token — no guild membership required.
  */
-export async function validateDiscord(req: Request, res: Response): Promise<void> {
+export async function validateDiscord(
+  req: Request,
+  res: Response,
+): Promise<void> {
   const userId = await requireAuth(req, res);
   if (!userId) return;
 
@@ -62,10 +72,11 @@ export async function validateDiscord(req: Request, res: Response): Promise<void
 
   try {
     const response = await withRetry(
-      () => axios.get<{ username: string; id: string }>(
-        'https://discord.com/api/v10/users/@me',
-        { headers: { Authorization: `Bot ${discordToken}` } },
-      ),
+      () =>
+        axios.get<{ username: string; id: string }>(
+          'https://discord.com/api/v10/users/@me',
+          { headers: { Authorization: `Bot ${discordToken}` } },
+        ),
       {
         maxAttempts: 3,
         initialDelayMs: 1000,
@@ -73,14 +84,24 @@ export async function validateDiscord(req: Request, res: Response): Promise<void
         shouldRetry: (err) => !isAuthError(err) && isNetworkError(err),
       },
     );
-    res.status(200).json({ valid: true, botName: response.data.username, botId: response.data.id });
+    res
+      .status(200)
+      .json({
+        valid: true,
+        botName: response.data.username,
+        botId: response.data.id,
+      });
   } catch (err) {
     const e = err as { response?: { status: number } };
     if (e.response?.status === 401) {
-      res.status(200).json({ valid: false, error: 'Invalid Discord bot token' });
+      res
+        .status(200)
+        .json({ valid: false, error: 'Invalid Discord bot token' });
       return;
     }
-    logger.error('[validate] Discord validation request failed', { error: err });
+    logger.error('[validate] Discord validation request failed', {
+      error: err,
+    });
     res.status(500).json({ error: 'Failed to validate Discord token' });
   }
 }
@@ -94,7 +115,10 @@ export async function validateDiscord(req: Request, res: Response): Promise<void
  * getMe is the canonical token check — responds immediately without requiring
  * any group membership or channel access.
  */
-export async function validateTelegram(req: Request, res: Response): Promise<void> {
+export async function validateTelegram(
+  req: Request,
+  res: Response,
+): Promise<void> {
   const userId = await requireAuth(req, res);
   if (!userId) return;
 
@@ -106,10 +130,11 @@ export async function validateTelegram(req: Request, res: Response): Promise<voi
 
   try {
     const response = await withRetry(
-      () => axios.get<{
-        ok: boolean;
-        result?: { first_name?: string; username?: string };
-      }>(`https://api.telegram.org/bot${telegramToken}/getMe`),
+      () =>
+        axios.get<{
+          ok: boolean;
+          result?: { first_name?: string; username?: string };
+        }>(`https://api.telegram.org/bot${telegramToken}/getMe`),
       {
         maxAttempts: 3,
         initialDelayMs: 1000,
@@ -120,17 +145,25 @@ export async function validateTelegram(req: Request, res: Response): Promise<voi
 
     if (response.data.ok) {
       const r = response.data.result;
-      res.status(200).json({ valid: true, botName: r?.first_name ?? r?.username });
+      res
+        .status(200)
+        .json({ valid: true, botName: r?.first_name ?? r?.username });
     } else {
-      res.status(200).json({ valid: false, error: 'Invalid Telegram bot token' });
+      res
+        .status(200)
+        .json({ valid: false, error: 'Invalid Telegram bot token' });
     }
   } catch (err) {
     const e = err as { response?: { status: number } };
     if (e.response?.status === 401) {
-      res.status(200).json({ valid: false, error: 'Invalid Telegram bot token' });
+      res
+        .status(200)
+        .json({ valid: false, error: 'Invalid Telegram bot token' });
       return;
     }
-    logger.error('[validate] Telegram validation request failed', { error: err });
+    logger.error('[validate] Telegram validation request failed', {
+      error: err,
+    });
     res.status(500).json({ error: 'Failed to validate Telegram token' });
   }
 }
@@ -149,7 +182,10 @@ export async function validateTelegram(req: Request, res: Response): Promise<voi
  *   - Each entry has `key` and `value` fields (fca-unofficial cookie shape)
  *   - Critical session cookies `c_user` and `xs` are present (proves real appstate)
  */
-export async function validateFacebookMessenger(req: Request, res: Response): Promise<void> {
+export async function validateFacebookMessenger(
+  req: Request,
+  res: Response,
+): Promise<void> {
   const userId = await requireAuth(req, res);
   if (!userId) return;
 
@@ -163,7 +199,12 @@ export async function validateFacebookMessenger(req: Request, res: Response): Pr
     const parsed = JSON.parse(appstate) as unknown;
 
     if (!Array.isArray(parsed) || parsed.length === 0) {
-      res.status(200).json({ valid: false, error: 'Invalid appstate: must be a non-empty JSON array' });
+      res
+        .status(200)
+        .json({
+          valid: false,
+          error: 'Invalid appstate: must be a non-empty JSON array',
+        });
       return;
     }
 
@@ -190,7 +231,7 @@ export async function validateFacebookMessenger(req: Request, res: Response): Pr
         valid: false,
         error: `Invalid appstate: missing required cookies (${missingKeys.join(', ')})`,
       });
-    return;
+      return;
     }
 
     // Structural checks passed — attempt a live fca-unofficial login to confirm the session is
@@ -199,26 +240,36 @@ export async function validateFacebookMessenger(req: Request, res: Response): Pr
     try {
       // dummy session logger to avoid undefined error
       const sessionLogger = createLogger({
-          userId: '',
-          platformId: '',
-          sessionId: '',
+        userId: '',
+        platformId: '',
+        sessionId: '',
       });
-        
+
       // Use non-null assertion since appstate has been validated above
       const { api } = await startBot({ appstate: appstate! }, sessionLogger);
 
       const botId = api.getCurrentUserID();
-      
-      const getBotInfo = await new Promise<Record<string, { name?: string; vanity?: string | null }>>((resolve, reject) => {
+
+      const getBotInfo = await new Promise<
+        Record<string, { name?: string; vanity?: string | null }>
+      >((resolve, reject) => {
         api.getUserInfo([String(botId)], (err, info) => {
           if (err) reject(err);
           // Typecast to satisfy structural requirement without throwing TS mismatch on vanity property
-          else resolve((info ?? {}) as Record<string, { name?: string; vanity?: string | null }>);
+          else
+            resolve(
+              (info ?? {}) as Record<
+                string,
+                { name?: string; vanity?: string | null }
+              >,
+            );
         });
       });
-   
+
       const botName = getBotInfo[String(botId)];
-      res.status(200).json({ valid: true, botName: botName?.name ?? botName?.vanity  });
+      res
+        .status(200)
+        .json({ valid: true, botName: botName?.name ?? botName?.vanity });
     } catch (loginErr) {
       // isAuthError covers expired sessions, login-blocked accounts, and fca-unofficial auth
       // rejections — these cannot be fixed by retrying with the same appstate.
@@ -226,10 +277,14 @@ export async function validateFacebookMessenger(req: Request, res: Response): Pr
       const errorMessage = isAuthError(loginErr)
         ? 'Appstate is invalid or the Facebook session has expired. Please generate a new appstate.'
         : 'Login attempt failed — check your network connection or generate a fresh appstate.';
-      logger.warn('[validate] Facebook Messenger live login check failed', { error: loginErr });
+      logger.warn('[validate] Facebook Messenger live login check failed', {
+        error: loginErr,
+      });
       res.status(200).json({ valid: false, error: errorMessage });
     }
   } catch {
-    res.status(200).json({ valid: false, error: 'Invalid appstate: not valid JSON' });
+    res
+      .status(200)
+      .json({ valid: false, error: 'Invalid appstate: not valid JSON' });
   }
 }

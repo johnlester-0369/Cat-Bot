@@ -16,12 +16,14 @@ const isJson = process.env['DATABASE_TYPE'] === 'json';
 export const auth = betterAuth({
   database: isJson
     ? jsonAdapter()
-    // SQLite driver — matches the adapter-better-sqlite3 configured in packages/database/client.ts
-    : prismaAdapter(prisma, { provider: 'sqlite' }),
+    : // SQLite driver — matches the adapter-better-sqlite3 configured in packages/database/client.ts
+      prismaAdapter(prisma, { provider: 'sqlite' }),
   emailAndPassword: {
     // Enables POST /api/auth/sign-up/email and POST /api/auth/sign-in/email out of the box
     enabled: true,
   },
   // Trust the dynamic dev server URL if provided. In production, same-origin is inherently trusted.
-  trustedOrigins: process.env['VITE_URL'] ? [process.env['VITE_URL']] : undefined,
+  trustedOrigins: process.env['VITE_URL']
+    ? [process.env['VITE_URL']]
+    : undefined,
 });

@@ -20,7 +20,10 @@
  * Options are mutated onto ctx so subsequent middleware and the final handler can read them.
  */
 
-import type { MiddlewareFn, OnCommandCtx } from '@/engine/types/middleware.types.js';
+import type {
+  MiddlewareFn,
+  OnCommandCtx,
+} from '@/engine/types/middleware.types.js';
 import { OptionsMap } from '@/engine/modules/options/options-map.lib.js';
 import type { OptionDef } from '@/engine/modules/options/options-map.lib.js';
 import { parseTextOptions } from '@/engine/modules/options/options.util.js';
@@ -122,7 +125,7 @@ export const validateCommandOptions: MiddlewareFn<OnCommandCtx> =
           ? new OptionsMap(preBuilt)
           : new OptionsMap(
               parseTextOptions(
-        (ctx.event['message'] ?? ctx.event['body'] ?? '') as string,
+                (ctx.event['message'] ?? ctx.event['body'] ?? '') as string,
                 optionDefs,
               ),
             );
@@ -134,7 +137,6 @@ export const validateCommandOptions: MiddlewareFn<OnCommandCtx> =
       // No options defined — set empty map so the handler always has ctx.options available.
       ctx.options = OptionsMap.empty();
     }
-
 
     await next();
   };
@@ -180,7 +182,9 @@ export const enforcePermission: MiddlewareFn<OnCommandCtx> = async function (
   }
 
   // Both IDs are required for any permission check; fall through if they are absent
-  const senderID = (ctx.event['senderID'] ?? ctx.event['userID'] ?? '') as string;
+  const senderID = (ctx.event['senderID'] ??
+    ctx.event['userID'] ??
+    '') as string;
   const threadID = (ctx.event['threadID'] ?? '') as string;
 
   if (role === Role.THREAD_ADMIN) {
@@ -192,7 +196,12 @@ export const enforcePermission: MiddlewareFn<OnCommandCtx> = async function (
     if (!allowed) {
       const sessionUserId = ctx.native.userId ?? '';
       const sessionId = ctx.native.sessionId ?? '';
-      allowed = await isBotAdmin(sessionUserId, ctx.native.platform, sessionId, senderID);
+      allowed = await isBotAdmin(
+        sessionUserId,
+        ctx.native.platform,
+        sessionId,
+        senderID,
+      );
     }
 
     if (!allowed) {
@@ -206,7 +215,12 @@ export const enforcePermission: MiddlewareFn<OnCommandCtx> = async function (
     // bot owner; senderID must match an adminId scoped to this exact owner session.
     const sessionUserId = ctx.native.userId ?? '';
     const sessionId = ctx.native.sessionId ?? '';
-    const allowed = await isBotAdmin(sessionUserId, ctx.native.platform, sessionId, senderID);
+    const allowed = await isBotAdmin(
+      sessionUserId,
+      ctx.native.platform,
+      sessionId,
+      senderID,
+    );
     if (!allowed) {
       await ctx.chat.replyMessage({
         message: '🚫 This command is restricted to bot admins.',
@@ -218,7 +232,6 @@ export const enforcePermission: MiddlewareFn<OnCommandCtx> = async function (
   // role > 2 or unrecognised: fall through and allow (forward-compatible default)
   await next();
 };
-
 
 // ── Ban Enforcement ───────────────────────────────────────────────────────────
 
@@ -240,16 +253,26 @@ export const enforceNotBanned: MiddlewareFn<OnCommandCtx> = async function (
   const platform = ctx.native.platform;
 
   // Without session identity we cannot resolve ban records; fail-open and proceed
-  if (!sessionUserId || !sessionId) { await next(); return; }
+  if (!sessionUserId || !sessionId) {
+    await next();
+    return;
+  }
 
-  const senderID = (ctx.event['senderID'] ?? ctx.event['userID'] ?? '') as string;
+  const senderID = (ctx.event['senderID'] ??
+    ctx.event['userID'] ??
+    '') as string;
   const threadID = (ctx.event['threadID'] ?? '') as string;
   const now = Date.now();
 
   // Bypass ban checks for bot admins so they retain full command control
   // even if they or the thread they are operating within is currently banned.
   if (senderID) {
-    const isAdmin = await isBotAdmin(sessionUserId, platform, sessionId, senderID);
+    const isAdmin = await isBotAdmin(
+      sessionUserId,
+      platform,
+      sessionId,
+      senderID,
+    );
     if (isAdmin) {
       await next();
       return;
@@ -257,7 +280,10 @@ export const enforceNotBanned: MiddlewareFn<OnCommandCtx> = async function (
   }
 
   // Prevent banned users from executing prefix commands and send rate-limited alerts.
-  if (senderID && await isUserBanned(sessionUserId, platform, sessionId, senderID)) {
+  if (
+    senderID &&
+    (await isUserBanned(sessionUserId, platform, sessionId, senderID))
+  ) {
     const key = `ban_u:${sessionUserId}:${platform}:${sessionId}:${senderID}`;
     if (!cooldownStore.check(key, now)) {
       await ctx.chat.replyMessage({ message: 'you are unable to use bot' });
@@ -266,7 +292,10 @@ export const enforceNotBanned: MiddlewareFn<OnCommandCtx> = async function (
     return;
   }
 
-  if (threadID && await isThreadBanned(sessionUserId, platform, sessionId, threadID)) {
+  if (
+    threadID &&
+    (await isThreadBanned(sessionUserId, platform, sessionId, threadID))
+  ) {
     const key = `ban_t:${sessionUserId}:${platform}:${sessionId}:${threadID}`;
     if (!cooldownStore.check(key, now)) {
       await ctx.chat.replyMessage({ message: 'This thread unable to use bot' });

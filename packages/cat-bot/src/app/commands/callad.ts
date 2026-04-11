@@ -41,20 +41,25 @@ export const config = {
   version: '2.0.0',
   role: Role.ANYONE,
   author: 'John Lester',
-  description: 'Send a message or report to the bot admins. Replies are relayed bidirectionally.',
+  description:
+    'Send a message or report to the bot admins. Replies are relayed bidirectionally.',
   category: 'Admin',
   usage: '<message>',
   cooldown: 5,
   hasPrefix: true,
   // Exclude Facebook Page since facebook page use PSID (Page-Scoped ID)
-  platform: [Platforms.Discord, Platforms.Telegram, Platforms.FacebookMessenger],
+  platform: [
+    Platforms.Discord,
+    Platforms.Telegram,
+    Platforms.FacebookMessenger,
+  ],
   options: [
     {
       type: OptionType.string,
       name: 'message',
       description: 'Your message report',
       required: true,
-    }
+    },
   ],
 };
 
@@ -76,7 +81,10 @@ export const onCommand = async ({
   const { userId, platform, sessionId } = native;
 
   if (!userId || !platform || !sessionId) {
-    await chat.replyMessage({ style: MessageStyle.MARKDOWN, message: '❌ Cannot resolve session identity.' });
+    await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
+      message: '❌ Cannot resolve session identity.',
+    });
     return;
   }
 
@@ -142,9 +150,10 @@ export const onCommand = async ({
 
   await chat.replyMessage({
     style: MessageStyle.MARKDOWN,
-    message: forwarded > 0
-      ? `✅ Your message has been forwarded to ${forwarded} admin(s).\nYou will be notified when they reply.`
-      : '❌ Failed to reach any admin. Please try again later.',
+    message:
+      forwarded > 0
+        ? `✅ Your message has been forwarded to ${forwarded} admin(s).\nYou will be notified when they reply.`
+        : '❌ Failed to reach any admin. Please try again later.',
   });
 };
 
@@ -218,12 +227,12 @@ export const onReply = {
   }: AppCtx): Promise<void> => {
     const userMessage = (event['message'] as string | undefined) ?? '';
 
-     const ctx = session.context as {
-       admin?: { threadID?: string; messageID?: string; senderID?: string };
-     };
-     const adminThreadID = ctx.admin?.threadID ?? '';
-     const adminMessageID = ctx.admin?.messageID ?? '';
-     const adminSenderID = ctx.admin?.senderID ?? '';
+    const ctx = session.context as {
+      admin?: { threadID?: string; messageID?: string; senderID?: string };
+    };
+    const adminThreadID = ctx.admin?.threadID ?? '';
+    const adminMessageID = ctx.admin?.messageID ?? '';
+    const adminSenderID = ctx.admin?.senderID ?? '';
 
     const userThreadID = (event['threadID'] as string | undefined) ?? '';
     const userMessageID = (event['messageID'] as string | undefined) ?? '';
@@ -246,11 +255,11 @@ export const onReply = {
     state.delete(session.id);
 
     if (botMsgId) {
-       // Re-register awaiting_admin_reply — the conversation chain is symmetrical
-       // and continues indefinitely until either party stops replying
-       // Re-register composite key scoped to the admin — the conversation chain
-       // is symmetrical and continues indefinitely until either party stops
-       state.create({
+      // Re-register awaiting_admin_reply — the conversation chain is symmetrical
+      // and continues indefinitely until either party stops replying
+      // Re-register composite key scoped to the admin — the conversation chain
+      // is symmetrical and continues indefinitely until either party stops
+      state.create({
         id: `${botMsgId}:${adminSenderID}`,
         state: STATE.awaiting_admin_reply,
         context: {

@@ -22,10 +22,17 @@ class PrefixManager {
   /**
    * Sets or updates the prefix for a specific bot session.
    */
-  setPrefix(userId: string, platform: string, sessionId: string, prefix: string): void {
+  setPrefix(
+    userId: string,
+    platform: string,
+    sessionId: string,
+    prefix: string,
+  ): void {
     const key = this.getKey(userId, platform, sessionId);
     this.prefixes.set(key, prefix);
-    logger.debug(`[prefix-manager] Prefix for ${key} dynamically synced to "${prefix}"`);
+    logger.debug(
+      `[prefix-manager] Prefix for ${key} dynamically synced to "${prefix}"`,
+    );
   }
 
   /**
@@ -42,7 +49,9 @@ class PrefixManager {
    */
   setThreadPrefix(threadId: string, prefix: string): void {
     this.threadPrefixes.set(threadId, prefix);
-    logger.debug(`[prefix-manager] Thread prefix for ${threadId} set to "${prefix}"`);
+    logger.debug(
+      `[prefix-manager] Thread prefix for ${threadId} set to "${prefix}"`,
+    );
   }
 
   /**
@@ -60,7 +69,9 @@ class PrefixManager {
    */
   clearThreadPrefix(threadId: string): void {
     this.threadPrefixes.delete(threadId);
-    logger.debug(`[prefix-manager] Thread prefix cleared for ${threadId} — reverting to session default`);
+    logger.debug(
+      `[prefix-manager] Thread prefix cleared for ${threadId} — reverting to session default`,
+    );
   }
 }
 

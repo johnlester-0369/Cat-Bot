@@ -81,7 +81,9 @@ class FbPageApi extends UnifiedApi {
   }
 
   override getUserInfo(userIds: string[]): Promise<Record<string, UserInfo>> {
-    logger.debug('[facebook-page] getUserInfo called', { userCount: userIds.length });
+    logger.debug('[facebook-page] getUserInfo called', {
+      userCount: userIds.length,
+    });
     return getUserInfo(this.#pageApi, userIds);
   }
 
@@ -114,7 +116,9 @@ class FbPageApi extends UnifiedApi {
    * every incoming message so this reflects the most recently seen display name.
    */
   override getUserName(userID: string): Promise<string> {
-    logger.debug('[facebook-page] getUserName called (db fallback)', { userID });
+    logger.debug('[facebook-page] getUserName called (db fallback)', {
+      userID,
+    });
     return dbGetUserName(userID);
   }
 
@@ -123,7 +127,9 @@ class FbPageApi extends UnifiedApi {
    * stored in bot_threads reflect the user's name at the time of their last message.
    */
   override getThreadName(threadID: string): Promise<string> {
-    logger.debug('[facebook-page] getThreadName called (db fallback)', { threadID });
+    logger.debug('[facebook-page] getThreadName called (db fallback)', {
+      threadID,
+    });
     return dbGetThreadName(threadID);
   }
 
@@ -170,12 +176,18 @@ class FbPageApi extends UnifiedApi {
     threadID: string,
     userID: string,
   ): Promise<void> {
-    logger.debug('[facebook-page] removeUserFromGroup called', { threadID, userID });
+    logger.debug('[facebook-page] removeUserFromGroup called', {
+      threadID,
+      userID,
+    });
     return removeUserFromGroup(threadID, userID);
   }
 
   override setGroupReaction(threadID: string, emoji: string): Promise<void> {
-    logger.debug('[facebook-page] setGroupReaction called', { threadID, emoji });
+    logger.debug('[facebook-page] setGroupReaction called', {
+      threadID,
+      emoji,
+    });
     return setGroupReaction(threadID, emoji);
   }
 
@@ -184,7 +196,11 @@ class FbPageApi extends UnifiedApi {
     messageID: string,
     emoji: string,
   ): Promise<void> {
-    logger.debug('[facebook-page] reactToMessage called', { threadID, messageID, emoji });
+    logger.debug('[facebook-page] reactToMessage called', {
+      threadID,
+      messageID,
+      emoji,
+    });
     return reactToMessage(threadID, messageID, emoji);
   }
 }

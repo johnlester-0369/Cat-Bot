@@ -34,13 +34,23 @@ export async function syncUser(
     const info = await ctx.user.getInfo(userId);
     await upsertUser(toBotUserData(info));
     // Mark this session as having seen this user — subsequent messages short-circuit here
-    await upsertUserSession(sessionUserId, ctx.native.platform, sessionId, userId);
+    await upsertUserSession(
+      sessionUserId,
+      ctx.native.platform,
+      sessionId,
+      userId,
+    );
   } catch (err: unknown) {
     logger.warn(
       // Embed message in the log string — Winston's JSON transport does not serialize
       // Error.message by default, so the root cause disappears from structured log output.
       `⚠️ [users.service] Failed to sync user ${userId}: ${err instanceof Error ? err.message : String(err)}`,
-      { error: err instanceof Error ? { name: err.name, message: err.message } : String(err) },
+      {
+        error:
+          err instanceof Error
+            ? { name: err.name, message: err.message }
+            : String(err),
+      },
     );
   }
 }
@@ -57,5 +67,7 @@ export async function syncUsers(
   sessionUserId: string,
   sessionId: string,
 ): Promise<void> {
-  await Promise.allSettled(userIds.map((id) => syncUser(ctx, id, sessionUserId, sessionId)));
+  await Promise.allSettled(
+    userIds.map((id) => syncUser(ctx, id, sessionUserId, sessionId)),
+  );
 }

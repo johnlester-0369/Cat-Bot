@@ -19,8 +19,14 @@
  *   - Business logic (cooldown math, reward amounts) lives in command modules, never here.
  */
 
-import { getUserSessionData, setUserSessionData } from '@/engine/repos/users.repo.js';
-import { getThreadSessionData, setThreadSessionData } from '@/engine/repos/threads.repo.js';
+import {
+  getUserSessionData,
+  setUserSessionData,
+} from '@/engine/repos/users.repo.js';
+import {
+  getThreadSessionData,
+  setThreadSessionData,
+} from '@/engine/repos/threads.repo.js';
 
 // ── Dot-path helpers ──────────────────────────────────────────────────────────
 
@@ -33,14 +39,19 @@ function getByPath(obj: unknown, path: string): unknown {
   if (!path) return obj;
   let cur: unknown = obj;
   for (const key of parsePath(path)) {
-    if (cur === null || cur === undefined || typeof cur !== 'object') return undefined;
+    if (cur === null || cur === undefined || typeof cur !== 'object')
+      return undefined;
     cur = (cur as Record<string, unknown>)[key];
   }
   return cur;
 }
 
 /** Sets value at dot-path, creating intermediate objects as needed. */
-function setByPath(obj: Record<string, unknown>, path: string, value: unknown): void {
+function setByPath(
+  obj: Record<string, unknown>,
+  path: string,
+  value: unknown,
+): void {
   const parts = parsePath(path);
   if (parts.length === 0) return;
   let cur: Record<string, unknown> = obj;
@@ -84,7 +95,10 @@ export interface CollectionHandle {
   /** Removes 1 element at index and inserts items in its place. Returns removed elements. */
   splice(path: string, index: number, ...items: unknown[]): Promise<unknown[]>;
   find(path: string, predicate: (item: unknown) => boolean): Promise<unknown[]>;
-  findOne(path: string, predicate: (item: unknown) => boolean): Promise<unknown>;
+  findOne(
+    path: string,
+    predicate: (item: unknown) => boolean,
+  ): Promise<unknown>;
 
   // Primitive (single-value) operations
   increment(path: string, amount?: number): Promise<void>;
@@ -120,7 +134,8 @@ function createCollectionHandle(
   const readCollection = async (): Promise<Record<string, unknown>> => {
     const data = await readAll();
     const col = data[collectionName];
-    if (typeof col !== 'object' || col === null || Array.isArray(col)) return {};
+    if (typeof col !== 'object' || col === null || Array.isArray(col))
+      return {};
     return col as Record<string, unknown>;
   };
 
@@ -129,7 +144,9 @@ function createCollectionHandle(
    * Re-reading before write ensures concurrent mutations to DIFFERENT collections
    * don't overwrite each other's changes.
    */
-  const writeCollection = async (col: Record<string, unknown>): Promise<void> => {
+  const writeCollection = async (
+    col: Record<string, unknown>,
+  ): Promise<void> => {
     const data = await readAll();
     data[collectionName] = col;
     await writeAll(data);
@@ -153,8 +170,12 @@ function createCollectionHandle(
       const existing = getByPath(col, path);
       // Shallow merge when both sides are objects; overwrite for primitives and arrays
       if (
-        typeof existing === 'object' && existing !== null && !Array.isArray(existing) &&
-        typeof value === 'object' && value !== null && !Array.isArray(value)
+        typeof existing === 'object' &&
+        existing !== null &&
+        !Array.isArray(existing) &&
+        typeof value === 'object' &&
+        value !== null &&
+        !Array.isArray(value)
       ) {
         setByPath(col, path, { ...(existing as object), ...(value as object) });
       } else {
@@ -184,7 +205,11 @@ function createCollectionHandle(
       const col = await readCollection();
       const arr = getByPath(col, path);
       if (!Array.isArray(arr)) return;
-      setByPath(col, path, arr.filter((item) => item !== value));
+      setByPath(
+        col,
+        path,
+        arr.filter((item) => item !== value),
+      );
       await writeCollection(col);
     },
 
@@ -215,7 +240,11 @@ function createCollectionHandle(
       return last;
     },
 
-    async splice(path: string, index: number, ...items: unknown[]): Promise<unknown[]> {
+    async splice(
+      path: string,
+      index: number,
+      ...items: unknown[]
+    ): Promise<unknown[]> {
       const col = await readCollection();
       const arr = getByPath(col, path);
       if (!Array.isArray(arr)) return [];
@@ -226,14 +255,20 @@ function createCollectionHandle(
       return removed;
     },
 
-    async find(path: string, predicate: (item: unknown) => boolean): Promise<unknown[]> {
+    async find(
+      path: string,
+      predicate: (item: unknown) => boolean,
+    ): Promise<unknown[]> {
       const col = await readCollection();
       const arr = getByPath(col, path);
       if (!Array.isArray(arr)) return [];
       return arr.filter(predicate);
     },
 
-    async findOne(path: string, predicate: (item: unknown) => boolean): Promise<unknown> {
+    async findOne(
+      path: string,
+      predicate: (item: unknown) => boolean,
+    ): Promise<unknown> {
       const col = await readCollection();
       const arr = getByPath(col, path);
       if (!Array.isArray(arr)) return undefined;
@@ -268,7 +303,12 @@ function createCollectionHandle(
     async keys(path?: string): Promise<string[]> {
       const col = await readCollection();
       const target = path ? getByPath(col, path) : col;
-      if (typeof target !== 'object' || target === null || Array.isArray(target)) return [];
+      if (
+        typeof target !== 'object' ||
+        target === null ||
+        Array.isArray(target)
+      )
+        return [];
       return Object.keys(target as object);
     },
 
@@ -276,7 +316,8 @@ function createCollectionHandle(
       const col = await readCollection();
       const target = getByPath(col, path);
       if (Array.isArray(target)) return target.length;
-      if (typeof target === 'object' && target !== null) return Object.keys(target).length;
+      if (typeof target === 'object' && target !== null)
+        return Object.keys(target).length;
       return 0;
     },
 
@@ -304,7 +345,11 @@ function createCollectionHandle(
     async merge(path: string, value: Record<string, unknown>): Promise<void> {
       const col = await readCollection();
       const existing = getByPath(col, path);
-      if (typeof existing === 'object' && existing !== null && !Array.isArray(existing)) {
+      if (
+        typeof existing === 'object' &&
+        existing !== null &&
+        !Array.isArray(existing)
+      ) {
         setByPath(col, path, { ...(existing as object), ...value });
       } else {
         // Target is absent or not an object — initialise with the provided value
@@ -331,9 +376,16 @@ export function createCollectionManager(
   sessionId: string,
 ): (botUserId: string) => CollectionManager {
   return (botUserId: string): CollectionManager => {
-    const readAll = () => getUserSessionData(sessionOwnerUserId, platform, sessionId, botUserId);
+    const readAll = () =>
+      getUserSessionData(sessionOwnerUserId, platform, sessionId, botUserId);
     const writeAll = (data: Record<string, unknown>) =>
-      setUserSessionData(sessionOwnerUserId, platform, sessionId, botUserId, data);
+      setUserSessionData(
+        sessionOwnerUserId,
+        platform,
+        sessionId,
+        botUserId,
+        data,
+      );
 
     return {
       async isCollectionExist(name: string): Promise<boolean> {
@@ -375,9 +427,21 @@ export function createThreadCollectionManager(
   sessionId: string,
 ): (botThreadId: string) => CollectionManager {
   return (botThreadId: string): CollectionManager => {
-    const readAll = () => getThreadSessionData(sessionOwnerUserId, platform, sessionId, botThreadId);
+    const readAll = () =>
+      getThreadSessionData(
+        sessionOwnerUserId,
+        platform,
+        sessionId,
+        botThreadId,
+      );
     const writeAll = (data: Record<string, unknown>) =>
-      setThreadSessionData(sessionOwnerUserId, platform, sessionId, botThreadId, data);
+      setThreadSessionData(
+        sessionOwnerUserId,
+        platform,
+        sessionId,
+        botThreadId,
+        data,
+      );
 
     return {
       async isCollectionExist(name: string): Promise<boolean> {

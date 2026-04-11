@@ -49,9 +49,9 @@ export const config = {
  */
 async function getCoins(db: AppCtx['db'], uid: string): Promise<number> {
   const userColl = db.users.collection(uid);
-  if (!await userColl.isCollectionExist('money')) return 0;
+  if (!(await userColl.isCollectionExist('money'))) return 0;
   const money = await userColl.getCollection('money');
-  const val = await money.get('coins') as number | undefined;
+  const val = (await money.get('coins')) as number | undefined;
   return val ?? 0;
 }
 
@@ -70,7 +70,10 @@ export const onCommand = async ({ chat, event, db }: AppCtx): Promise<void> => {
       const coins = await getCoins(db, uid);
       lines.push(`**${displayName}:** ${coins.toLocaleString()} coins`);
     }
-    await chat.replyMessage({ style: MessageStyle.MARKDOWN, message: lines.join('\n') });
+    await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
+      message: lines.join('\n'),
+    });
     return;
   }
 

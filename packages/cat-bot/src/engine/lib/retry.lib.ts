@@ -54,8 +54,15 @@ function jitter(ms: number): number {
 
 /** Node.js / OS network error codes that indicate a transient connectivity issue. */
 const NETWORK_ERROR_CODES = new Set([
-  'ETIMEDOUT', 'ECONNRESET', 'ECONNREFUSED', 'ENOTFOUND',
-  'EAI_AGAIN', 'EPIPE', 'ECONNABORTED', 'EHOSTUNREACH', 'ENETUNREACH',
+  'ETIMEDOUT',
+  'ECONNRESET',
+  'ECONNREFUSED',
+  'ENOTFOUND',
+  'EAI_AGAIN',
+  'EPIPE',
+  'ECONNABORTED',
+  'EHOSTUNREACH',
+  'ENETUNREACH',
 ]);
 
 /**
@@ -68,10 +75,12 @@ export function isNetworkError(err: unknown): boolean {
   const code = (e['code'] ?? e['errno']) as string | undefined;
   if (code && NETWORK_ERROR_CODES.has(code)) return true;
   // node-fetch FetchError carries type: 'system' alongside the errno code
-  if (e['type'] === 'system' && code && NETWORK_ERROR_CODES.has(code)) return true;
+  if (e['type'] === 'system' && code && NETWORK_ERROR_CODES.has(code))
+    return true;
   const resp = e['response'] as Record<string, unknown> | undefined;
   const status = (e['status'] ?? resp?.['status']) as number | undefined;
-  if (typeof status === 'number' && (status === 429 || status >= 500)) return true;
+  if (typeof status === 'number' && (status === 429 || status >= 500))
+    return true;
   return false;
 }
 
@@ -106,7 +115,9 @@ export function isAuthError(err: unknown): boolean {
     message.includes('unauthorized') ||
     message.includes('invalid credentials') ||
     message.includes('login approval') ||
-    message.includes('could not find fb_dtsg in html after requesting facebook.') ||
+    message.includes(
+      'could not find fb_dtsg in html after requesting facebook.',
+    ) ||
     errCode === 'login_blocked' ||
     reason === 'auth_error' ||
     typeStr === 'account_inactive'

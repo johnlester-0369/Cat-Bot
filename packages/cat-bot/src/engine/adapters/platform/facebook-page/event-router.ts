@@ -63,7 +63,12 @@ export function createEventRouter(
         messaging as Parameters<typeof normalizeFbPageReactionEvent>[0],
         originalSenderID,
       );
-      const native = { platform: Platforms.FacebookPage, userId, sessionId, messaging };
+      const native = {
+        platform: Platforms.FacebookPage,
+        userId,
+        sessionId,
+        messaging,
+      };
       emitter.emit('message_reaction', {
         api: unifiedApi,
         event,
@@ -89,7 +94,12 @@ export function createEventRouter(
         messageID: '',
         timestamp: messaging['timestamp'] ?? null,
       };
-      const native = { platform: Platforms.FacebookPage, userId, sessionId, messaging };
+      const native = {
+        platform: Platforms.FacebookPage,
+        userId,
+        sessionId,
+        messaging,
+      };
       emitter.emit('button_action', { api: unifiedApi, event, native, prefix });
       return;
     }
@@ -123,7 +133,17 @@ export function createEventRouter(
       message as Parameters<typeof normalizeFbPageEvent>[1],
       messageReply,
     );
-    const native = { platform: Platforms.FacebookPage, userId, sessionId, messaging };
-    emitter.emit(event.type as string, { api: unifiedApi, event, native, prefix });
+    const native = {
+      platform: Platforms.FacebookPage,
+      userId,
+      sessionId,
+      messaging,
+    };
+    emitter.emit(event.type as string, {
+      api: unifiedApi,
+      event,
+      native,
+      prefix,
+    });
   };
 }

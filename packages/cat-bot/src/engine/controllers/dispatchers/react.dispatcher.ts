@@ -40,8 +40,8 @@ export async function dispatchOnReact(
   // adding a new scope or changing priority only requires one edit in the utility.
   const resolution = resolveStateEntry(
     messageID,
-    event['userID'] as string,    // private: only the original reactor advances
-    event['threadID'] as string,  // public:  any group member's reaction advances a shared flow
+    event['userID'] as string, // private: only the original reactor advances
+    event['threadID'] as string, // public:  any group member's reaction advances a shared flow
   );
   if (!resolution) return false;
   const { stored, lookupKey } = resolution;

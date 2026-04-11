@@ -39,13 +39,25 @@ export interface MessageOptions {
 export interface ThreadContext {
   setName(name: string | ({ name: string } & ThreadOptions)): Promise<void>;
   setImage(
-    imageSource: Buffer | import('stream').Readable | string | ({ imageSource: Buffer | import('stream').Readable | string } & ThreadOptions),
+    imageSource:
+      | Buffer
+      | import('stream').Readable
+      | string
+      | ({
+          imageSource: Buffer | import('stream').Readable | string;
+        } & ThreadOptions),
   ): Promise<void>;
   removeImage(options?: ThreadOptions): Promise<void>;
   addUser(userID: string | ({ userID: string } & ThreadOptions)): Promise<void>;
-  removeUser(userID: string | ({ userID: string } & ThreadOptions)): Promise<void>;
-  setReaction(emoji: string | ({ emoji: string } & ThreadOptions)): Promise<void>;
-  setNickname(options: { nickname: string; user_id: string } & ThreadOptions): Promise<void>;
+  removeUser(
+    userID: string | ({ userID: string } & ThreadOptions),
+  ): Promise<void>;
+  setReaction(
+    emoji: string | ({ emoji: string } & ThreadOptions),
+  ): Promise<void>;
+  setNickname(
+    options: { nickname: string; user_id: string } & ThreadOptions,
+  ): Promise<void>;
   getInfo(targetThreadID?: string | ThreadOptions): Promise<UnifiedThreadInfo>;
   /** Returns the display name of this thread/group using cached/in-flight data (Discord/Telegram) or the DB (FB). Falls back to "Thread {id}". */
   getName(targetThreadID?: string | ThreadOptions): Promise<string>;
@@ -79,8 +91,14 @@ export interface ReplyOptions {
 export interface ChatContext {
   reply(options?: ReplyOptions): Promise<unknown>;
   replyMessage(options?: ReplyOptions): Promise<unknown>;
-  reactMessage(options: string | ({ emoji: string } & ThreadOptions & MessageOptions)): Promise<void>;
-  unsendMessage(options: string | ({ targetMessageID?: string; messageID?: string } & MessageOptions)): Promise<void>;
+  reactMessage(
+    options: string | ({ emoji: string } & ThreadOptions & MessageOptions),
+  ): Promise<void>;
+  unsendMessage(
+    options:
+      | string
+      | ({ targetMessageID?: string; messageID?: string } & MessageOptions),
+  ): Promise<void>;
 }
 
 /**

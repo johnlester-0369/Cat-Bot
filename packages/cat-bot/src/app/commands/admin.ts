@@ -15,7 +15,8 @@ export const config = {
   version: '1.0.0',
   role: Role.ANYONE,
   author: 'John Lester',
-  description: 'Manage bot admins for this session: add, list, or delete by platform user ID',
+  description:
+    'Manage bot admins for this session: add, list, or delete by platform user ID',
   category: 'Admin',
   usage: '<add|list|delete> [uid]',
   cooldown: 5,
@@ -53,7 +54,8 @@ export const onCommand = async ({
   if (!userId || !platform || !sessionId) {
     await chat.replyMessage({
       style: MessageStyle.MARKDOWN,
-      message: '❌ Cannot resolve session identity — admin commands are unavailable.',
+      message:
+        '❌ Cannot resolve session identity — admin commands are unavailable.',
     });
     return;
   }
@@ -70,7 +72,10 @@ export const onCommand = async ({
       ? await isBotAdmin(userId, platform, sessionId, senderID)
       : false;
     if (!callerIsBotAdmin) {
-      await chat.replyMessage({ style: MessageStyle.MARKDOWN, message: '🚫 Only bot admins can add or remove admins.' });
+      await chat.replyMessage({
+        style: MessageStyle.MARKDOWN,
+        message: '🚫 Only bot admins can add or remove admins.',
+      });
       return;
     }
   }
@@ -79,12 +84,18 @@ export const onCommand = async ({
   if (sub === 'add') {
     const uid = args[1];
     if (!uid) {
-      await chat.replyMessage({ style: MessageStyle.MARKDOWN, message: `❌ Usage: ${prefix}admin add <uid>` });
+      await chat.replyMessage({
+        style: MessageStyle.MARKDOWN,
+        message: `❌ Usage: ${prefix}admin add <uid>`,
+      });
       return;
     }
     await addBotAdmin(userId, platform, sessionId, uid);
     const userName = await user.getName(uid);
-    await chat.replyMessage({ style: MessageStyle.MARKDOWN, message: `✅ **${userName}** is now a bot admin for this session.` });
+    await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
+      message: `✅ **${userName}** is now a bot admin for this session.`,
+    });
     return;
   }
 
@@ -92,13 +103,20 @@ export const onCommand = async ({
   if (sub === 'list') {
     const admins = await listBotAdmins(userId, platform, sessionId);
     if (admins.length === 0) {
-      await chat.replyMessage({ style: MessageStyle.MARKDOWN, message: 'ℹ️ No bot admins registered for this session.' });
+      await chat.replyMessage({
+        style: MessageStyle.MARKDOWN,
+        message: 'ℹ️ No bot admins registered for this session.',
+      });
       return;
     }
     // Resolve all admin display names in parallel — names[i] aligns with admins[i] by index;
     // falls back to the raw ID (noUncheckedIndexedAccess guard) when the name is unavailable.
-    const names = await Promise.all(admins.map((id: string) => user.getName(id)));
-    const lines = admins.map((id: string, i: number) => `${i + 1}. **${names[i] ?? id}**`).join('\n');
+    const names = await Promise.all(
+      admins.map((id: string) => user.getName(id)),
+    );
+    const lines = admins
+      .map((id: string, i: number) => `${i + 1}. **${names[i] ?? id}**`)
+      .join('\n');
     await chat.replyMessage({
       style: MessageStyle.MARKDOWN,
       message: `**Bot admins for this session (${admins.length}):**\n${lines}`,
@@ -110,12 +128,18 @@ export const onCommand = async ({
   if (sub === 'delete') {
     const uid = args[1];
     if (!uid) {
-      await chat.replyMessage({ style: MessageStyle.MARKDOWN, message: `❌ Usage: ${prefix}admin delete <uid>` });
+      await chat.replyMessage({
+        style: MessageStyle.MARKDOWN,
+        message: `❌ Usage: ${prefix}admin delete <uid>`,
+      });
       return;
     }
     await removeBotAdmin(userId, platform, sessionId, uid);
     const userName = await user.getName(uid);
-    await chat.replyMessage({ style: MessageStyle.MARKDOWN, message: `✅ **${userName}** has been removed from bot admins.` });
+    await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
+      message: `✅ **${userName}** has been removed from bot admins.`,
+    });
     return;
   }
 

@@ -8,7 +8,7 @@
  *
  * Delegates to button.dispatcher for text-menu fallback flows on platforms
  * without native button support.
-*/
+ */
 
 import type { BaseCtx, CommandMap } from '@/engine/types/controller.types.js';
 import { resolveStateEntry } from '../utils/state-lookup.util.js';
@@ -43,8 +43,8 @@ export async function dispatchOnReply(
   // adding a new scope or changing priority only requires one edit in the utility.
   const resolution = resolveStateEntry(
     repliedToID,
-    event['senderID'] as string,   // private: only the triggering sender can advance
-    event['threadID'] as string,   // public:  any group member can respond (polls, shared flows)
+    event['senderID'] as string, // private: only the triggering sender can advance
+    event['threadID'] as string, // public:  any group member can respond (polls, shared flows)
   );
   if (!resolution) return false;
   const { stored, lookupKey } = resolution;

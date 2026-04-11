@@ -31,13 +31,14 @@ export function computeCommandHash(
     // Include only modules that expose a slash-command handler — these are the
     // entries that actually appear in the Discord / Telegram command menu.
     .filter(([, mod]) => typeof mod['onCommand'] === 'function')
-    .map(([key, mod]) => ({ key, config: mod['config'] as Record<string, unknown> }))
+    .map(([key, mod]) => ({
+      key,
+      config: mod['config'] as Record<string, unknown>,
+    }))
     // Sort by key: dynamic import resolution order is non-deterministic, so
     // without sorting the same set of commands could produce different hashes.
     // Using the map key ensures aliases are hashed uniquely alongside canonical names.
-    .sort((a, b) =>
-      a.key.localeCompare(b.key),
-    );
+    .sort((a, b) => a.key.localeCompare(b.key));
 
   return createHash('sha256').update(JSON.stringify(configs)).digest('hex');
 }

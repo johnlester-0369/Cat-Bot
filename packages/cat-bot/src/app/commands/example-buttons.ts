@@ -66,7 +66,10 @@ export const menu = {
     label: '🏓 Ping',
     button_style: ButtonStyle.PRIMARY,
     run: async ({ chat }: AppCtx) => {
-      await chat.reply({ style: MessageStyle.MARKDOWN, message: '🏓 **Pong!** The button system works.' });
+      await chat.reply({
+        style: MessageStyle.MARKDOWN,
+        message: '🏓 **Pong!** The button system works.',
+      });
     },
   },
 

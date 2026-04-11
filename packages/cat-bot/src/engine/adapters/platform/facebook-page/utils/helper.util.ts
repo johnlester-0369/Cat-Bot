@@ -13,7 +13,10 @@
  *   normalizeFbPageReactionEvent — reaction webhook → unified message_reaction shape
  */
 
-import { AttachmentType, EventType } from '@/engine/adapters/models/enums/index.js';
+import {
+  AttachmentType,
+  EventType,
+} from '@/engine/adapters/models/enums/index.js';
 import { Platforms } from '@/engine/modules/platform/platform.constants.js';
 
 // ── Attachment types ──────────────────────────────────────────────────────────

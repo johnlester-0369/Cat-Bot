@@ -10,5 +10,8 @@ export function generateShortId(userId: string): string {
 }
 
 export function generateVerifyToken(userId: string): string {
-  return createHash('sha256').update(userId + 'verify').digest('hex').substring(0, 10);
+  return createHash('sha256')
+    .update(userId + 'verify')
+    .digest('hex')
+    .substring(0, 10);
 }

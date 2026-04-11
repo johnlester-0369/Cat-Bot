@@ -31,7 +31,8 @@ export async function replyMessage(
   const attachment_url = options.attachment_url ?? [];
   const button = options.button ?? [];
   // Convert markdown to styled Unicode when requested — the FB Page API has no parse_mode equivalent
-  const finalMessage = options.style === 'markdown' ? mdToText(message) : message;
+  const finalMessage =
+    options.style === 'markdown' ? mdToText(message) : message;
 
   // Pass explicit name to urlToStream so pageApi's getAttachmentType() sees the caller-specified extension
   const urlStreams = await Promise.all(

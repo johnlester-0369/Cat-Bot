@@ -42,17 +42,19 @@ export function createApp(): Application {
 
   // CORS must be registered before better-auth so the browser's OPTIONS preflight receives
   // Access-Control-Allow-* headers before better-auth's own handler processes the request.
-  app.use(cors({
-    // In production, trust same-origin implicitly. In dev, trust VITE_URL.
-    origin: process.env['VITE_URL'] ? [process.env['VITE_URL']] : true,
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  }));
+  app.use(
+    cors({
+      // In production, trust same-origin implicitly. In dev, trust VITE_URL.
+      origin: process.env['VITE_URL'] ? [process.env['VITE_URL']] : true,
+      credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
+    }),
+  );
 
   // Better Auth must mount BEFORE express.json() — toNodeHandler reads the raw Node.js
   // IncomingMessage stream; json() would consume the body before better-auth can parse it.
-  app.all("/api/auth/{*any}", toNodeHandler(auth));
+  app.all('/api/auth/{*any}', toNodeHandler(auth));
 
   // Telegram webhook — mounted BEFORE express.json() for the same reason as better-auth:
   // Telegraf's RequestListener reads the raw body stream itself. If express.json() ran first
@@ -62,7 +64,10 @@ export function createApp(): Application {
   app.post('/api/v1/telegram-webhook/:userId/:sessionId', (req, res) => {
     const key = `${String(req.params['userId'])}:${String(req.params['sessionId'])}`;
     const handler = getTelegramWebhookHandler(key);
-    if (!handler) { res.sendStatus(404); return; }
+    if (!handler) {
+      res.sendStatus(404);
+      return;
+    }
     handler(req, res);
   });
 
@@ -77,8 +82,8 @@ export function createApp(): Application {
   app.use('/api/v1', apiV1Router);
 
   // Health check
-  app.get("/api/v1/health", (_req, res) => {
-    res.json({ status: "ok" });
+  app.get('/api/v1/health', (_req, res) => {
+    res.json({ status: 'ok' });
   });
 
   // Serve SPA if the built dist folder exists — fallback for React Router
@@ -92,4 +97,3 @@ export function createApp(): Application {
 
   return app;
 }
-

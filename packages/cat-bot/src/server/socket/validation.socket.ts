@@ -109,7 +109,9 @@ export function checkAndResolveOtp(
   // verifyTokenViaPageMessage fires fire-and-forget so checkAndResolveOtp stays
   // synchronous — the controller `continue` statement must not require await.
   pendingQueue.delete(key);
-  logger.info(`[validation.socket] OTP verified for userId=${userId} pageId=${pageId}`);
+  logger.info(
+    `[validation.socket] OTP verified for userId=${userId} pageId=${pageId}`,
+  );
   void verifyTokenViaPageMessage(pending, senderPsid);
   return true;
 }
@@ -172,10 +174,14 @@ export function notifyWebhookVerified(userId: string): void {
   if (!socketIds) return;
 
   for (const socketId of socketIds) {
-    io.to(socketId).emit('validate:fbpage:status', { step: 'webhook-verified' });
+    io.to(socketId).emit('validate:fbpage:status', {
+      step: 'webhook-verified',
+    });
   }
   pendingWebhookVerifications.delete(userId);
-  logger.info(`[validation.socket] Notified ${socketIds.size} socket(s) — webhook verified for userId=${userId}`);
+  logger.info(
+    `[validation.socket] Notified ${socketIds.size} socket(s) — webhook verified for userId=${userId}`,
+  );
 }
 
 // ── Socket.IO handler registration ────────────────────────────────────────────
@@ -219,12 +225,21 @@ export function registerValidationHandlers(io: SocketIOServer): void {
       try {
         // Guard against malformed payloads from untrusted clients
         if (!data || typeof data !== 'object') {
-          socket.emit('validate:fbpage:status', { step: 'error', error: 'Invalid payload' });
+          socket.emit('validate:fbpage:status', {
+            step: 'error',
+            error: 'Invalid payload',
+          });
           return;
         }
-        const { fbAccessToken, pageId } = data as { fbAccessToken?: string; pageId?: string };
+        const { fbAccessToken, pageId } = data as {
+          fbAccessToken?: string;
+          pageId?: string;
+        };
         if (!fbAccessToken || !pageId) {
-          socket.emit('validate:fbpage:status', { step: 'error', error: 'Missing fbAccessToken or pageId' });
+          socket.emit('validate:fbpage:status', {
+            step: 'error',
+            error: 'Missing fbAccessToken or pageId',
+          });
           return;
         }
 
@@ -245,7 +260,8 @@ export function registerValidationHandlers(io: SocketIOServer): void {
           expiresAt: Date.now() + OTP_TTL_MS,
         });
 
-        const baseUrl = process.env['BETTER_AUTH_URL'] ?? 'http://localhost:3000';
+        const baseUrl =
+          process.env['BETTER_AUTH_URL'] ?? 'http://localhost:3000';
 
         if (!isWebhookVerified) {
           // Scenario 1 — user has not yet registered our webhook with Meta.
@@ -267,8 +283,13 @@ export function registerValidationHandlers(io: SocketIOServer): void {
           socket.emit('validate:fbpage:status', { step: 'otp-pending', otp });
         }
       } catch (err) {
-        logger.error('[validation.socket] validate:fbpage:init error', { error: err });
-        socket.emit('validate:fbpage:status', { step: 'error', error: 'Internal server error' });
+        logger.error('[validation.socket] validate:fbpage:init error', {
+          error: err,
+        });
+        socket.emit('validate:fbpage:status', {
+          step: 'error',
+          error: 'Internal server error',
+        });
       }
     });
 

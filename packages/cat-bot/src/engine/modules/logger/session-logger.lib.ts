@@ -44,11 +44,11 @@ type LogLevel = 'error' | 'warn' | 'info' | 'verbose' | 'debug';
 const chalk = new Chalk({ level: 1 });
 
 const LEVEL_COLORS: Record<LogLevel, (text: string) => string> = {
-  error:   (t) => chalk.redBright(t),
-  warn:    (t) => chalk.yellowBright(t),
-  info:    (t) => chalk.greenBright(t),
+  error: (t) => chalk.redBright(t),
+  warn: (t) => chalk.yellowBright(t),
+  info: (t) => chalk.greenBright(t),
   verbose: (t) => chalk.cyanBright(t),
-  debug:   (t) => chalk.blueBright(t),
+  debug: (t) => chalk.blueBright(t),
 };
 
 // ── Timestamp ─────────────────────────────────────────────────────────────────
@@ -73,17 +73,31 @@ export class SessionLogger {
     this.#meta = meta;
   }
 
-  #format(level: LogLevel, message: string, extra?: Record<string, unknown>): string {
-    const metaObj: Record<string, unknown> = extra !== undefined ? { ...extra } : {};
-    const metaStr = Object.keys(metaObj).length > 0 ? ` ${JSON.stringify(metaObj)}` : '';
+  #format(
+    level: LogLevel,
+    message: string,
+    extra?: Record<string, unknown>,
+  ): string {
+    const metaObj: Record<string, unknown> =
+      extra !== undefined ? { ...extra } : {};
+    const metaStr =
+      Object.keys(metaObj).length > 0 ? ` ${JSON.stringify(metaObj)}` : '';
     const colorFn = LEVEL_COLORS[level] ?? ((t: string) => t);
 
     // colorize({ all: true }) colorises the full line — timestamp, level, message, and meta.
     // Replicating that here keeps the relay string visually identical to terminal output.
-    return chalk.white(getTimestamp())+colorFn(` ${level}: ${message}`)+chalk.white(metaStr);
+    return (
+      chalk.white(getTimestamp()) +
+      colorFn(` ${level}: ${message}`) +
+      chalk.white(metaStr)
+    );
   }
 
-  #emit(level: LogLevel, message: string, extra?: Record<string, unknown>): void {
+  #emit(
+    level: LogLevel,
+    message: string,
+    extra?: Record<string, unknown>,
+  ): void {
     // Mirrors Winston's `silent: env.isTest` — suppress relay emission during test runs
     // so unit tests don't accumulate phantom entries in the log history sliding window.
     if (process.env['NODE_ENV'] === 'test') return;

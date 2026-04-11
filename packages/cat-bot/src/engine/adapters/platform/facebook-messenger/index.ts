@@ -37,7 +37,10 @@ import { routeRawEvent } from './event-router.js';
 import { withRetry, isAuthError } from '@/engine/lib/retry.lib.js';
 import { sessionManager } from '@/engine/modules/session/session-manager.lib.js';
 
-import { PLATFORM_TO_ID, Platforms } from '@/engine/modules/platform/platform.constants.js';
+import {
+  PLATFORM_TO_ID,
+  Platforms,
+} from '@/engine/modules/platform/platform.constants.js';
 
 // Re-export startBot so integration tests can construct FacebookApi
 // directly without going through the platform listener.
@@ -93,20 +96,27 @@ export function createFacebookMessengerListener(
     let reconnecting = false;
 
     const listen = (fcaApi: FcaApi): void => {
-        listenerInstances = fcaApi.listenMqtt((err, rawEvent) => {
-          if (err) {
-            sessionLogger.error('[facebook-messenger] MQTT error', { error: err });
+      listenerInstances = fcaApi.listenMqtt((err, rawEvent) => {
+        if (err) {
+          sessionLogger.error('[facebook-messenger] MQTT error', {
+            error: err,
+          });
 
-            // Auth errors from fca-unofficial (session cookie expired, account blocked, login blocked)
-            // are unrecoverable — reconnecting with the same appstate will always fail.
-            if (isAuthError(err)) {
-              sessionLogger.error('[facebook-messenger] Session offline — MQTT auth error (appstate may be expired)', { error: err });
-              sessionManager.markInactive(`${config.userId}:${Platforms.FacebookMessenger}:${config.sessionId}`);
-              return;
-            }
+          // Auth errors from fca-unofficial (session cookie expired, account blocked, login blocked)
+          // are unrecoverable — reconnecting with the same appstate will always fail.
+          if (isAuthError(err)) {
+            sessionLogger.error(
+              '[facebook-messenger] Session offline — MQTT auth error (appstate may be expired)',
+              { error: err },
+            );
+            sessionManager.markInactive(
+              `${config.userId}:${Platforms.FacebookMessenger}:${config.sessionId}`,
+            );
+            return;
+          }
 
-            if (reconnecting) return;
-            reconnecting = true;
+          if (reconnecting) return;
+          reconnecting = true;
 
           // Stop the dead listener before attempting to re-login and re-listen.
           // withRetry drives full re-login: a dropped MQTT connection may indicate
@@ -118,9 +128,12 @@ export function createFacebookMessengerListener(
             .then(async () => {
               await withRetry(
                 async () => {
-                  const { api: freshApi } = await startBot({
-                    appstate: config.appstate,
-                  }, sessionLogger);
+                  const { api: freshApi } = await startBot(
+                    {
+                      appstate: config.appstate,
+                    },
+                    sessionLogger,
+                  );
                   // Replace the listener with a fresh MQTT connection after re-login
                   listen(freshApi);
                 },
@@ -144,7 +157,9 @@ export function createFacebookMessengerListener(
                   { error: finalErr },
                 );
                 // Reconnect loop officially given up; sync UI state to offline
-                sessionManager.markInactive(`${config.userId}:${Platforms.FacebookMessenger}:${config.sessionId}`);
+                sessionManager.markInactive(
+                  `${config.userId}:${Platforms.FacebookMessenger}:${config.sessionId}`,
+                );
               });
               reconnecting = false;
             });
@@ -165,14 +180,20 @@ export function createFacebookMessengerListener(
         try {
           routeRawEvent(rawEvent, apiWrapper, native, emitter, config.prefix);
         } catch (routeErr) {
-          sessionLogger.error('[facebook-messenger] routeRawEvent failed (event dropped)', {
-            error: routeErr,
-          });
+          sessionLogger.error(
+            '[facebook-messenger] routeRawEvent failed (event dropped)',
+            {
+              error: routeErr,
+            },
+          );
         }
       });
     };
 
-    const { api } = await startBot({ appstate: config.appstate }, sessionLogger);
+    const { api } = await startBot(
+      { appstate: config.appstate },
+      sessionLogger,
+    );
     // start() is the sole owner of the MQTT listener — startBot() deliberately does NOT
     // call listenMqtt so there is exactly one listener on the connection at all times.
     listen(api);

@@ -24,7 +24,10 @@
 import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
 import { prefixManager } from '@/engine/modules/prefix/prefix-manager.lib.js';
-import { isBotAdmin, updateBotSessionPrefix } from '@/engine/repos/credentials.repo.js';
+import {
+  isBotAdmin,
+  updateBotSessionPrefix,
+} from '@/engine/repos/credentials.repo.js';
 import { OptionType } from '@/engine/modules/command/command-option.constants.js';
 import { triggerSlashSync } from '@/engine/modules/prefix/slash-sync.lib.js';
 import { MessageStyle } from '@/engine/constants/message-style.constants.js';
@@ -35,7 +38,8 @@ export const config = {
   version: '1.0.0',
   role: Role.THREAD_ADMIN,
   author: 'John Lester',
-  description: 'View or change the bot command prefix for this thread or the entire system',
+  description:
+    'View or change the bot command prefix for this thread or the entire system',
   category: 'Config',
   usage: '<new_prefix | reset> [-g]',
   cooldown: 5,
@@ -44,7 +48,8 @@ export const config = {
     {
       type: OptionType.string,
       name: 'prefix',
-      description: 'New prefix to set, or "reset" to restore the system default',
+      description:
+        'New prefix to set, or "reset" to restore the system default',
       required: false,
     },
   ],
@@ -80,7 +85,9 @@ export const onCommand = async ({
         const threadColl = db.threads.collection(threadID);
         if (await threadColl.isCollectionExist(SETTINGS_COLLECTION)) {
           const settings = await threadColl.getCollection(SETTINGS_COLLECTION);
-          threadPrefix = (await settings.get('prefix') as string | undefined) ?? systemPrefix;
+          threadPrefix =
+            ((await settings.get('prefix')) as string | undefined) ??
+            systemPrefix;
         }
       } catch {
         // Fail-open — show system prefix as fallback on DB error
@@ -115,14 +122,14 @@ export const onCommand = async ({
         // Non-fatal — continue to clear the in-memory cache regardless
       }
       // Remove from in-memory cache so the next message falls back to session prefix immediately
-    prefixManager.clearThreadPrefix(threadID);
-    await chat.replyMessage({
-      style: MessageStyle.MARKDOWN,
-      message: `✅ Thread prefix reset to system default: \`${systemPrefix}\``,
-    });
-    return;
+      prefixManager.clearThreadPrefix(threadID);
+      await chat.replyMessage({
+        style: MessageStyle.MARKDOWN,
+        message: `✅ Thread prefix reset to system default: \`${systemPrefix}\``,
+      });
+      return;
+    }
   }
-}
 
   const newPrefix = args[0];
   const isGlobal = args[1] === '-g';
@@ -132,7 +139,10 @@ export const onCommand = async ({
   // Bot admins who want a permanent system prefix change should update it via the dashboard.
   if (isGlobal) {
     if (!userId || !platform || !sessionId || !senderID) {
-      await chat.replyMessage({ style: MessageStyle.MARKDOWN, message: '❌ Cannot resolve session identity.' });
+      await chat.replyMessage({
+        style: MessageStyle.MARKDOWN,
+        message: '❌ Cannot resolve session identity.',
+      });
       return;
     }
 
@@ -149,15 +159,22 @@ export const onCommand = async ({
     // Persist to BotSession.prefix so the admin's choice survives a process restart.
     // Fire-and-forget with a logged catch — a DB write failure must never block the
     // in-memory update that takes effect immediately for the running session.
-    updateBotSessionPrefix(userId, platform, sessionId, newPrefix).catch((err: unknown) => {
-      console.error('[prefix] Failed to persist system prefix to DB:', err);
-    });
+    updateBotSessionPrefix(userId, platform, sessionId, newPrefix).catch(
+      (err: unknown) => {
+        console.error('[prefix] Failed to persist system prefix to DB:', err);
+      },
+    );
     // Slash sync: update the platform's registered slash command menu to match the new prefix.
     // If the new prefix is '/', commands are registered; if it's anything else the menu is cleared.
     // Fire-and-forget — the in-memory prefix update above takes effect immediately regardless.
-    triggerSlashSync(`${userId}:${platform}:${sessionId}`).catch((err: unknown) => {
-      console.error('[prefix] Failed to trigger slash sync after system prefix change:', err);
-    });
+    triggerSlashSync(`${userId}:${platform}:${sessionId}`).catch(
+      (err: unknown) => {
+        console.error(
+          '[prefix] Failed to trigger slash sync after system prefix change:',
+          err,
+        );
+      },
+    );
 
     await chat.replyMessage({
       style: MessageStyle.MARKDOWN,
@@ -171,14 +188,17 @@ export const onCommand = async ({
 
   // ── Thread-level prefix change ────────────────────────────────────────────
   if (!threadID) {
-    await chat.replyMessage({ style: MessageStyle.MARKDOWN, message: '❌ Could not resolve thread ID on this platform.' });
+    await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
+      message: '❌ Could not resolve thread ID on this platform.',
+    });
     return;
   }
 
   // Persist to bot_threads_session.data so the override survives process restarts
   try {
     const threadColl = db.threads.collection(threadID);
-    if (!await threadColl.isCollectionExist(SETTINGS_COLLECTION)) {
+    if (!(await threadColl.isCollectionExist(SETTINGS_COLLECTION))) {
       await threadColl.createCollection(SETTINGS_COLLECTION);
     }
     const settings = await threadColl.getCollection(SETTINGS_COLLECTION);
@@ -210,7 +230,12 @@ export const onCommand = async ({
  *   2. Bare "prefix" trigger: if the user sends exactly "prefix" (no command prefix),
  *      reply with the current prefix configuration as a convenience shortcut.
  */
-export const onChat = async ({ event, chat, db, native }: AppCtx): Promise<void> => {
+export const onChat = async ({
+  event,
+  chat,
+  db,
+  native,
+}: AppCtx): Promise<void> => {
   const message = (event['message'] as string | undefined) ?? '';
   const threadID = event['threadID'] as string | undefined;
 
@@ -222,7 +247,7 @@ export const onChat = async ({ event, chat, db, native }: AppCtx): Promise<void>
         const threadColl = db.threads.collection(threadID);
         if (await threadColl.isCollectionExist(SETTINGS_COLLECTION)) {
           const settings = await threadColl.getCollection(SETTINGS_COLLECTION);
-          const stored = await settings.get('prefix') as string | undefined;
+          const stored = (await settings.get('prefix')) as string | undefined;
           if (stored) prefixManager.setThreadPrefix(threadID, stored);
         }
       } catch {
@@ -239,7 +264,8 @@ export const onChat = async ({ event, chat, db, native }: AppCtx): Promise<void>
         ? prefixManager.getPrefix(userId, platform, sessionId)
         : '/';
     const threadPrefix =
-      (threadID ? prefixManager.getThreadPrefix(threadID) : undefined) ?? systemPrefix;
+      (threadID ? prefixManager.getThreadPrefix(threadID) : undefined) ??
+      systemPrefix;
 
     await chat.replyMessage({
       style: MessageStyle.MARKDOWN,

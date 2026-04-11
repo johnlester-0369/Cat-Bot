@@ -16,7 +16,10 @@
 
 import type { BaseCtx } from '@/engine/types/controller.types.js';
 import { toBotThreadData } from '@/engine/models/threads.model.js';
-import { upsertThread, upsertThreadSession } from '@/engine/repos/threads.repo.js';
+import {
+  upsertThread,
+  upsertThreadSession,
+} from '@/engine/repos/threads.repo.js';
 import { syncUsers } from '@/engine/services/users.service.js';
 import { logger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 
@@ -52,13 +55,23 @@ export async function syncThreadAndParticipants(
     // Safely upsert after constraints are met
     await upsertThread(toBotThreadData(info));
     // Mark this session as having seen the thread — subsequent messages short-circuit here
-    await upsertThreadSession(sessionUserId, ctx.native.platform, sessionId, threadId);
+    await upsertThreadSession(
+      sessionUserId,
+      ctx.native.platform,
+      sessionId,
+      threadId,
+    );
   } catch (err: unknown) {
     logger.warn(
       // Embed message in the log string — Winston's JSON transport does not serialize
       // Error.message by default, so the root cause disappears from structured log output.
       `⚠️ [threads.service] Failed to sync thread ${threadId}: ${err instanceof Error ? err.message : String(err)}`,
-      { error: err instanceof Error ? { name: err.name, message: err.message } : String(err) },
+      {
+        error:
+          err instanceof Error
+            ? { name: err.name, message: err.message }
+            : String(err),
+      },
     );
   }
 }

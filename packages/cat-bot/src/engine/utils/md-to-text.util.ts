@@ -38,20 +38,20 @@ function buildMap(
 }
 
 const MAPS = {
-  bold:   buildMap(0x1D5D4, 0x1D5EE, 0x1D7EC), // sans-serif bold   (+ digits)
-  italic: buildMap(0x1D608, 0x1D622),            // sans-serif italic (no digits)
-  sans:   buildMap(0x1D5A0, 0x1D5BA, 0x1D7E2),  // sans-serif regular
-  mono:   buildMap(0x1D670, 0x1D68A, 0x1D7F6),  // monospace
+  bold: buildMap(0x1d5d4, 0x1d5ee, 0x1d7ec), // sans-serif bold   (+ digits)
+  italic: buildMap(0x1d608, 0x1d622), // sans-serif italic (no digits)
+  sans: buildMap(0x1d5a0, 0x1d5ba, 0x1d7e2), // sans-serif regular
+  mono: buildMap(0x1d670, 0x1d68a, 0x1d7f6), // monospace
 } as const;
 
 function applyMap(str: string, map: Record<string, string>): string {
   return [...str].map((c) => map[c] ?? c).join('');
 }
 
-export const bold   = (str: string): string => applyMap(str, MAPS.bold);
+export const bold = (str: string): string => applyMap(str, MAPS.bold);
 export const italic = (str: string): string => applyMap(str, MAPS.italic);
-export const sans   = (str: string): string => applyMap(str, MAPS.sans);
-export const mono   = (str: string): string => applyMap(str, MAPS.mono);
+export const sans = (str: string): string => applyMap(str, MAPS.sans);
+export const mono = (str: string): string => applyMap(str, MAPS.mono);
 
 export const strikethrough = (str: string): string =>
   [...str].map((c) => c + '\u0336').join('');
@@ -76,31 +76,36 @@ function blockquote(lines: string[]): string {
 // ─── Inline processor ─────────────────────────────────────────────────────────
 
 function processInline(text: string): string {
-  return text
-    // Bold-italic ***text*** (must run first to avoid matching inner **)
-    .replace(/\*\*\*(.+?)\*\*\*/g,       (_, t: string) => bold(italic(t)))
-    // Bold **text** or __text__
-    .replace(/\*\*(.+?)\*\*/g,           (_, t: string) => bold(t))
-    .replace(/(?<!_)__(.+?)__(?!_)/g,    (_, t: string) => bold(t))
-    // Italic *text* or _text_
-    .replace(/\*(.+?)\*/g,               (_, t: string) => italic(t))
-    .replace(/(?<!_)_([^_]+)_(?!_)/g,   (_, t: string) => italic(t))
-    // Strikethrough ~~text~~
-    .replace(/~~(.+?)~~/g,               (_, t: string) => strikethrough(t))
-    // Underline <u>text</u>
-    .replace(/<u>(.+?)<\/u>/gi,          (_, t: string) => underline(t))
-    // Inline code `text`
-    .replace(/`([^`]+)`/g,               (_, t: string) => mono(t))
-    // Links [label](url)
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label: string, url: string) => `${italic(label)} ‹${url}›`)
-    // Images ![alt](url) — display alt text with a camera prefix
-    .replace(/!\[([^\]]*)\]\([^)]+\)/g,  (_, alt: string) => `🖼  ${alt}`)
-    // HTML entities
-    .replace(/&amp;/g,  '&')
-    .replace(/&lt;/g,   '<')
-    .replace(/&gt;/g,   '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g,  "'");
+  return (
+    text
+      // Bold-italic ***text*** (must run first to avoid matching inner **)
+      .replace(/\*\*\*(.+?)\*\*\*/g, (_, t: string) => bold(italic(t)))
+      // Bold **text** or __text__
+      .replace(/\*\*(.+?)\*\*/g, (_, t: string) => bold(t))
+      .replace(/(?<!_)__(.+?)__(?!_)/g, (_, t: string) => bold(t))
+      // Italic *text* or _text_
+      .replace(/\*(.+?)\*/g, (_, t: string) => italic(t))
+      .replace(/(?<!_)_([^_]+)_(?!_)/g, (_, t: string) => italic(t))
+      // Strikethrough ~~text~~
+      .replace(/~~(.+?)~~/g, (_, t: string) => strikethrough(t))
+      // Underline <u>text</u>
+      .replace(/<u>(.+?)<\/u>/gi, (_, t: string) => underline(t))
+      // Inline code `text`
+      .replace(/`([^`]+)`/g, (_, t: string) => mono(t))
+      // Links [label](url)
+      .replace(
+        /\[([^\]]+)\]\(([^)]+)\)/g,
+        (_, label: string, url: string) => `${italic(label)} ‹${url}›`,
+      )
+      // Images ![alt](url) — display alt text with a camera prefix
+      .replace(/!\[([^\]]*)\]\([^)]+\)/g, (_, alt: string) => `🖼  ${alt}`)
+      // HTML entities
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+  );
 }
 
 // ─── Main converter ───────────────────────────────────────────────────────────
@@ -129,7 +134,10 @@ export function mdToText(md: string): string {
         output.push(lines[i] ?? '');
         i++;
       }
-      if (i < lines.length) { output.push(lines[i] ?? ''); i++; }
+      if (i < lines.length) {
+        output.push(lines[i] ?? '');
+        i++;
+      }
       continue;
     }
 
@@ -152,7 +160,9 @@ export function mdToText(md: string): string {
     // ── ATX Heading (# Title) ─────────────────────────────────────────────────
     const hMatch = line.match(/^(#{1,6})\s+(.*)/);
     if (hMatch) {
-      output.push(heading((hMatch[1] ?? '#').length, processInline(hMatch[2] ?? '')));
+      output.push(
+        heading((hMatch[1] ?? '#').length, processInline(hMatch[2] ?? '')),
+      );
       i++;
       continue;
     }
@@ -161,11 +171,13 @@ export function mdToText(md: string): string {
     if (i + 1 < lines.length && line.trim()) {
       if (/^=+$/.test(lines[i + 1] ?? '')) {
         output.push(heading(1, processInline(line)));
-        i += 2; continue;
+        i += 2;
+        continue;
       }
       if (/^-+$/.test(lines[i + 1] ?? '') && !line.match(/^[-*+]\s/)) {
         output.push(heading(2, processInline(line)));
-        i += 2; continue;
+        i += 2;
+        continue;
       }
     }
 
@@ -183,9 +195,11 @@ export function mdToText(md: string): string {
     // ── Task list (before ul) — [ ] and [x] ──────────────────────────────────
     const taskMatch = line.match(/^(\s*)[-*+]\s+\[([ xX])\]\s+(.*)/);
     if (taskMatch) {
-      const depth   = Math.floor((taskMatch[1] ?? '').length / 2);
+      const depth = Math.floor((taskMatch[1] ?? '').length / 2);
       const checked = (taskMatch[2] ?? ' ').toLowerCase() === 'x' ? '☑' : '☐';
-      output.push('  '.repeat(depth) + checked + ' ' + processInline(taskMatch[3] ?? ''));
+      output.push(
+        '  '.repeat(depth) + checked + ' ' + processInline(taskMatch[3] ?? ''),
+      );
       i++;
       continue;
     }
@@ -193,9 +207,11 @@ export function mdToText(md: string): string {
     // ── Unordered list (-, *, +) ──────────────────────────────────────────────
     const ulMatch = line.match(/^(\s*)[-*+]\s+(.*)/);
     if (ulMatch) {
-      const depth  = Math.floor((ulMatch[1] ?? '').length / 2);
+      const depth = Math.floor((ulMatch[1] ?? '').length / 2);
       const bullet = (['•', '◦', '▸'] as const)[depth % 3] ?? '•';
-      output.push('  '.repeat(depth) + bullet + ' ' + processInline(ulMatch[2] ?? ''));
+      output.push(
+        '  '.repeat(depth) + bullet + ' ' + processInline(ulMatch[2] ?? ''),
+      );
       i++;
       continue;
     }
@@ -204,7 +220,12 @@ export function mdToText(md: string): string {
     const olMatch = line.match(/^(\s*)(\d+)\.\s+(.*)/);
     if (olMatch) {
       const depth = Math.floor((olMatch[1] ?? '').length / 2);
-      output.push('  '.repeat(depth) + bold((olMatch[2] ?? '1') + '.') + ' ' + processInline(olMatch[3] ?? ''));
+      output.push(
+        '  '.repeat(depth) +
+          bold((olMatch[2] ?? '1') + '.') +
+          ' ' +
+          processInline(olMatch[3] ?? ''),
+      );
       i++;
       continue;
     }

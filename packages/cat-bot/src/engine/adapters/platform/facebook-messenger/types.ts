@@ -39,16 +39,16 @@ export interface FcaApi {
       err: unknown,
       users:
         | Record<
-          string,
-          {
-            name?: string;
-            firstName?: string;
-            vanity?: string | null;
-            thumbSrc?: string | null;
-            profileUrl?: string | null;
-            [key: string]: unknown;
-          }
-        >
+            string,
+            {
+              name?: string;
+              firstName?: string;
+              vanity?: string | null;
+              thumbSrc?: string | null;
+              profileUrl?: string | null;
+              [key: string]: unknown;
+            }
+          >
         | undefined,
     ) => void,
   ): void;
@@ -99,7 +99,9 @@ export interface FcaApi {
     ) => void,
   ): void;
   setOptions(opts: Record<string, unknown>): void;
-  refreshFb_dtsg?: (cb: (err: unknown, info: { data?: { fb_dtsg?: string } }) => void) => void;
+  refreshFb_dtsg?: (
+    cb: (err: unknown, info: { data?: { fb_dtsg?: string } }) => void,
+  ) => void;
   listenMqtt(cb: (err: unknown, event: Record<string, unknown>) => void): {
     stopListeningAsync: () => Promise<void>;
   };

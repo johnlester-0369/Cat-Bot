@@ -66,7 +66,10 @@ export const PROTO_UNIFIED_USER_INFO: Readonly<UnifiedUserInfo> = Object.freeze(
 export function createUnifiedUserInfo(
   data: Partial<UnifiedUserInfo>,
 ): UnifiedUserInfo {
-  logger.debug('[user.model] createUnifiedUserInfo called', { platform: data.platform, id: data.id });
+  logger.debug('[user.model] createUnifiedUserInfo called', {
+    platform: data.platform,
+    id: data.id,
+  });
   return {
     platform: data.platform ?? 'unknown',
     id: data.id ?? '',

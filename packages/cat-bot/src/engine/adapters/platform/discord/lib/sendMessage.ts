@@ -29,12 +29,16 @@ export async function sendMessage(
     if (msg.attachment) {
       if (Array.isArray(msg.attachment)) {
         for (const { name, stream } of msg.attachment) {
-          const buf = Buffer.isBuffer(stream) ? stream : await streamToBuffer(stream as NodeJS.ReadableStream);
+          const buf = Buffer.isBuffer(stream)
+            ? stream
+            : await streamToBuffer(stream as NodeJS.ReadableStream);
           files.push(new AttachmentBuilder(buf, { name: name || 'file.bin' }));
         }
       } else {
         const stream = msg.attachment;
-        const buf = Buffer.isBuffer(stream) ? stream : await streamToBuffer(stream as NodeJS.ReadableStream);
+        const buf = Buffer.isBuffer(stream)
+          ? stream
+          : await streamToBuffer(stream as NodeJS.ReadableStream);
         files.push(
           new AttachmentBuilder(buf, {
             name: (stream as unknown as { path?: string }).path || 'file.bin',
@@ -49,7 +53,8 @@ export async function sendMessage(
         const buf = await streamToBuffer(s);
         files.push(
           new AttachmentBuilder(buf, {
-            name: name || (s as unknown as { path?: string }).path || 'file.bin',
+            name:
+              name || (s as unknown as { path?: string }).path || 'file.bin',
           }),
         );
       }

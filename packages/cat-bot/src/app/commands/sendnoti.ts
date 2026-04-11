@@ -32,13 +32,18 @@ export const config = {
   version: '1.0.0',
   role: Role.BOT_ADMIN,
   author: 'John Lester',
-  description: 'Broadcast a notification message to all group threads in this session',
+  description:
+    'Broadcast a notification message to all group threads in this session',
   category: 'Admin',
   usage: '<message>',
   cooldown: 10,
   hasPrefix: true,
   // Exclude Facebook Page since facebook page use PSID (Page-Scoped ID)
-  platform: [Platforms.Discord, Platforms.Telegram, Platforms.FacebookMessenger],
+  platform: [
+    Platforms.Discord,
+    Platforms.Telegram,
+    Platforms.FacebookMessenger,
+  ],
   options: [
     {
       type: OptionType.string,
@@ -72,7 +77,8 @@ export const onCommand = async ({
   if (groupThreadIds.length === 0) {
     await chat.replyMessage({
       style: MessageStyle.MARKDOWN,
-      message: 'ℹ️ No group threads found for this session. The bot must have received at least one message in a group before broadcast is available.',
+      message:
+        'ℹ️ No group threads found for this session. The bot must have received at least one message in a group before broadcast is available.',
     });
     return;
   }
@@ -105,8 +111,13 @@ export const onCommand = async ({
 
   const lines: string[] = [`✅ Notification sent to ${sent} group thread(s).`];
   if (failed.length > 0) {
-    lines.push(`⚠️ Failed to reach ${failed.length} thread(s) — they may have removed the bot or blocked sending.`);
+    lines.push(
+      `⚠️ Failed to reach ${failed.length} thread(s) — they may have removed the bot or blocked sending.`,
+    );
   }
 
-  await chat.replyMessage({ style: MessageStyle.MARKDOWN, message: lines.join('\n') });
+  await chat.replyMessage({
+    style: MessageStyle.MARKDOWN,
+    message: lines.join('\n'),
+  });
 };

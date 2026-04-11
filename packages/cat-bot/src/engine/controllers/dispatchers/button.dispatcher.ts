@@ -100,7 +100,12 @@ export async function dispatchButtonFallback(
   const buttonCtx: BaseCtx = {
     ...buildBaseCtx(ctx.api, buttonEvent, ctx.commands, ctx.native, ctx.prefix),
     // Command-aware chat embeds "stored.command:actionId" so handleButtonAction can reverse-route
-    chat: createChatContext(ctx.api, buttonEvent, stored.command, menu as Parameters<typeof createChatContext>[3]),
+    chat: createChatContext(
+      ctx.api,
+      buttonEvent,
+      stored.command,
+      menu as Parameters<typeof createChatContext>[3],
+    ),
   };
 
   // State is intentionally NOT deleted — the numbered menu remains persistently re-selectable,
@@ -153,7 +158,12 @@ export async function handleButtonAction(
   // without a global action ID registry.
   const ctx: BaseCtx = {
     ...buildBaseCtx(api, event, commands, native),
-    chat: createChatContext(api, event, commandName, mod['menu'] as Parameters<typeof createChatContext>[3]),
+    chat: createChatContext(
+      api,
+      event,
+      commandName,
+      mod['menu'] as Parameters<typeof createChatContext>[3],
+    ),
   };
 
   await handler.run(ctx).catch((err: unknown) => {

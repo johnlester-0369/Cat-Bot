@@ -89,7 +89,10 @@ export const onReact = {
     // Remove state before replying so a second ❤️ reaction on the same message
     // does not re-trigger this handler after the conversation is complete.
     state.delete(session.id);
-    await chat.reply({ style: MessageStyle.MARKDOWN, message: 'You chose: **love ❤️**' });
+    await chat.reply({
+      style: MessageStyle.MARKDOWN,
+      message: 'You chose: **love ❤️**',
+    });
   },
 
   /**
@@ -97,11 +100,17 @@ export const onReact = {
    */
   [STATE.laugh]: async ({ chat, session, state }: AppCtx) => {
     state.delete(session.id);
-    await chat.reply({ style: MessageStyle.MARKDOWN, message: 'You chose: **funny 😂**' });
+    await chat.reply({
+      style: MessageStyle.MARKDOWN,
+      message: 'You chose: **funny 😂**',
+    });
   },
 
   [STATE.sad]: async ({ chat, session, state }: AppCtx) => {
     state.delete(session.id);
-    await chat.reply({ style: MessageStyle.MARKDOWN, message: 'You chose: **sad 😢**' });
+    await chat.reply({
+      style: MessageStyle.MARKDOWN,
+      message: 'You chose: **sad 😢**',
+    });
   },
 };

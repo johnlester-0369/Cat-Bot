@@ -44,7 +44,8 @@ export async function replyMessage(
   const reply_to_message_id = options.reply_to_message_id;
   const mentions = options.mentions ?? [];
   // Convert markdown to styled Unicode when requested — FB Messenger has no parse_mode equivalent
-  const finalMessage = options.style === 'markdown' ? mdToText(message) : message;
+  const finalMessage =
+    options.style === 'markdown' ? mdToText(message) : message;
 
   // Download URL attachments first — explicit name controls fca MIME detection via .path
   const urlStreams = await Promise.all(

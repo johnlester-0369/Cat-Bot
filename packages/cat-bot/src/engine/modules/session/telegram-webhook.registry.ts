@@ -23,7 +23,10 @@ export type WebhookHandler = (req: any, res: any) => void;
 const registry = new Map<string, WebhookHandler>();
 
 /** Stores the Telegraf RequestListener for a session after bot.createWebhook() resolves. */
-export function registerTelegramWebhookHandler(key: string, handler: WebhookHandler): void {
+export function registerTelegramWebhookHandler(
+  key: string,
+  handler: WebhookHandler,
+): void {
   registry.set(key, handler);
 }
 
@@ -31,7 +34,9 @@ export function registerTelegramWebhookHandler(key: string, handler: WebhookHand
  * Returns the live handler for the given key, or undefined when no session is registered.
  * Called on every incoming POST /api/v1/telegram-webhook/:userId/:sessionId request.
  */
-export function getTelegramWebhookHandler(key: string): WebhookHandler | undefined {
+export function getTelegramWebhookHandler(
+  key: string,
+): WebhookHandler | undefined {
   return registry.get(key);
 }
 

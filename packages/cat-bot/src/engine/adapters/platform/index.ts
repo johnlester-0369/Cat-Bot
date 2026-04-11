@@ -29,10 +29,16 @@ import { createLogger } from '@/engine/modules/logger/logger.lib.js'; // Relocat
 import type { SessionLogger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 import { sessionManager } from '@/engine/modules/session/session-manager.lib.js';
 import { withRetry, isAuthError } from '@/engine/lib/retry.lib.js';
-import { Platforms, PLATFORM_TO_ID } from '@/engine/modules/platform/platform.constants.js';
+import {
+  Platforms,
+  PLATFORM_TO_ID,
+} from '@/engine/modules/platform/platform.constants.js';
 import { upsertSessionCommands } from '@/engine/modules/session/bot-session-commands.repo.js';
 import { upsertSessionEvents } from '@/engine/modules/session/bot-session-events.repo.js';
-import { commandRegistry, eventRegistry } from '@/engine/lib/module-registry.lib.js';
+import {
+  commandRegistry,
+  eventRegistry,
+} from '@/engine/lib/module-registry.lib.js';
 
 /**
  * Every registered platform ID in one place — derived from each platform's own index.ts constant.
@@ -231,12 +237,23 @@ export function createUnifiedPlatformListener(
       const l = discordListeners[i]!;
       const label = `${Platforms.Discord}:${c.userId}:${c.sessionId}`;
       const smKey = `${c.userId}:${Platforms.Discord}:${c.sessionId}`;
-      const sessionLogger = createLogger({ userId: c.userId, platformId: PLATFORM_TO_ID[Platforms.Discord], sessionId: c.sessionId });
+      const sessionLogger = createLogger({
+        userId: c.userId,
+        platformId: PLATFORM_TO_ID[Platforms.Discord],
+        sessionId: c.sessionId,
+      });
       // markActive only after start() resolves so status tracks real transport readiness
-      const startFn = async () => { await l.start(commands); sessionManager.markActive(smKey); };
-      const stopFn = async (signal?: string) => { sessionManager.markInactive(smKey); await l.stop(signal); };
+      const startFn = async () => {
+        await l.start(commands);
+        sessionManager.markActive(smKey);
+      };
+      const stopFn = async (signal?: string) => {
+        sessionManager.markInactive(smKey);
+        await l.stop(signal);
+      };
       sessionManager.register(smKey, {
-        start: () => startSessionWithRetry(label, smKey, startFn, stopFn, sessionLogger),
+        start: () =>
+          startSessionWithRetry(label, smKey, startFn, stopFn, sessionLogger),
         stop: stopFn,
       });
       void startSessionWithRetry(label, smKey, startFn, stopFn, sessionLogger);
@@ -246,11 +263,22 @@ export function createUnifiedPlatformListener(
       const l = telegramListeners[i]!;
       const label = `${Platforms.Telegram}:${c.userId}:${c.sessionId}`;
       const smKey = `${c.userId}:${Platforms.Telegram}:${c.sessionId}`;
-      const sessionLogger = createLogger({ userId: c.userId, platformId: PLATFORM_TO_ID[Platforms.Telegram], sessionId: c.sessionId });
-      const startFn = async () => { await l.start(commands); sessionManager.markActive(smKey); };
-      const stopFn = async (signal?: string) => { sessionManager.markInactive(smKey); await l.stop(signal); };
+      const sessionLogger = createLogger({
+        userId: c.userId,
+        platformId: PLATFORM_TO_ID[Platforms.Telegram],
+        sessionId: c.sessionId,
+      });
+      const startFn = async () => {
+        await l.start(commands);
+        sessionManager.markActive(smKey);
+      };
+      const stopFn = async (signal?: string) => {
+        sessionManager.markInactive(smKey);
+        await l.stop(signal);
+      };
       sessionManager.register(smKey, {
-        start: () => startSessionWithRetry(label, smKey, startFn, stopFn, sessionLogger),
+        start: () =>
+          startSessionWithRetry(label, smKey, startFn, stopFn, sessionLogger),
         stop: stopFn,
       });
       void startSessionWithRetry(label, smKey, startFn, stopFn, sessionLogger);
@@ -261,11 +289,22 @@ export function createUnifiedPlatformListener(
       const l = fbMessengerListeners[i]!;
       const label = `${Platforms.FacebookMessenger}:${c.userId}:${c.sessionId}`;
       const smKey = `${c.userId}:${Platforms.FacebookMessenger}:${c.sessionId}`;
-      const sessionLogger = createLogger({ userId: c.userId, platformId: PLATFORM_TO_ID[Platforms.FacebookMessenger], sessionId: c.sessionId });
-      const startFn = async () => { await l.start(); sessionManager.markActive(smKey); };
-      const stopFn = async (signal?: string) => { sessionManager.markInactive(smKey); await l.stop(signal); };
+      const sessionLogger = createLogger({
+        userId: c.userId,
+        platformId: PLATFORM_TO_ID[Platforms.FacebookMessenger],
+        sessionId: c.sessionId,
+      });
+      const startFn = async () => {
+        await l.start();
+        sessionManager.markActive(smKey);
+      };
+      const stopFn = async (signal?: string) => {
+        sessionManager.markInactive(smKey);
+        await l.stop(signal);
+      };
       sessionManager.register(smKey, {
-        start: () => startSessionWithRetry(label, smKey, startFn, stopFn, sessionLogger),
+        start: () =>
+          startSessionWithRetry(label, smKey, startFn, stopFn, sessionLogger),
         stop: stopFn,
       });
       void startSessionWithRetry(label, smKey, startFn, stopFn, sessionLogger);
@@ -276,11 +315,22 @@ export function createUnifiedPlatformListener(
       const l = fbPageListeners[i]!;
       const label = `${Platforms.FacebookPage}:${c.userId}:${c.sessionId}`;
       const smKey = `${c.userId}:${Platforms.FacebookPage}:${c.sessionId}`;
-      const sessionLogger = createLogger({ userId: c.userId, platformId: PLATFORM_TO_ID[Platforms.FacebookPage], sessionId: c.sessionId });
-      const startFn = async () => { await Promise.resolve(l.start()); sessionManager.markActive(smKey); };
-      const stopFn = async (signal?: string) => { sessionManager.markInactive(smKey); await l.stop(signal); };
+      const sessionLogger = createLogger({
+        userId: c.userId,
+        platformId: PLATFORM_TO_ID[Platforms.FacebookPage],
+        sessionId: c.sessionId,
+      });
+      const startFn = async () => {
+        await Promise.resolve(l.start());
+        sessionManager.markActive(smKey);
+      };
+      const stopFn = async (signal?: string) => {
+        sessionManager.markInactive(smKey);
+        await l.stop(signal);
+      };
       sessionManager.register(smKey, {
-        start: () => startSessionWithRetry(label, smKey, startFn, stopFn, sessionLogger),
+        start: () =>
+          startSessionWithRetry(label, smKey, startFn, stopFn, sessionLogger),
         stop: stopFn,
       });
       void startSessionWithRetry(label, smKey, startFn, stopFn, sessionLogger);
@@ -296,7 +346,11 @@ export function createUnifiedPlatformListener(
  */
 export async function spawnDynamicSession(
   platform: string,
-  sessionConfig: DiscordConfig | TelegramConfig | FbPageConfig | FbMessengerConfig,
+  sessionConfig:
+    | DiscordConfig
+    | TelegramConfig
+    | FbPageConfig
+    | FbMessengerConfig,
 ): Promise<void> {
   if (!globalEmitter || !activeCommands) {
     // Application orchestrator has not booted yet (e.g. testing context or pre-init API call).
@@ -308,8 +362,18 @@ export async function spawnDynamicSession(
   const commandNames = Array.from(commandRegistry.keys());
   const eventNames = Array.from(eventRegistry.keys());
 
-  await upsertSessionCommands(sessionConfig.userId, platform, sessionConfig.sessionId, commandNames);
-  await upsertSessionEvents(sessionConfig.userId, platform, sessionConfig.sessionId, eventNames);
+  await upsertSessionCommands(
+    sessionConfig.userId,
+    platform,
+    sessionConfig.sessionId,
+    commandNames,
+  );
+  await upsertSessionEvents(
+    sessionConfig.userId,
+    platform,
+    sessionConfig.sessionId,
+    eventNames,
+  );
 
   // Generic EventEmitter for wiring up to the unified event pipeline
   // Exact listener types are captured locally in startFn/stopFn closures to satisfy strict function types
@@ -325,33 +389,75 @@ export async function spawnDynamicSession(
     listener = l;
     label = `${Platforms.Discord}:${sessionConfig.userId}:${sessionConfig.sessionId}`;
     smKey = `${sessionConfig.userId}:${Platforms.Discord}:${sessionConfig.sessionId}`;
-    sessionLogger = createLogger({ userId: sessionConfig.userId, platformId: PLATFORM_TO_ID[Platforms.Discord], sessionId: sessionConfig.sessionId });
-    startFn = async () => { await l.start(activeCommands!); sessionManager.markActive(smKey); };
-    stopFn = async (signal?: string) => { sessionManager.markInactive(smKey); await l.stop(signal); };
+    sessionLogger = createLogger({
+      userId: sessionConfig.userId,
+      platformId: PLATFORM_TO_ID[Platforms.Discord],
+      sessionId: sessionConfig.sessionId,
+    });
+    startFn = async () => {
+      await l.start(activeCommands!);
+      sessionManager.markActive(smKey);
+    };
+    stopFn = async (signal?: string) => {
+      sessionManager.markInactive(smKey);
+      await l.stop(signal);
+    };
   } else if (platform === Platforms.Telegram) {
     const l = createTelegramListener(sessionConfig as TelegramConfig);
     listener = l;
     label = `${Platforms.Telegram}:${sessionConfig.userId}:${sessionConfig.sessionId}`;
     smKey = `${sessionConfig.userId}:${Platforms.Telegram}:${sessionConfig.sessionId}`;
-    sessionLogger = createLogger({ userId: sessionConfig.userId, platformId: PLATFORM_TO_ID[Platforms.Telegram], sessionId: sessionConfig.sessionId });
-    startFn = async () => { await l.start(activeCommands!); sessionManager.markActive(smKey); };
-    stopFn = async (signal?: string) => { sessionManager.markInactive(smKey); await l.stop(signal); };
+    sessionLogger = createLogger({
+      userId: sessionConfig.userId,
+      platformId: PLATFORM_TO_ID[Platforms.Telegram],
+      sessionId: sessionConfig.sessionId,
+    });
+    startFn = async () => {
+      await l.start(activeCommands!);
+      sessionManager.markActive(smKey);
+    };
+    stopFn = async (signal?: string) => {
+      sessionManager.markInactive(smKey);
+      await l.stop(signal);
+    };
   } else if (platform === Platforms.FacebookMessenger) {
-    const l = createFacebookMessengerListener(sessionConfig as FbMessengerConfig);
+    const l = createFacebookMessengerListener(
+      sessionConfig as FbMessengerConfig,
+    );
     listener = l;
     label = `${Platforms.FacebookMessenger}:${sessionConfig.userId}:${sessionConfig.sessionId}`;
     smKey = `${sessionConfig.userId}:${Platforms.FacebookMessenger}:${sessionConfig.sessionId}`;
-    sessionLogger = createLogger({ userId: sessionConfig.userId, platformId: PLATFORM_TO_ID[Platforms.FacebookMessenger], sessionId: sessionConfig.sessionId });
-    startFn = async () => { await l.start(); sessionManager.markActive(smKey); };
-    stopFn = async (signal?: string) => { sessionManager.markInactive(smKey); await l.stop(signal); };
+    sessionLogger = createLogger({
+      userId: sessionConfig.userId,
+      platformId: PLATFORM_TO_ID[Platforms.FacebookMessenger],
+      sessionId: sessionConfig.sessionId,
+    });
+    startFn = async () => {
+      await l.start();
+      sessionManager.markActive(smKey);
+    };
+    stopFn = async (signal?: string) => {
+      sessionManager.markInactive(smKey);
+      await l.stop(signal);
+    };
   } else if (platform === Platforms.FacebookPage) {
     const l = createFacebookPageListener(sessionConfig as FbPageConfig);
     listener = l;
     label = `${Platforms.FacebookPage}:${sessionConfig.userId}:${sessionConfig.sessionId}`;
     smKey = `${sessionConfig.userId}:${Platforms.FacebookPage}:${sessionConfig.sessionId}`;
-    sessionLogger = createLogger({ userId: sessionConfig.userId, platformId: PLATFORM_TO_ID[Platforms.FacebookPage], sessionId: sessionConfig.sessionId });
-    startFn = async () => { await Promise.resolve(l.start()); sessionManager.markActive(smKey); };
-    stopFn = async (signal?: string) => { sessionManager.markInactive(smKey); await l.stop(signal); };
+    sessionLogger = createLogger({
+      userId: sessionConfig.userId,
+      platformId: PLATFORM_TO_ID[Platforms.FacebookPage],
+      sessionId: sessionConfig.sessionId,
+    });
+    startFn = async () => {
+      await Promise.resolve(l.start());
+      sessionManager.markActive(smKey);
+    };
+    stopFn = async (signal?: string) => {
+      sessionManager.markInactive(smKey);
+      await l.stop(signal);
+    };
   } else {
     throw new Error(`[spawnDynamicSession] Unsupported platform: ${platform}`);
   }
@@ -365,7 +471,8 @@ export async function spawnDynamicSession(
 
   // 3. Register lifecycle so API restarts (/restart) operate correctly
   sessionManager.register(smKey, {
-    start: () => startSessionWithRetry(label, smKey, startFn, stopFn, sessionLogger),
+    start: () =>
+      startSessionWithRetry(label, smKey, startFn, stopFn, sessionLogger),
     stop: stopFn,
   });
 

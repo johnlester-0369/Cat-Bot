@@ -49,7 +49,10 @@ export const onCommand = async ({ chat, event, db }: AppCtx): Promise<void> => {
   const senderID = event['senderID'] as string | undefined;
 
   if (!senderID) {
-    await chat.replyMessage({ style: MessageStyle.MARKDOWN, message: '❌ Could not identify your user ID on this platform.' });
+    await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
+      message: '❌ Could not identify your user ID on this platform.',
+    });
     return;
   }
 
@@ -58,19 +61,19 @@ export const onCommand = async ({ chat, event, db }: AppCtx): Promise<void> => {
   // so the command only needs to supply the platform user ID (senderID).
   const userColl = db.users.collection(senderID);
 
-  if (!await userColl.isCollectionExist('money')) {
+  if (!(await userColl.isCollectionExist('money'))) {
     await userColl.createCollection('money');
   }
 
   const daily = await userColl.getCollection('money');
 
-  const lastClaim = await daily.get('lastClaim') as number | undefined;
+  const lastClaim = (await daily.get('lastClaim')) as number | undefined;
   const now = Date.now();
 
   // ── Cooldown check ────────────────────────────────────────────────────────
   if (lastClaim !== undefined && now - lastClaim < COOLDOWN_MS) {
     const remaining = COOLDOWN_MS - (now - lastClaim);
-    const hours   = Math.floor(remaining / (1000 * 60 * 60));
+    const hours = Math.floor(remaining / (1000 * 60 * 60));
     const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
     const seconds = Math.floor((remaining % (1000 * 60)) / 1000);
     const pad = (n: number) => String(n).padStart(2, '0');
@@ -89,16 +92,18 @@ export const onCommand = async ({ chat, event, db }: AppCtx): Promise<void> => {
   // Streak increments only when claimed on consecutive calendar days.
   // A missed day resets the streak back to 1 rather than 0 — the current
   // claim always counts as day 1 even after a break.
-  const currentStreak = await daily.get('streak') as number | undefined ?? 0;
-  const lastClaimDate  = lastClaim !== undefined ? new Date(lastClaim).toDateString() : null;
-  const yesterdayDate  = new Date(now - 86_400_000).toDateString();
-  const newStreak      = lastClaimDate === yesterdayDate ? currentStreak + 1 : 1;
+  const currentStreak =
+    ((await daily.get('streak')) as number | undefined) ?? 0;
+  const lastClaimDate =
+    lastClaim !== undefined ? new Date(lastClaim).toDateString() : null;
+  const yesterdayDate = new Date(now - 86_400_000).toDateString();
+  const newStreak = lastClaimDate === yesterdayDate ? currentStreak + 1 : 1;
 
   // ── Compute reward ────────────────────────────────────────────────────────
   // Bonus scales with streak but caps so long-time users don't get unbounded rewards.
   const streakBonusDays = Math.min(newStreak - 1, MAX_STREAK_BONUS_DAYS);
-  const streakBonus     = streakBonusDays * COINS_PER_STREAK_DAY;
-  const totalCoins      = BASE_COINS + streakBonus;
+  const streakBonus = streakBonusDays * COINS_PER_STREAK_DAY;
+  const totalCoins = BASE_COINS + streakBonus;
 
   // ── Persist state — write streak before coins message so state is durable even
   //    if the message send fails. Two set calls instead of one update call to keep
@@ -109,9 +114,10 @@ export const onCommand = async ({ chat, event, db }: AppCtx): Promise<void> => {
   await daily.increment('coins', totalCoins);
 
   // ── Respond ───────────────────────────────────────────────────────────────
-  const streakLine = newStreak > 1
-    ? `🔥 Streak: **${newStreak} days** (+${streakBonus} bonus coins)`
-    : '🔥 Streak: **1 day** (maintain a streak for bonus coins!)';
+  const streakLine =
+    newStreak > 1
+      ? `🔥 Streak: **${newStreak} days** (+${streakBonus} bonus coins)`
+      : '🔥 Streak: **1 day** (maintain a streak for bonus coins!)';
 
   await chat.replyMessage({
     style: MessageStyle.MARKDOWN,

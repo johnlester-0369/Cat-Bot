@@ -36,8 +36,11 @@ class SessionManager extends EventEmitter {
     // Diverts management triggers to the isolated worker executing the memory instance
     if (env.ENABLE_WORKER && isMainThread) {
       const platform = key.split(':')[1];
-      const { workerBridge } = await import('@/engine/modules/ipc/worker-bridge.lib.js');
-      await workerBridge.sendToWorker(platform ?? '', 'CMD:SESSION_RESTART', { key });
+      const { workerBridge } =
+        await import('@/engine/modules/ipc/worker-bridge.lib.js');
+      await workerBridge.sendToWorker(platform ?? '', 'CMD:SESSION_RESTART', {
+        key,
+      });
       return;
     }
 
@@ -59,8 +62,11 @@ class SessionManager extends EventEmitter {
   async stop(key: string): Promise<void> {
     if (env.ENABLE_WORKER && isMainThread) {
       const platform = key.split(':')[1];
-      const { workerBridge } = await import('@/engine/modules/ipc/worker-bridge.lib.js');
-      await workerBridge.sendToWorker(platform ?? '', 'CMD:SESSION_STOP', { key });
+      const { workerBridge } =
+        await import('@/engine/modules/ipc/worker-bridge.lib.js');
+      await workerBridge.sendToWorker(platform ?? '', 'CMD:SESSION_STOP', {
+        key,
+      });
       return;
     }
 
@@ -79,8 +85,11 @@ class SessionManager extends EventEmitter {
   async start(key: string): Promise<void> {
     if (env.ENABLE_WORKER && isMainThread) {
       const platform = key.split(':')[1];
-      const { workerBridge } = await import('@/engine/modules/ipc/worker-bridge.lib.js');
-      await workerBridge.sendToWorker(platform ?? '', 'CMD:SESSION_START', { key });
+      const { workerBridge } =
+        await import('@/engine/modules/ipc/worker-bridge.lib.js');
+      await workerBridge.sendToWorker(platform ?? '', 'CMD:SESSION_START', {
+        key,
+      });
       return;
     }
 
@@ -172,7 +181,16 @@ class SessionManager extends EventEmitter {
   async stopAll(signal?: string): Promise<void> {
     const promises = [];
     for (const [key, session] of this.#sessions.entries()) {
-      promises.push(session.stop(signal).catch(err => console.error(`[session-manager] Failed to stop session ${key}:`, err)));
+      promises.push(
+        session
+          .stop(signal)
+          .catch((err) =>
+            console.error(
+              `[session-manager] Failed to stop session ${key}:`,
+              err,
+            ),
+          ),
+      );
     }
     await Promise.all(promises);
   }

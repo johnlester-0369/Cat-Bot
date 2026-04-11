@@ -26,7 +26,10 @@ import {
   findSessionEvents,
   setEventEnabled,
 } from '@/engine/modules/session/bot-session-events.repo.js';
-import { commandRegistry, eventRegistry } from '@/engine/lib/module-registry.lib.js';
+import {
+  commandRegistry,
+  eventRegistry,
+} from '@/engine/lib/module-registry.lib.js';
 import type { ToggleEnabledRequestDto } from '@/server/dtos/bot-session-config.dto.js';
 // Triggers slash command re-registration on live Discord/Telegram sessions when a command is toggled.
 // Resolves as a no-op for platforms without a registered sync (FB Messenger, FB Page) or stopped sessions.
@@ -86,13 +89,20 @@ export class BotSessionConfigController {
     if (!userId) return;
 
     const sessionId = String(req.params['id']);
-    if (!sessionId) { res.status(400).json({ error: 'Missing session ID' }); return; }
+    if (!sessionId) {
+      res.status(400).json({ error: 'Missing session ID' });
+      return;
+    }
 
     const platform = await resolvePlatform(userId, sessionId, res);
     if (!platform) return;
 
     try {
-      const rawCommands = await findSessionCommands(userId, platform, sessionId);
+      const rawCommands = await findSessionCommands(
+        userId,
+        platform,
+        sessionId,
+      );
       // Enrich with metadata from the in-memory registry so the web UI can render details
       const commands = rawCommands
         // Filter out commands that are structurally disallowed on this session's platform
@@ -101,19 +111,19 @@ export class BotSessionConfigController {
           return mod && isPlatformAllowed(mod, platform);
         })
         .map((cmd: { commandName: string; isEnable: boolean }) => {
-        const mod = commandRegistry.get(cmd.commandName.toLowerCase());
-        const cfg = mod?.['config'] as Record<string, unknown> | undefined;
-        return {
-          ...cmd,
-          version: cfg?.['version'] as string | undefined,
-          description: cfg?.['description'] as string | undefined,
-          usage: cfg?.['usage'] as string | undefined,
-          role: cfg?.['role'] as number | undefined,
-          aliases: cfg?.['aliases'] as string[] | undefined,
-          cooldown: cfg?.['cooldown'] as number | undefined,
-          author: cfg?.['author'] as string | undefined,
-        };
-      });
+          const mod = commandRegistry.get(cmd.commandName.toLowerCase());
+          const cfg = mod?.['config'] as Record<string, unknown> | undefined;
+          return {
+            ...cmd,
+            version: cfg?.['version'] as string | undefined,
+            description: cfg?.['description'] as string | undefined,
+            usage: cfg?.['usage'] as string | undefined,
+            role: cfg?.['role'] as number | undefined,
+            aliases: cfg?.['aliases'] as string[] | undefined,
+            cooldown: cfg?.['cooldown'] as number | undefined,
+            author: cfg?.['author'] as string | undefined,
+          };
+        });
       res.status(200).json({ commands });
     } catch (error) {
       console.error('[BotSessionConfigController.getCommands]', error);
@@ -145,21 +155,31 @@ export class BotSessionConfigController {
     // Guard against modifying state for a command that does not run on this platform
     const mod = commandRegistry.get(commandName.toLowerCase());
     if (!mod || !isPlatformAllowed(mod, platform)) {
-      res.status(400).json({ error: 'Command not available for this platform' });
+      res
+        .status(400)
+        .json({ error: 'Command not available for this platform' });
       return;
     }
 
     try {
-      await setCommandEnabled(userId, platform, sessionId, commandName, isEnable);
+      await setCommandEnabled(
+        userId,
+        platform,
+        sessionId,
+        commandName,
+        isEnable,
+      );
       // Fire-and-forget slash re-registration — the HTTP response must not block on a Discord REST
       // or Telegram Bot API round-trip. The callback checks the prefix internally and short-circuits
       // when prefix !== '/', so this is safe to call for every platform without branching here.
-      void triggerSlashSync(`${userId}:${platform}:${sessionId}`).catch((err) => {
-        console.error(
-          '[BotSessionConfigController.toggleCommand] Slash sync failed (non-fatal)',
-          err,
-        );
-      });
+      void triggerSlashSync(`${userId}:${platform}:${sessionId}`).catch(
+        (err) => {
+          console.error(
+            '[BotSessionConfigController.toggleCommand] Slash sync failed (non-fatal)',
+            err,
+          );
+        },
+      );
       res.status(200).json({ commandName, isEnable });
     } catch (error) {
       console.error('[BotSessionConfigController.toggleCommand]', error);
@@ -173,7 +193,10 @@ export class BotSessionConfigController {
     if (!userId) return;
 
     const sessionId = String(req.params['id']);
-    if (!sessionId) { res.status(400).json({ error: 'Missing session ID' }); return; }
+    if (!sessionId) {
+      res.status(400).json({ error: 'Missing session ID' });
+      return;
+    }
 
     const platform = await resolvePlatform(userId, sessionId, res);
     if (!platform) return;
@@ -187,15 +210,15 @@ export class BotSessionConfigController {
           return mod && isPlatformAllowed(mod, platform);
         })
         .map((evt: { eventName: string; isEnable: boolean }) => {
-        const mod = eventRegistry.get(evt.eventName.toLowerCase());
-        const cfg = mod?.['config'] as Record<string, unknown> | undefined;
-        return {
-          ...evt,
-          version: cfg?.['version'] as string | undefined,
-          description: cfg?.['description'] as string | undefined,
-          author: cfg?.['author'] as string | undefined,
-        };
-      });
+          const mod = eventRegistry.get(evt.eventName.toLowerCase());
+          const cfg = mod?.['config'] as Record<string, unknown> | undefined;
+          return {
+            ...evt,
+            version: cfg?.['version'] as string | undefined,
+            description: cfg?.['description'] as string | undefined,
+            author: cfg?.['author'] as string | undefined,
+          };
+        });
       res.status(200).json({ events });
     } catch (error) {
       console.error('[BotSessionConfigController.getEvents]', error);

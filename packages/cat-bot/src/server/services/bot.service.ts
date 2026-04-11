@@ -7,7 +7,11 @@ import { logger } from '@/engine/modules/logger/logger.lib.js'; // Relocated mod
 import { prefixManager } from '@/engine/modules/prefix/prefix-manager.lib.js';
 import { triggerSlashSync } from '@/engine/modules/prefix/slash-sync.lib.js';
 import { Platforms } from '@/engine/modules/platform/platform.constants.js';
-import { withRetry, isNetworkError, isAuthError } from '@/engine/lib/retry.lib.js';
+import {
+  withRetry,
+  isNetworkError,
+  isAuthError,
+} from '@/engine/lib/retry.lib.js';
 import type {
   CreateBotRequestDto,
   CreateBotResponseDto,
@@ -21,10 +25,10 @@ import type {
 // the Application ID — removes the need for users to find it in the Developer Portal.
 async function fetchDiscordClientId(discordToken: string): Promise<string> {
   const response = await withRetry(
-    () => axios.get<{ id: string }>(
-      'https://discord.com/api/v10/users/@me',
-      { headers: { Authorization: `Bot ${discordToken}` } },
-    ),
+    () =>
+      axios.get<{ id: string }>('https://discord.com/api/v10/users/@me', {
+        headers: { Authorization: `Bot ${discordToken}` },
+      }),
     {
       maxAttempts: 3,
       initialDelayMs: 1000,
@@ -47,11 +51,20 @@ export class BotService {
     const sessionId = randomUUID();
     // Always resolve client ID from Discord — web clients omit it; overriding here
     // ensures the repo always receives an authoritative string value for storage.
-    const credentials = dto.credentials.platform === 'discord'
-      ? { ...dto.credentials, discordClientId: await fetchDiscordClientId(dto.credentials.discordToken) }
-      : dto.credentials;
+    const credentials =
+      dto.credentials.platform === 'discord'
+        ? {
+            ...dto.credentials,
+            discordClientId: await fetchDiscordClientId(
+              dto.credentials.discordToken,
+            ),
+          }
+        : dto.credentials;
 
-    const result = await botRepo.create(userId, sessionId, { ...dto, credentials });
+    const result = await botRepo.create(userId, sessionId, {
+      ...dto,
+      credentials,
+    });
 
     // DTO platform types use underscores (e.g. facebook_page) while runtime uses hyphens
     const platformStr = credentials.platform.replace('_', '-');
@@ -65,14 +78,20 @@ export class BotService {
         userId,
         sessionId,
       };
-    } else if (platformStr === Platforms.Telegram && 'telegramToken' in credentials) {
+    } else if (
+      platformStr === Platforms.Telegram &&
+      'telegramToken' in credentials
+    ) {
       sessionConfig = {
         botToken: credentials.telegramToken,
         prefix: dto.botPrefix,
         userId,
         sessionId,
       };
-    } else if (platformStr === Platforms.FacebookPage && 'fbAccessToken' in credentials) {
+    } else if (
+      platformStr === Platforms.FacebookPage &&
+      'fbAccessToken' in credentials
+    ) {
       sessionConfig = {
         pageAccessToken: credentials.fbAccessToken,
         pageId: credentials.fbPageId,
@@ -80,7 +99,10 @@ export class BotService {
         userId,
         sessionId,
       };
-    } else if (platformStr === Platforms.FacebookMessenger && 'appstate' in credentials) {
+    } else if (
+      platformStr === Platforms.FacebookMessenger &&
+      'appstate' in credentials
+    ) {
       sessionConfig = {
         appstate: credentials.appstate,
         prefix: dto.botPrefix,
@@ -102,48 +124,87 @@ export class BotService {
     return result;
   }
 
-  async getBot(userId: string, sessionId: string): Promise<GetBotDetailResponseDto | null> {
+  async getBot(
+    userId: string,
+    sessionId: string,
+  ): Promise<GetBotDetailResponseDto | null> {
     return botRepo.getById(userId, sessionId);
   }
 
-  async updateBot(userId: string, sessionId: string, dto: UpdateBotRequestDto): Promise<void> {
+  async updateBot(
+    userId: string,
+    sessionId: string,
+    dto: UpdateBotRequestDto,
+  ): Promise<void> {
     const botDetail = await botRepo.getById(userId, sessionId);
 
     // Re-fetch client ID on update
-    const credentials = dto.credentials.platform === 'discord'
-      ? { ...dto.credentials, discordClientId: await fetchDiscordClientId(dto.credentials.discordToken) }
-      : dto.credentials;
+    const credentials =
+      dto.credentials.platform === 'discord'
+        ? {
+            ...dto.credentials,
+            discordClientId: await fetchDiscordClientId(
+              dto.credentials.discordToken,
+            ),
+          }
+        : dto.credentials;
 
     // Determine if credentials changed so we can bypass live slash sync and force a DB hash reset
     const isCredentialsModified = (() => {
       if (!botDetail) return true;
-      if (botDetail.credentials.platform === 'discord' && credentials.platform === 'discord') {
-        return botDetail.credentials.discordToken !== credentials.discordToken ||
-               botDetail.credentials.discordClientId !== credentials.discordClientId;
+      if (
+        botDetail.credentials.platform === 'discord' &&
+        credentials.platform === 'discord'
+      ) {
+        return (
+          botDetail.credentials.discordToken !== credentials.discordToken ||
+          botDetail.credentials.discordClientId !== credentials.discordClientId
+        );
       }
-      if (botDetail.credentials.platform === 'telegram' && credentials.platform === 'telegram') {
-        return botDetail.credentials.telegramToken !== credentials.telegramToken;
+      if (
+        botDetail.credentials.platform === 'telegram' &&
+        credentials.platform === 'telegram'
+      ) {
+        return (
+          botDetail.credentials.telegramToken !== credentials.telegramToken
+        );
       }
-      if (botDetail.credentials.platform === 'facebook_page' && credentials.platform === 'facebook_page') {
-        return botDetail.credentials.fbAccessToken !== credentials.fbAccessToken ||
-               botDetail.credentials.fbPageId !== credentials.fbPageId;
+      if (
+        botDetail.credentials.platform === 'facebook_page' &&
+        credentials.platform === 'facebook_page'
+      ) {
+        return (
+          botDetail.credentials.fbAccessToken !== credentials.fbAccessToken ||
+          botDetail.credentials.fbPageId !== credentials.fbPageId
+        );
       }
-      if (botDetail.credentials.platform === 'facebook_messenger' && credentials.platform === 'facebook_messenger') {
+      if (
+        botDetail.credentials.platform === 'facebook_messenger' &&
+        credentials.platform === 'facebook_messenger'
+      ) {
         return botDetail.credentials.appstate !== credentials.appstate;
       }
       return true;
     })();
 
-    await botRepo.update(userId, sessionId, { ...dto, credentials }, isCredentialsModified);
+    await botRepo.update(
+      userId,
+      sessionId,
+      { ...dto, credentials },
+      isCredentialsModified,
+    );
 
     const platformStr = dto.credentials.platform.replace('_', '-');
     prefixManager.setPrefix(userId, platformStr, sessionId, dto.botPrefix);
-    
-    // Only trigger live slash sync if credentials didn't change. 
+
+    // Only trigger live slash sync if credentials didn't change.
     // If they changed, the UI restarts the bot immediately, which safely handles registration on boot.
     if (!isCredentialsModified) {
       triggerSlashSync(`${userId}:${platformStr}:${sessionId}`).catch((err) => {
-        logger.warn('[bot.service] Slash sync trigger failed on prefix update', { error: err });
+        logger.warn(
+          '[bot.service] Slash sync trigger failed on prefix update',
+          { error: err },
+        );
       });
     }
 
@@ -222,9 +283,13 @@ export class BotService {
     }
 
     // botDetail.platform is already hyphen-format ('facebook-page') — matches spawnDynamicSession contract
-    spawnDynamicSession(botDetail.platform, sessionConfig).catch((err: unknown) => {
-      logger.error('[bot.service] Failed to spawn session on startBot', { error: err });
-    });
+    spawnDynamicSession(botDetail.platform, sessionConfig).catch(
+      (err: unknown) => {
+        logger.error('[bot.service] Failed to spawn session on startBot', {
+          error: err,
+        });
+      },
+    );
   }
 
   /**
@@ -242,7 +307,9 @@ export class BotService {
       await sessionManager.stop(key);
     } catch {
       // Already stopped or process-restarted; DB flag update is sufficient
-      logger.warn(`[bot.service] stopBot: session ${key} not found in manager (already stopped)`);
+      logger.warn(
+        `[bot.service] stopBot: session ${key} not found in manager (already stopped)`,
+      );
     }
   }
 
@@ -260,7 +327,9 @@ export class BotService {
       try {
         await sessionManager.stop(key);
       } catch (e) {
-        logger.warn(`[bot.service] restartBot: failed to stop ${key}`, { error: e });
+        logger.warn(`[bot.service] restartBot: failed to stop ${key}`, {
+          error: e,
+        });
       }
     }
     // Unregister so startBot falls through to a fresh spawn with new credentials

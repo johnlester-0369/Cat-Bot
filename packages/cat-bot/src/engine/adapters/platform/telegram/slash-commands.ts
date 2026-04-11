@@ -47,7 +47,10 @@ function sanitizeTelegramCommandName(name: string): string {
  * then collapse any double-spaces left behind.
  */
 function sanitizeTelegramDescription(desc: string): string {
-  return desc.replace(/\p{Extended_Pictographic}/gu, '').replace(/\s{2,}/g, ' ').trim();
+  return desc
+    .replace(/\p{Extended_Pictographic}/gu, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
 }
 
 /**
@@ -82,7 +85,11 @@ export async function registerSlashMenu(
     // Skip the Bot API call when already registered AND the command set is identical.
     // Hash mismatch means a command was added, removed, or reconfigured since last deploy.
     // forceRegister overrides the skip — a dashboard toggle changes the enabled-set without altering the hash.
-    if (!forceRegister && credential?.isCommandRegister && credential?.commandHash === currentHash) {
+    if (
+      !forceRegister &&
+      credential?.isCommandRegister &&
+      credential?.commandHash === currentHash
+    ) {
       sessionLogger.info(
         '[telegram] Slash commands up-to-date (hash match) — skipping registration',
       );
@@ -145,7 +152,11 @@ export async function registerSlashMenu(
     // not a null check. Storing currentHash on clear means this guard fires correctly on
     // every subsequent restart without an unnecessary Bot API round-trip.
     // forceRegister overrides so a toggle re-confirms the cleared state even without a hash change.
-    if (!forceRegister && !credential?.isCommandRegister && credential?.commandHash === currentHash) {
+    if (
+      !forceRegister &&
+      !credential?.isCommandRegister &&
+      credential?.commandHash === currentHash
+    ) {
       sessionLogger.info(
         `[telegram] Slash commands already cleared (hash match) — skipping`,
       );

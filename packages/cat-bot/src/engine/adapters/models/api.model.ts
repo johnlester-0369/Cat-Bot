@@ -58,7 +58,10 @@ export class UnifiedApi {
     _msg: string | SendPayload,
     _threadID: string,
   ): Promise<string | undefined> {
-    logger.debug('[UnifiedApi] sendMessage called', { platform: this.platform, threadID: _threadID });
+    logger.debug('[UnifiedApi] sendMessage called', {
+      platform: this.platform,
+      threadID: _threadID,
+    });
     throw new Error(
       `sendMessage not implemented on platform: ${this.platform}`,
     );
@@ -68,7 +71,10 @@ export class UnifiedApi {
    * Delete a previously sent message.
    */
   async unsendMessage(_messageID: string): Promise<void> {
-    logger.debug('[UnifiedApi] unsendMessage called', { platform: this.platform, messageID: _messageID });
+    logger.debug('[UnifiedApi] unsendMessage called', {
+      platform: this.platform,
+      messageID: _messageID,
+    });
     throw new Error(
       `unsendMessage is not supported on platform: ${this.platform}`,
     );
@@ -80,7 +86,10 @@ export class UnifiedApi {
    * Throws by default — override on platforms that expose an edit API (fca, Telegram, Discord).
    */
   async editMessage(_messageID: string, _newBody: string): Promise<void> {
-    logger.debug('[UnifiedApi] editMessage called', { platform: this.platform, messageID: _messageID });
+    logger.debug('[UnifiedApi] editMessage called', {
+      platform: this.platform,
+      messageID: _messageID,
+    });
     throw new Error(
       `editMessage is not supported on platform: ${this.platform}`,
     );
@@ -90,7 +99,10 @@ export class UnifiedApi {
    * Fetch display names for an array of user IDs.
    */
   async getUserInfo(_userIds: string[]): Promise<Record<string, UserInfo>> {
-    logger.debug('[UnifiedApi] getUserInfo called', { platform: this.platform, count: _userIds.length });
+    logger.debug('[UnifiedApi] getUserInfo called', {
+      platform: this.platform,
+      count: _userIds.length,
+    });
     throw new Error(
       `getUserInfo not implemented on platform: ${this.platform}`,
     );
@@ -102,7 +114,10 @@ export class UnifiedApi {
    * FB-Page and FB-Messenger do not support group renaming via their APIs.
    */
   async setGroupName(_threadID: string, _name: string): Promise<void> {
-    logger.debug('[UnifiedApi] setGroupName called', { platform: this.platform, threadID: _threadID });
+    logger.debug('[UnifiedApi] setGroupName called', {
+      platform: this.platform,
+      threadID: _threadID,
+    });
     throw new Error(
       `setGroupName is not supported on platform: ${this.platform}`,
     );
@@ -117,7 +132,10 @@ export class UnifiedApi {
     _threadID: string,
     _imageSource: Buffer | Readable | string,
   ): Promise<void> {
-    logger.debug('[UnifiedApi] setGroupImage called', { platform: this.platform, threadID: _threadID });
+    logger.debug('[UnifiedApi] setGroupImage called', {
+      platform: this.platform,
+      threadID: _threadID,
+    });
     throw new Error(
       `setGroupImage is not supported on platform: ${this.platform}`,
     );
@@ -128,7 +146,12 @@ export class UnifiedApi {
     _messageID: string,
     _emoji: string,
   ): Promise<void> {
-    logger.debug('[UnifiedApi] reactToMessage called', { platform: this.platform, threadID: _threadID, messageID: _messageID, emoji: _emoji });
+    logger.debug('[UnifiedApi] reactToMessage called', {
+      platform: this.platform,
+      threadID: _threadID,
+      messageID: _messageID,
+      emoji: _emoji,
+    });
     throw new Error(
       `reactToMessage is not supported on platform: ${this.platform}`,
     );
@@ -138,7 +161,10 @@ export class UnifiedApi {
    * Remove the group chat or server image (set it back to default/no image).
    */
   async removeGroupImage(_threadID: string): Promise<void> {
-    logger.debug('[UnifiedApi] removeGroupImage called', { platform: this.platform, threadID: _threadID });
+    logger.debug('[UnifiedApi] removeGroupImage called', {
+      platform: this.platform,
+      threadID: _threadID,
+    });
     throw new Error(
       `removeGroupImage is not supported on platform: ${this.platform}`,
     );
@@ -148,7 +174,11 @@ export class UnifiedApi {
    * Add a user to the group chat or server.
    */
   async addUserToGroup(_threadID: string, _userID: string): Promise<void> {
-    logger.debug('[UnifiedApi] addUserToGroup called', { platform: this.platform, threadID: _threadID, userID: _userID });
+    logger.debug('[UnifiedApi] addUserToGroup called', {
+      platform: this.platform,
+      threadID: _threadID,
+      userID: _userID,
+    });
     throw new Error(
       `addUserToGroup is not supported on platform: ${this.platform}`,
     );
@@ -158,7 +188,11 @@ export class UnifiedApi {
    * Remove (kick) a user from the group chat or server.
    */
   async removeUserFromGroup(_threadID: string, _userID: string): Promise<void> {
-    logger.debug('[UnifiedApi] removeUserFromGroup called', { platform: this.platform, threadID: _threadID, userID: _userID });
+    logger.debug('[UnifiedApi] removeUserFromGroup called', {
+      platform: this.platform,
+      threadID: _threadID,
+      userID: _userID,
+    });
     throw new Error(
       `removeUserFromGroup is not supported on platform: ${this.platform}`,
     );
@@ -169,7 +203,11 @@ export class UnifiedApi {
    * fca-unofficial: maps to api.changeThreadEmoji. Other platforms may not support this.
    */
   async setGroupReaction(_threadID: string, _emoji: string): Promise<void> {
-    logger.debug('[UnifiedApi] setGroupReaction called', { platform: this.platform, threadID: _threadID, emoji: _emoji });
+    logger.debug('[UnifiedApi] setGroupReaction called', {
+      platform: this.platform,
+      threadID: _threadID,
+      emoji: _emoji,
+    });
     throw new Error(
       `setGroupReaction is not supported on platform: ${this.platform}`,
     );
@@ -183,7 +221,11 @@ export class UnifiedApi {
     _userID: string,
     _nickname: string,
   ): Promise<void> {
-    logger.debug('[UnifiedApi] setNickname called', { platform: this.platform, threadID: _threadID, userID: _userID });
+    logger.debug('[UnifiedApi] setNickname called', {
+      platform: this.platform,
+      threadID: _threadID,
+      userID: _userID,
+    });
     throw new Error(
       `setNickname not implemented on platform: ${this.platform}`,
     );
@@ -199,7 +241,10 @@ export class UnifiedApi {
     _threadID: string,
     _options: ReplyMessageOptions = {},
   ): Promise<unknown> {
-    logger.debug('[UnifiedApi] replyMessage called', { platform: this.platform, threadID: _threadID });
+    logger.debug('[UnifiedApi] replyMessage called', {
+      platform: this.platform,
+      threadID: _threadID,
+    });
     throw new Error(
       `replyMessage is not supported on platform: ${this.platform}`,
     );
@@ -224,7 +269,10 @@ export class UnifiedApi {
    *   FB Page      → always 1:1; name derived from getUserInfo on the sender
    */
   async getFullThreadInfo(_threadID: string): Promise<UnifiedThreadInfo> {
-    logger.debug('[UnifiedApi] getFullThreadInfo called', { platform: this.platform, threadID: _threadID });
+    logger.debug('[UnifiedApi] getFullThreadInfo called', {
+      platform: this.platform,
+      threadID: _threadID,
+    });
     throw new Error(
       `getFullThreadInfo not implemented on platform: ${this.platform}`,
     );
@@ -240,7 +288,10 @@ export class UnifiedApi {
    *   FB Page      → Graph API GET /{userID}?fields=name
    */
   async getFullUserInfo(_userID: string): Promise<UnifiedUserInfo> {
-    logger.debug('[UnifiedApi] getFullUserInfo called', { platform: this.platform, userID: _userID });
+    logger.debug('[UnifiedApi] getFullUserInfo called', {
+      platform: this.platform,
+      userID: _userID,
+    });
     throw new Error(
       `getFullUserInfo not implemented on platform: ${this.platform}`,
     );
@@ -253,8 +304,13 @@ export class UnifiedApi {
    *   FB Messenger/Page — delegates to the database layer (bot_users populated on prior messages)
    */
   async getUserName(_userID: string): Promise<string> {
-    logger.debug('[UnifiedApi] getUserName called', { platform: this.platform, userID: _userID });
-    throw new Error(`getUserName not implemented on platform: ${this.platform}`);
+    logger.debug('[UnifiedApi] getUserName called', {
+      platform: this.platform,
+      userID: _userID,
+    });
+    throw new Error(
+      `getUserName not implemented on platform: ${this.platform}`,
+    );
   }
 
   /**
@@ -264,7 +320,12 @@ export class UnifiedApi {
    *   FB Messenger/Page — delegates to the database layer (bot_threads populated on prior messages)
    */
   async getThreadName(_threadID: string): Promise<string> {
-    logger.debug('[UnifiedApi] getThreadName called', { platform: this.platform, threadID: _threadID });
-    throw new Error(`getThreadName not implemented on platform: ${this.platform}`);
+    logger.debug('[UnifiedApi] getThreadName called', {
+      platform: this.platform,
+      threadID: _threadID,
+    });
+    throw new Error(
+      `getThreadName not implemented on platform: ${this.platform}`,
+    );
   }
 }

@@ -111,12 +111,17 @@ class DiscordApi extends UnifiedApi {
     const c = this.#interaction.client;
     try {
       const ch = await c.channels.fetch(threadID);
-      if (ch && 'send' in ch) return ch as import('discord.js').TextBasedChannel;
-    } catch { /* not a channel ID — fall through to DM attempt */ }
+      if (ch && 'send' in ch)
+        return ch as import('discord.js').TextBasedChannel;
+    } catch {
+      /* not a channel ID — fall through to DM attempt */
+    }
     try {
       const u = await c.users.fetch(threadID);
       return await u.createDM();
-    } catch { return null; }
+    } catch {
+      return null;
+    }
   }
 
   // #send is passed as a closure so lib functions never reference DiscordApi internals
@@ -133,7 +138,7 @@ class DiscordApi extends UnifiedApi {
         const text =
           typeof msg === 'string'
             ? msg
-            : ((msg.message ?? (msg as unknown as { body?: string }).body) ?? '');
+            : (msg.message ?? (msg as unknown as { body?: string }).body ?? '');
         const sent = await crossCh.send(text);
         return (sent as unknown as { id?: string })?.id;
       }
@@ -179,7 +184,10 @@ class DiscordApi extends UnifiedApi {
   }
 
   override setGroupName(_threadID: string, name: string): Promise<void> {
-    logger.debug('[discord] setGroupName called', { threadID: _threadID, name });
+    logger.debug('[discord] setGroupName called', {
+      threadID: _threadID,
+      name,
+    });
     return setGroupNameLib(this.#interaction.guild, name);
   }
   override setGroupImage(
@@ -194,18 +202,27 @@ class DiscordApi extends UnifiedApi {
     return removeGroupImageLib(this.#interaction.guild);
   }
   override addUserToGroup(_threadID: string, _userID: string): Promise<void> {
-    logger.debug('[discord] addUserToGroup called', { threadID: _threadID, userID: _userID });
+    logger.debug('[discord] addUserToGroup called', {
+      threadID: _threadID,
+      userID: _userID,
+    });
     return addUserToGroupLib();
   }
   override removeUserFromGroup(
     _threadID: string,
     userID: string,
   ): Promise<void> {
-    logger.debug('[discord] removeUserFromGroup called', { threadID: _threadID, userID });
+    logger.debug('[discord] removeUserFromGroup called', {
+      threadID: _threadID,
+      userID,
+    });
     return removeUserFromGroupLib(this.#interaction.guild, userID);
   }
   override setGroupReaction(_threadID: string, _emoji: string): Promise<void> {
-    logger.debug('[discord] setGroupReaction called', { threadID: _threadID, emoji: _emoji });
+    logger.debug('[discord] setGroupReaction called', {
+      threadID: _threadID,
+      emoji: _emoji,
+    });
     return setGroupReactionLib();
   }
 
@@ -223,7 +240,11 @@ class DiscordApi extends UnifiedApi {
     const payloadWithMentions = buildDiscordMentionMsg({
       message: msgArg,
       // Coalescing undefined to empty array avoids assignment mismatches with strict exactOptionalPropertyTypes
-      mentions: options.mentions ?? (typeof options.message === 'object' ? (options.message.mentions ?? []) : []),
+      mentions:
+        options.mentions ??
+        (typeof options.message === 'object'
+          ? (options.message.mentions ?? [])
+          : []),
     }) as SendPayload;
     return (async () => {
       const crossCh = await this.#resolveChannel(_threadID);
@@ -232,26 +253,34 @@ class DiscordApi extends UnifiedApi {
         // Forward attachments and buttons — these were previously silently dropped, causing
         // command modules (e.g. /example_buttons) to send messages with no button components.
         // exactOptionalPropertyTypes requires conditional spreads instead of `key: undefined`.
-        ...(options.attachment !== undefined ? { attachment: options.attachment } : {}),
-        ...(options.attachment_url !== undefined ? { attachment_url: options.attachment_url } : {}),
+        ...(options.attachment !== undefined
+          ? { attachment: options.attachment }
+          : {}),
+        ...(options.attachment_url !== undefined
+          ? { attachment_url: options.attachment_url }
+          : {}),
         ...(options.button !== undefined ? { button: options.button } : {}),
-        ...(options.reply_to_message_id !== undefined ? { reply_to_message_id: options.reply_to_message_id } : {}),
+        ...(options.reply_to_message_id !== undefined
+          ? { reply_to_message_id: options.reply_to_message_id }
+          : {}),
       };
       if (crossCh) {
         // Cross-channel reply (e.g. callad relaying to admin DM) — bypass the interaction API
-        return replyMessageLib(
-          async (content, files, replyId, components) => {
-            const sOpts: Record<string, unknown> = { content };
-            if (replyId) sOpts['reply'] = { messageReference: replyId, failIfNotExists: false };
-            if (files.length > 0) sOpts['files'] = files;
-            if (components && components.length > 0) sOpts['components'] = components;
-            const sent = await (crossCh as import('discord.js').TextChannel).send(
-              sOpts as Parameters<import('discord.js').TextChannel['send']>[0],
-            );
-            return (sent as unknown as { id?: string })?.id;
-          },
-          resolvedOpts,
-        );
+        return replyMessageLib(async (content, files, replyId, components) => {
+          const sOpts: Record<string, unknown> = { content };
+          if (replyId)
+            sOpts['reply'] = {
+              messageReference: replyId,
+              failIfNotExists: false,
+            };
+          if (files.length > 0) sOpts['files'] = files;
+          if (components && components.length > 0)
+            sOpts['components'] = components;
+          const sent = await (crossCh as import('discord.js').TextChannel).send(
+            sOpts as Parameters<import('discord.js').TextChannel['send']>[0],
+          );
+          return (sent as unknown as { id?: string })?.id;
+        }, resolvedOpts);
       }
       // Same-channel: forward button components from lib to #send so they appear on reply/followUp
       return replyMessageLib(
@@ -267,7 +296,11 @@ class DiscordApi extends UnifiedApi {
     messageID: string,
     emoji: string,
   ): Promise<void> {
-    logger.debug('[discord] reactToMessage called', { threadID: _threadID, messageID, emoji });
+    logger.debug('[discord] reactToMessage called', {
+      threadID: _threadID,
+      messageID,
+      emoji,
+    });
     return reactToMessageLib(
       this.#interaction.channel as TextChannel,
       messageID,
@@ -288,7 +321,10 @@ class DiscordApi extends UnifiedApi {
     userID: string,
     nickname: string,
   ): Promise<void> {
-    logger.debug('[discord] setNickname called', { threadID: _threadID, userID });
+    logger.debug('[discord] setNickname called', {
+      threadID: _threadID,
+      userID,
+    });
     return setNicknameLib(this.#interaction.guild, userID, nickname);
   }
 
@@ -324,14 +360,20 @@ class DiscordApi extends UnifiedApi {
    * Falls back to database lookup when a member is not cached (e.g. DMs with no guild context).
    */
   override getUserName(userID: string): Promise<string> {
-    logger.debug('[discord] getUserName called (cache-first with db fallback)', { userID });
+    logger.debug(
+      '[discord] getUserName called (cache-first with db fallback)',
+      { userID },
+    );
     if (this.#interaction.user.id === userID) {
       // Cast to any-shaped member so we can read displayName without importing GuildMember
-      const selfName = (this.#interaction.member as Record<string, unknown> | null)?.['displayName'] as string | undefined;
+      const selfName = (
+        this.#interaction.member as Record<string, unknown> | null
+      )?.['displayName'] as string | undefined;
       return Promise.resolve(selfName || this.#interaction.user.username);
     }
     const member = this.#interaction.guild?.members.cache.get(userID);
-    if (member) return Promise.resolve(member.displayName || member.user.username);
+    if (member)
+      return Promise.resolve(member.displayName || member.user.username);
     return dbGetUserName(userID);
   }
 
@@ -340,7 +382,10 @@ class DiscordApi extends UnifiedApi {
    * Falls back to database lookup for DM interactions where no guild is present.
    */
   override getThreadName(_threadID: string): Promise<string> {
-    logger.debug('[discord] getThreadName called (cache-first with db fallback)', { threadID: _threadID });
+    logger.debug(
+      '[discord] getThreadName called (cache-first with db fallback)',
+      { threadID: _threadID },
+    );
     const name = this.#interaction.guild?.name;
     if (name) return Promise.resolve(name);
     return dbGetThreadName(_threadID);
@@ -400,12 +445,17 @@ export function createDiscordChannelApi(
     if (!targetId || targetId === channel.id || !client) return channel;
     try {
       const ch = await client.channels.fetch(targetId);
-      if (ch && 'send' in ch) return ch as import('discord.js').TextBasedChannel;
-    } catch { /* not a channel ID — try opening a DM to this user ID */ }
+      if (ch && 'send' in ch)
+        return ch as import('discord.js').TextBasedChannel;
+    } catch {
+      /* not a channel ID — try opening a DM to this user ID */
+    }
     try {
       const u = await client.users.fetch(targetId);
       return await u.createDM();
-    } catch { return channel; }
+    } catch {
+      return channel;
+    }
   }
 
   api.sendMessage = (msg, _threadID) => {
@@ -415,19 +465,28 @@ export function createDiscordChannelApi(
       if (targetCh !== channel) {
         // Cross-channel: resolve the target and send directly — the primary fix for callad
         // forwarding user messages to admin DMs or relay threads on Discord
-        const text = typeof msg === 'string'
-          ? msg
-          : ((buildDiscordMentionMsg(msg) as SendPayload).message ?? '');
-        const sent = await (targetCh as import('discord.js').TextChannel).send(text);
+        const text =
+          typeof msg === 'string'
+            ? msg
+            : ((buildDiscordMentionMsg(msg) as SendPayload).message ?? '');
+        const sent = await (targetCh as import('discord.js').TextChannel).send(
+          text,
+        );
         return sent.id;
       }
-      return sendMessageLib(channelSendFn, buildDiscordMentionMsg(msg) as string | SendPayload);
+      return sendMessageLib(
+        channelSendFn,
+        buildDiscordMentionMsg(msg) as string | SendPayload,
+      );
     })();
   };
   // TextBasedChannel cast — unsendMessageLib expects TextChannel but the channel path accepts any text channel
   api.unsendMessage = (messageID) => {
     logger.debug('[discord] unsendMessage called', { messageID });
-    return unsendMessageLib(channel as import('discord.js').TextChannel, messageID);
+    return unsendMessageLib(
+      channel as import('discord.js').TextChannel,
+      messageID,
+    );
   };
 
   api.getUserInfo = (userIds) => {
@@ -455,59 +514,84 @@ export function createDiscordChannelApi(
     return removeGroupImageLib(guild);
   };
   api.addUserToGroup = (_tid, _uid) => {
-    logger.debug('[discord] addUserToGroup called', { threadID: _tid, userID: _uid });
+    logger.debug('[discord] addUserToGroup called', {
+      threadID: _tid,
+      userID: _uid,
+    });
     return addUserToGroupLib();
   };
   api.removeUserFromGroup = (_tid, uid) => {
-    logger.debug('[discord] removeUserFromGroup called', { threadID: _tid, userID: uid });
+    logger.debug('[discord] removeUserFromGroup called', {
+      threadID: _tid,
+      userID: uid,
+    });
     return removeUserFromGroupLib(guild, uid);
   };
   api.setGroupReaction = (_tid, _e) => {
-    logger.debug('[discord] setGroupReaction called', { threadID: _tid, emoji: _e });
+    logger.debug('[discord] setGroupReaction called', {
+      threadID: _tid,
+      emoji: _e,
+    });
     return setGroupReactionLib();
   };
 
   api.replyMessage = async (_threadID, options) => {
     logger.debug('[discord] replyMessage called', { threadID: _threadID });
     const targetCh = await resolveChannel(_threadID);
-    const msgBody = (buildDiscordMentionMsg({
-      message: typeof options?.message === 'string'
-        ? options.message
-        : (options?.message?.message ?? options?.message?.body ?? ''),
-      mentions: options?.mentions ?? (typeof options?.message === 'object' ? (options.message.mentions ?? []) : []),
-    }) as SendPayload).message ?? '';
+    const msgBody =
+      (
+        buildDiscordMentionMsg({
+          message:
+            typeof options?.message === 'string'
+              ? options.message
+              : (options?.message?.message ?? options?.message?.body ?? ''),
+          mentions:
+            options?.mentions ??
+            (typeof options?.message === 'object'
+              ? (options.message.mentions ?? [])
+              : []),
+        }) as SendPayload
+      ).message ?? '';
     const resolvedOpts = {
       message: msgBody,
       // Forward all option fields — same fix as DiscordApi.replyMessage; buttons, attachments,
       // and reply threading are preserved so callad relay messages are fully featured.
-      ...(options?.attachment !== undefined ? { attachment: options.attachment } : {}),
-      ...(options?.attachment_url !== undefined ? { attachment_url: options.attachment_url } : {}),
+      ...(options?.attachment !== undefined
+        ? { attachment: options.attachment }
+        : {}),
+      ...(options?.attachment_url !== undefined
+        ? { attachment_url: options.attachment_url }
+        : {}),
       ...(options?.button !== undefined ? { button: options.button } : {}),
-      ...(options?.reply_to_message_id !== undefined ? { reply_to_message_id: options.reply_to_message_id } : {}),
+      ...(options?.reply_to_message_id !== undefined
+        ? { reply_to_message_id: options.reply_to_message_id }
+        : {}),
     };
     // Skip thread-pinning when sending cross-channel — the reply_to_message_id references a
     // message in the originating channel which does not exist in the target DM/channel.
-      return replyMessageLib(
-        async (content, files, replyId, components) => {
-          const sOpts: Record<string, unknown> = { content };
-          // Apply reply threading whenever replyId is present, regardless of whether the target is
-          // the originating channel or a cross-channel DM/relay. The Discord API requires only that
-          // messageReference.message_id points to a message that exists in targetCh — callad.ts
-          // always satisfies this contract (userMessageID is in userThreadID, adminMessageID in adminThreadID).
-          if (replyId) sOpts['reply'] = { messageReference: replyId, failIfNotExists: false };
-          if (files.length > 0) sOpts['files'] = files;
-          if (components && components.length > 0) sOpts['components'] = components;
-          const sent = await (targetCh as import('discord.js').TextChannel).send(
-          sOpts as Parameters<import('discord.js').TextChannel['send']>[0],
-        );
-        return (sent as unknown as { id?: string })?.id;
-      },
-      resolvedOpts,
-    );
+    return replyMessageLib(async (content, files, replyId, components) => {
+      const sOpts: Record<string, unknown> = { content };
+      // Apply reply threading whenever replyId is present, regardless of whether the target is
+      // the originating channel or a cross-channel DM/relay. The Discord API requires only that
+      // messageReference.message_id points to a message that exists in targetCh — callad.ts
+      // always satisfies this contract (userMessageID is in userThreadID, adminMessageID in adminThreadID).
+      if (replyId)
+        sOpts['reply'] = { messageReference: replyId, failIfNotExists: false };
+      if (files.length > 0) sOpts['files'] = files;
+      if (components && components.length > 0) sOpts['components'] = components;
+      const sent = await (targetCh as import('discord.js').TextChannel).send(
+        sOpts as Parameters<import('discord.js').TextChannel['send']>[0],
+      );
+      return (sent as unknown as { id?: string })?.id;
+    }, resolvedOpts);
   };
 
   api.reactToMessage = (_tid, mid, emoji) => {
-    logger.debug('[discord] reactToMessage called', { threadID: _tid, messageID: mid, emoji });
+    logger.debug('[discord] reactToMessage called', {
+      threadID: _tid,
+      messageID: mid,
+      emoji,
+    });
     return reactToMessageLib(channel, mid, emoji, rawMessage);
   };
   api.editMessage = (mid, body) => {
@@ -515,7 +599,10 @@ export function createDiscordChannelApi(
     return editMessageLib(channel, mid, body);
   };
   api.setNickname = (_tid, uid, nick) => {
-    logger.debug('[discord] setNickname called', { threadID: _tid, userID: uid });
+    logger.debug('[discord] setNickname called', {
+      threadID: _tid,
+      userID: uid,
+    });
     return setNicknameLib(guild, uid, nick);
   };
   api.getBotID = () => {
@@ -533,9 +620,13 @@ export function createDiscordChannelApi(
   // Cache-first name resolution — GuildMemberManager.cache is populated by GatewayIntentBits.GuildMembers
   // events so the common case (members who have sent messages recently) requires zero REST.
   api.getUserName = (uid) => {
-    logger.debug('[discord] getUserName called (cache-first with db fallback)', { userID: uid });
+    logger.debug(
+      '[discord] getUserName called (cache-first with db fallback)',
+      { userID: uid },
+    );
     const member = guild?.members.cache.get(uid);
-    if (member) return Promise.resolve(member.displayName || member.user.username);
+    if (member)
+      return Promise.resolve(member.displayName || member.user.username);
     // client.users.cache holds Users (without guild-specific displayName) as a last resort
     const user = client?.users.cache.get(uid);
     if (user) return Promise.resolve(user.username);
@@ -543,7 +634,10 @@ export function createDiscordChannelApi(
     return dbGetUserName(uid);
   };
   api.getThreadName = (_tid) => {
-    logger.debug('[discord] getThreadName called (cache-first with db fallback)', { threadID: _tid });
+    logger.debug(
+      '[discord] getThreadName called (cache-first with db fallback)',
+      { threadID: _tid },
+    );
     // guild.name is the server name; channel.name is the channel name — guild is preferred since
     // it represents the broader "thread" concept used in unified commands like /thread
     const name = guild?.name || channel.name;

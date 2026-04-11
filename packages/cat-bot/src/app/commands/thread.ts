@@ -25,7 +25,8 @@ export const config = {
   version: '1.0.0',
   role: Role.BOT_ADMIN,
   author: 'John Lester',
-  description: 'Manage thread bans for this session: ban or unban by platform thread ID',
+  description:
+    'Manage thread bans for this session: ban or unban by platform thread ID',
   category: 'Admin',
   usage: '<ban|unban> <tid> [reason]',
   cooldown: 5,
@@ -56,7 +57,10 @@ export const onCommand = async ({
   const { userId, platform, sessionId } = native;
 
   if (!userId || !platform || !sessionId) {
-    await chat.replyMessage({ style: MessageStyle.MARKDOWN, message: '❌ Cannot resolve session identity.' });
+    await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
+      message: '❌ Cannot resolve session identity.',
+    });
     return;
   }
 
@@ -66,7 +70,10 @@ export const onCommand = async ({
   if (sub === 'ban') {
     const tid = args[1];
     if (!tid) {
-      await chat.replyMessage({ style: MessageStyle.MARKDOWN, message: `❌ Usage: ${prefix}thread ban <tid> [reason]` });
+      await chat.replyMessage({
+        style: MessageStyle.MARKDOWN,
+        message: `❌ Usage: ${prefix}thread ban <tid> [reason]`,
+      });
       return;
     }
     // Remaining args after tid are joined as the reason so multi-word reasons work
@@ -74,7 +81,10 @@ export const onCommand = async ({
     await banThread(userId, platform, sessionId, tid, reason);
     const threadName = await thread.getName(tid);
     const reasonSuffix = reason ? ` — Reason: ${reason}` : '';
-    await chat.replyMessage({ style: MessageStyle.MARKDOWN, message: `🚫 **${threadName}** (\`${tid}\`) has been banned from this session.${reasonSuffix}` });
+    await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
+      message: `🚫 **${threadName}** (\`${tid}\`) has been banned from this session.${reasonSuffix}`,
+    });
     return;
   }
 
@@ -82,12 +92,18 @@ export const onCommand = async ({
   if (sub === 'unban') {
     const tid = args[1];
     if (!tid) {
-      await chat.replyMessage({ style: MessageStyle.MARKDOWN, message: `❌ Usage: ${prefix}thread unban <tid>` });
+      await chat.replyMessage({
+        style: MessageStyle.MARKDOWN,
+        message: `❌ Usage: ${prefix}thread unban <tid>`,
+      });
       return;
     }
     await unbanThread(userId, platform, sessionId, tid);
     const threadName = await thread.getName(tid);
-    await chat.replyMessage({ style: MessageStyle.MARKDOWN, message: `✅ **${threadName}** (\`${tid}\`) has been unbanned from this session.` });
+    await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
+      message: `✅ **${threadName}** (\`${tid}\`) has been unbanned from this session.`,
+    });
     return;
   }
 

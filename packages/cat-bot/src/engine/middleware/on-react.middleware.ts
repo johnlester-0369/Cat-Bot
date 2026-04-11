@@ -10,7 +10,10 @@
  * Add middleware via use.onReact([yourMiddleware]) in src/middleware/index.ts.
  */
 
-import type { MiddlewareFn, OnReactCtx } from '@/engine/types/middleware.types.js';
+import type {
+  MiddlewareFn,
+  OnReactCtx,
+} from '@/engine/types/middleware.types.js';
 
 /**
  * Default passthrough — emoji and messageID were validated by dispatchOnReact before this runs.

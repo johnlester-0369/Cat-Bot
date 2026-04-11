@@ -17,7 +17,10 @@ import type { Context } from 'telegraf';
 import { Platforms } from '@/engine/modules/platform/platform.constants.js';
 import type { Message, MessageEntity, PhotoSize } from 'telegraf/types';
 import type { MentionEntry } from '@/engine/adapters/models/api.model.js';
-import { EventType, LogMessageType } from '@/engine/adapters/models/enums/index.js';
+import {
+  EventType,
+  LogMessageType,
+} from '@/engine/adapters/models/enums/index.js';
 
 // ── Attachment shape used before CDN URL resolution ────────────────────────────
 

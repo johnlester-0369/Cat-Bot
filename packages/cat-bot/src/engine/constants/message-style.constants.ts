@@ -27,4 +27,5 @@ export const MessageStyle = {
   MARKDOWN: 'markdown',
 } as const;
 
-export type MessageStyleValue = (typeof MessageStyle)[keyof typeof MessageStyle];
+export type MessageStyleValue =
+  (typeof MessageStyle)[keyof typeof MessageStyle];

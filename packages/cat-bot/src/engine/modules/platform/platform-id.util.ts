@@ -9,7 +9,10 @@
  * toBotUserData).  No other layer ever reads or writes raw platform integers.
  */
 
-import { PLATFORM_TO_ID, ID_TO_PLATFORM } from '@/engine/modules/platform/platform.constants.js';
+import {
+  PLATFORM_TO_ID,
+  ID_TO_PLATFORM,
+} from '@/engine/modules/platform/platform.constants.js';
 
 /**
  * Converts a runtime platform string to its assigned database integer.

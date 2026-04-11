@@ -33,8 +33,8 @@ import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const ALGORITHM = 'aes-256-gcm';
-const IV_LENGTH = 12;    // 96-bit IV — NIST recommended for GCM
-const KEY_LENGTH = 32;   // 256-bit key
+const IV_LENGTH = 12; // 96-bit IV — NIST recommended for GCM
+const KEY_LENGTH = 32; // 256-bit key
 const ENCRYPTED_PREFIX = 'enc:v1:';
 
 // ── Key derivation ────────────────────────────────────────────────────────────
@@ -49,14 +49,14 @@ function getKey(): Buffer {
   if (!keyHex) {
     throw new Error(
       '[crypto] ENCRYPTION_KEY environment variable is required for credential encryption. ' +
-      'Generate a secure key with: openssl rand -hex 32',
+        'Generate a secure key with: openssl rand -hex 32',
     );
   }
   // Reject keys that are clearly wrong length before attempting the Buffer decode
   if (keyHex.length !== KEY_LENGTH * 2) {
     throw new Error(
       `[crypto] ENCRYPTION_KEY must be exactly 64 hex characters (32 bytes / 256 bits). ` +
-      `Got ${keyHex.length} characters.`,
+        `Got ${keyHex.length} characters.`,
     );
   }
   const key = Buffer.from(keyHex, 'hex');
@@ -64,7 +64,7 @@ function getKey(): Buffer {
   if (key.length !== KEY_LENGTH) {
     throw new Error(
       '[crypto] ENCRYPTION_KEY contains non-hex characters. ' +
-      'Use only 0-9 and a-f characters.',
+        'Use only 0-9 and a-f characters.',
     );
   }
   return key;
@@ -93,8 +93,10 @@ export function encrypt(plaintext: string): string {
 
   return (
     ENCRYPTED_PREFIX +
-    iv.toString('base64') + ':' +
-    authTag.toString('base64') + ':' +
+    iv.toString('base64') +
+    ':' +
+    authTag.toString('base64') +
+    ':' +
     ciphertext.toString('base64')
   );
 }
@@ -122,22 +124,19 @@ export function decrypt(value: string): string {
   if (parts.length !== 3 || !parts[0] || !parts[1] || !parts[2]) {
     throw new Error(
       '[crypto] Malformed encrypted credential value. ' +
-      'Expected format: enc:v1:<iv>:<authTag>:<ciphertext>',
+        'Expected format: enc:v1:<iv>:<authTag>:<ciphertext>',
     );
   }
 
-  const iv         = Buffer.from(parts[0], 'base64');
-  const authTag    = Buffer.from(parts[1], 'base64');
+  const iv = Buffer.from(parts[0], 'base64');
+  const authTag = Buffer.from(parts[1], 'base64');
   const ciphertext = Buffer.from(parts[2], 'base64');
 
   const decipher = createDecipheriv(ALGORITHM, key, iv);
   // setAuthTag must be called before final() — GCM verification happens at final()
   decipher.setAuthTag(authTag);
 
-  return (
-    decipher.update(ciphertext).toString('utf8') +
-    decipher.final('utf8')
-  );
+  return decipher.update(ciphertext).toString('utf8') + decipher.final('utf8');
 }
 
 /**

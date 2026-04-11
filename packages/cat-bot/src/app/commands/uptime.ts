@@ -25,7 +25,8 @@ export const config = {
   version: '1.0.0',
   role: Role.ANYONE,
   author: 'John Lester',
-  description: 'Shows how long the bot has been running and a live resource snapshot',
+  description:
+    'Shows how long the bot has been running and a live resource snapshot',
   category: 'Info',
   usage: '',
   cooldown: 5,
@@ -45,31 +46,39 @@ function formatBytes(bytes: number): string {
     unitIndex++;
   }
   // Show one decimal place only when the value is smaller than 10 to avoid "9.9 GB" → "10.0 GB" jitter
-  const formatted = value < 10 && unitIndex > 0 ? value.toFixed(1) : Math.round(value).toString();
+  const formatted =
+    value < 10 && unitIndex > 0
+      ? value.toFixed(1)
+      : Math.round(value).toString();
   return `${formatted} ${units[unitIndex] ?? 'Bytes'}`;
 }
 
-export const onCommand = async ({ chat, startTime, native }: AppCtx): Promise<void> => {
+export const onCommand = async ({
+  chat,
+  startTime,
+  native,
+}: AppCtx): Promise<void> => {
   // process.uptime() returns fractional seconds since the Node.js process started
   const uptimeSeconds = process.uptime();
-  const hours   = Math.floor(uptimeSeconds / 3600);
+  const hours = Math.floor(uptimeSeconds / 3600);
   const minutes = Math.floor((uptimeSeconds % 3600) / 60);
   const seconds = Math.floor(uptimeSeconds % 60);
 
   // Zero-pad so "1:5:3" never appears — consistent HH:MM:SS format
   const pad = (n: number): string => String(n).padStart(2, '0');
 
-  const mem       = process.memoryUsage();
-  const totalRam  = os.totalmem();
-  const freeRam   = os.freemem();
-  const usedRam   = totalRam - freeRam;
+  const mem = process.memoryUsage();
+  const totalRam = os.totalmem();
+  const freeRam = os.freemem();
+  const usedRam = totalRam - freeRam;
 
   // os.loadavg() returns [1min, 5min, 15min] on POSIX; all zeros on Windows
   const [load1, load5, load15] = os.loadavg() as [number, number, number];
   // Windows guard — only show load when the platform actually reports it
-  const loadLine = load1 > 0
-    ? `❯ **CPU load (1/5/15 min):** ${load1.toFixed(2)} / ${load5.toFixed(2)} / ${load15.toFixed(2)}`
-    : `❯ **CPU load:** N/A (Windows)`;
+  const loadLine =
+    load1 > 0
+      ? `❯ **CPU load (1/5/15 min):** ${load1.toFixed(2)} / ${load5.toFixed(2)} / ${load15.toFixed(2)}`
+      : `❯ **CPU load:** N/A (Windows)`;
 
   const ping = Date.now() - startTime;
 

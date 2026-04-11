@@ -22,11 +22,20 @@
  * Add middleware via use.onChat([yourMiddleware]) in src/middleware/index.ts.
  */
 
-import type { MiddlewareFn, OnChatCtx } from '@/engine/types/middleware.types.js';
+import type {
+  MiddlewareFn,
+  OnChatCtx,
+} from '@/engine/types/middleware.types.js';
 import { syncThreadAndParticipants } from '@/engine/services/threads.service.js';
 import { syncUser } from '@/engine/services/users.service.js';
-import { getThreadSessionUpdatedAt, upsertThreadSession } from '@/engine/repos/threads.repo.js';
-import { getUserSessionUpdatedAt, upsertUserSession } from '../repos/users.repo.js';
+import {
+  getThreadSessionUpdatedAt,
+  upsertThreadSession,
+} from '@/engine/repos/threads.repo.js';
+import {
+  getUserSessionUpdatedAt,
+  upsertUserSession,
+} from '../repos/users.repo.js';
 import { logger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 
 // ── Resync policy ────────────────────────────────────────────────────────────
@@ -54,17 +63,26 @@ export const chatPassthrough: MiddlewareFn<OnChatCtx> = async function (
   const sessionId = ctx.native.sessionId ?? '';
   // senderID is the standard field on message events; fall back to userID for
   // edge cases (some reaction-shaped events that still reach this middleware)
-  const senderID = (ctx.event['senderID'] ?? ctx.event['userID'] ?? '') as string;
+  const senderID = (ctx.event['senderID'] ??
+    ctx.event['userID'] ??
+    '') as string;
   const threadID = (ctx.event['threadID'] ?? '') as string;
 
   // All four fields required — partial context can't produce a valid composite session key.
   // Platform listeners that do not yet set userId/sessionId in native context skip sync entirely.
   if (platform && threadID && sessionUserId && sessionId) {
     try {
-      const threadUpdatedAt = await getThreadSessionUpdatedAt(sessionUserId, platform, sessionId, threadID);
+      const threadUpdatedAt = await getThreadSessionUpdatedAt(
+        sessionUserId,
+        platform,
+        sessionId,
+        threadID,
+      );
       // Null means the thread has never been synced; a timestamp older than SYNC_INTERVAL_MS means the
       // cached metadata (name, member count, admin list) may have drifted from the platform's state.
-      const threadStale = threadUpdatedAt === null || (Date.now() - threadUpdatedAt.getTime()) > SYNC_INTERVAL_MS;
+      const threadStale =
+        threadUpdatedAt === null ||
+        Date.now() - threadUpdatedAt.getTime() > SYNC_INTERVAL_MS;
       if (threadStale) {
         // Optimistic timestamp: stamp lastUpdatedAt immediately when the session row already
         // exists so concurrent messages racing the background API fetch don't each detect
@@ -72,7 +90,12 @@ export const chatPassthrough: MiddlewareFn<OnChatCtx> = async function (
         // because the Prisma adapter enforces a FK from bot_thread_session → bot_thread;
         // a brand-new thread (null) cannot have its session row written before upsertThread runs.
         if (threadUpdatedAt !== null) {
-          void upsertThreadSession(sessionUserId, platform, sessionId, threadID);
+          void upsertThreadSession(
+            sessionUserId,
+            platform,
+            sessionId,
+            threadID,
+          );
         }
         // Fire-and-forget — bot pipeline advances immediately; the platform API fetch and
         // subsequent DB writes run in the background. syncThreadAndParticipants will call
@@ -84,13 +107,25 @@ export const chatPassthrough: MiddlewareFn<OnChatCtx> = async function (
       // FB Page 1:1 (participant list only contains the page bot) or Telegram private DMs.
       // Also re-sync if the sender's session row is stale even when the thread row is fresh.
       if (senderID) {
-        const senderUpdatedAt = await getUserSessionUpdatedAt(sessionUserId, platform, sessionId, senderID);
-        const senderStale = senderUpdatedAt === null || (Date.now() - senderUpdatedAt.getTime()) > SYNC_INTERVAL_MS;
+        const senderUpdatedAt = await getUserSessionUpdatedAt(
+          sessionUserId,
+          platform,
+          sessionId,
+          senderID,
+        );
+        const senderStale =
+          senderUpdatedAt === null ||
+          Date.now() - senderUpdatedAt.getTime() > SYNC_INTERVAL_MS;
         if (senderStale) {
           // Same optimistic stamp pattern as thread: only when the row exists to avoid a
           // FK violation on the very first time this user is seen in this session.
           if (senderUpdatedAt !== null) {
-            void upsertUserSession(sessionUserId, platform, sessionId, senderID);
+            void upsertUserSession(
+              sessionUserId,
+              platform,
+              sessionId,
+              senderID,
+            );
           }
           // Fire-and-forget — syncUser calls upsertUserSession again on completion.
           void syncUser(ctx, senderID, sessionUserId, sessionId);
@@ -98,25 +133,26 @@ export const chatPassthrough: MiddlewareFn<OnChatCtx> = async function (
       }
     } catch (err: unknown) {
       // Sync failure must never interrupt the message pipeline; log and continue
-      logger.warn('⚠️ [on-chat] DB sync failed — continuing pipeline', { error: err });
+      logger.warn('⚠️ [on-chat] DB sync failed — continuing pipeline', {
+        error: err,
+      });
     }
   }
 
   await next();
 };
 
-
 export const chatLogThread: MiddlewareFn<OnChatCtx> = async function (
   ctx,
   next,
 ): Promise<void> {
-  const { threadID, senderID, message } = ctx.event
-  const { logger } = ctx
-  const { platform } = ctx.native
+  const { threadID, senderID, message } = ctx.event;
+  const { logger } = ctx;
+  const { platform } = ctx.native;
 
   // Guard to prevent logging 'undefined' on non-text events (e.g. photo attachments without caption)
   if (message) {
-    logger.info(`[${platform}] ${threadID} | ${senderID}: ${message}`)
+    logger.info(`[${platform}] ${threadID} | ${senderID}: ${message}`);
   }
-  await next()
-}
+  await next();
+};

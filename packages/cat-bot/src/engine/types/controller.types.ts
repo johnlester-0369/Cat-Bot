@@ -68,7 +68,9 @@ export interface BaseCtx {
       /** Returns a CollectionManager bound to the calling user's bot_users_session row. */
       collection: (botUserId: string) => CollectionManager;
       /** Returns all bot_users_session records for the current bot session. */
-      getAll: () => Promise<Array<{ botUserId: string; data: Record<string, unknown> }>>;
+      getAll: () => Promise<
+        Array<{ botUserId: string; data: Record<string, unknown> }>
+      >;
     };
     threads: {
       getName: (threadId: string) => Promise<string>;
@@ -80,10 +82,10 @@ export interface BaseCtx {
   };
 }
 
-/** 
- * Universal Context — a single unified type for all handler functions 
+/**
+ * Universal Context — a single unified type for all handler functions
  * (`onCommand`, `onChat`, `onReply`, `onReact`, `onEvent`).
- * 
+ *
  * Contains all properties from BaseCtx plus the properties dynamically injected
  * by the various dispatchers depending on the event lifecycle.
  */

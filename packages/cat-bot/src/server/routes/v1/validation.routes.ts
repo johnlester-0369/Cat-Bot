@@ -15,12 +15,18 @@ import {
 const validationRouter = Router();
 
 // POST /api/v1/validate/discord — verify Discord bot token
-validationRouter.post('/discord', (req, res) => { void validateDiscord(req, res); });
+validationRouter.post('/discord', (req, res) => {
+  void validateDiscord(req, res);
+});
 
 // POST /api/v1/validate/telegram — verify Telegram bot token via getMe
-validationRouter.post('/telegram', (req, res) => { void validateTelegram(req, res); });
+validationRouter.post('/telegram', (req, res) => {
+  void validateTelegram(req, res);
+});
 
 // POST /api/v1/validate/facebook-messenger — structural parse of appstate JSON
-validationRouter.post('/facebook-messenger', (req, res) => { void validateFacebookMessenger(req, res); });
+validationRouter.post('/facebook-messenger', (req, res) => {
+  void validateFacebookMessenger(req, res);
+});
 
 export default validationRouter;

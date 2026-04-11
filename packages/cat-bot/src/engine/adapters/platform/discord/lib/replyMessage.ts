@@ -47,7 +47,9 @@ export async function replyMessage(
   const content =
     typeof msgBody === 'string'
       ? msgBody
-      : (msgBody.message ?? (msgBody as unknown as { body?: string })?.body ?? '');
+      : (msgBody.message ??
+        (msgBody as unknown as { body?: string })?.body ??
+        '');
   // Discord renders markdown by default; when the caller requests raw text, escape
   // all Discord-flavored markdown syntax so characters like * _ ~ | display literally.
   // style='markdown' (or omitted) passes through unchanged — Discord auto-renders.

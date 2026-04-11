@@ -108,7 +108,9 @@ export function attachHandlers(
 
     const native = { platform: Platforms.Telegram, userId, sessionId, ctx };
     // reply_to_message is set when the user taps "Reply" on an existing message
-    const eventType = msg.reply_to_message ? EventType.MESSAGE_REPLY : EventType.MESSAGE;
+    const eventType = msg.reply_to_message
+      ? EventType.MESSAGE_REPLY
+      : EventType.MESSAGE;
     emitter.emit(eventType, { api, event, native, prefix });
   });
 

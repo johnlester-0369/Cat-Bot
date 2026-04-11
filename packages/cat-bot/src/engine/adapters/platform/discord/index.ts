@@ -24,9 +24,15 @@ import { createDiscordClient } from './client.js';
 import { registerSlashCommands } from './slash-commands.js';
 import { attachEventHandlers } from './event-handlers.js';
 import { sessionManager } from '@/engine/modules/session/session-manager.lib.js';
-import { PLATFORM_TO_ID, Platforms } from '@/engine/modules/platform/platform.constants.js';
+import {
+  PLATFORM_TO_ID,
+  Platforms,
+} from '@/engine/modules/platform/platform.constants.js';
 // Slash sync: register a re-registration callback so the dashboard toggle can update the live '/' menu
-import { registerSlashSync, unregisterSlashSync } from '@/engine/modules/prefix/slash-sync.lib.js';
+import {
+  registerSlashSync,
+  unregisterSlashSync,
+} from '@/engine/modules/prefix/slash-sync.lib.js';
 // Read enabled/disabled state from DB when the dashboard triggers a sync
 import { findSessionCommands } from '@/engine/modules/session/bot-session-commands.repo.js';
 import { prefixManager } from '@/engine/modules/prefix/prefix-manager.lib.js';
@@ -82,7 +88,9 @@ export function createDiscordListener(config: DiscordConfig): EventEmitter & {
     // Prefix unused param with _ to satisfy ESLint
     activeClient = await createDiscordClient(token, sessionLogger, (_err) => {
       // Marks UI explicit offline if Discord gateway refuses token post-boot
-      sessionManager.markInactive(`${userId}:${Platforms.Discord}:${sessionId}`);
+      sessionManager.markInactive(
+        `${userId}:${Platforms.Discord}:${sessionId}`,
+      );
     });
 
     // Phase 2: Register or clear slash commands based on active prefix
@@ -116,12 +124,24 @@ export function createDiscordListener(config: DiscordConfig): EventEmitter & {
     const smKey = `${userId}:${Platforms.Discord}:${sessionId}`;
     registerSlashSync(smKey, async () => {
       if (!activeClient || !activeCommands) return;
-      const livePrefix = prefixManager.getPrefix(userId, Platforms.Discord, sessionId);
+      const livePrefix = prefixManager.getPrefix(
+        userId,
+        Platforms.Discord,
+        sessionId,
+      );
       // Fetch current enabled/disabled state from DB to filter the slash menu accurately
-      const rows = await findSessionCommands(userId, Platforms.Discord, sessionId);
+      const rows = await findSessionCommands(
+        userId,
+        Platforms.Discord,
+        sessionId,
+      );
       // WHY: Explicitly cast as Set<string> because database exports fall back to `any`, causing Set<unknown> inference
       const disabledNames = new Set<string>(
-        rows.filter((r: { isEnable: boolean; commandName: string }) => !r.isEnable).map((r: { commandName: string }) => r.commandName),
+        rows
+          .filter(
+            (r: { isEnable: boolean; commandName: string }) => !r.isEnable,
+          )
+          .map((r: { commandName: string }) => r.commandName),
       );
       await registerSlashCommands({
         client: activeClient,
@@ -141,7 +161,9 @@ export function createDiscordListener(config: DiscordConfig): EventEmitter & {
   emitter.stop = async (_signal?: string): Promise<void> => {
     sessionLogger.info('[discord] Stopping Listener...');
     // Clean up before destroying the client so stale callbacks don't fire on a dead session
-    unregisterSlashSync(`${config.userId}:${Platforms.Discord}:${config.sessionId}`);
+    unregisterSlashSync(
+      `${config.userId}:${Platforms.Discord}:${config.sessionId}`,
+    );
     activeCommands = null;
     if (activeClient) {
       activeClient.destroy();

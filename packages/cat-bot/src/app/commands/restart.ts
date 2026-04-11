@@ -16,10 +16,7 @@ export const config = {
   hasPrefix: true,
 };
 
-export const onCommand = async ({
-  chat,
-  native,
-}: AppCtx) => {
+export const onCommand = async ({ chat, native }: AppCtx) => {
   const { userId, sessionId, platform } = native;
 
   if (!userId || !sessionId || !platform) {

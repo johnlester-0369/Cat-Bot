@@ -58,7 +58,10 @@ import { sessionManager } from '@/engine/modules/session/session-manager.lib.js'
 // Command/event registry sync — needed to populate bot_session_commands/events at boot
 import { Platforms } from '@/engine/modules/platform/platform.constants.js';
 import { upsertSessionCommands } from '@/engine/modules/session/bot-session-commands.repo.js';
-import { commandRegistry, eventRegistry } from '@/engine/lib/module-registry.lib.js';
+import {
+  commandRegistry,
+  eventRegistry,
+} from '@/engine/lib/module-registry.lib.js';
 import { upsertSessionEvents } from '@/engine/modules/session/bot-session-events.repo.js';
 import type { SessionConfigs } from '@/engine/modules/session/session-loader.util.js';
 import { isPlatformAllowed } from '@/engine/modules/platform/platform-filter.util.js';
@@ -98,7 +101,9 @@ async function loadCommands(): Promise<Map<string, Record<string, unknown>>> {
       const mod = (await import(
         pathToFileURL(path.join(dir, file)).href
       )) as Record<string, unknown>;
-      const cfg = mod['config'] as { name?: string; aliases?: string[] } | undefined;
+      const cfg = mod['config'] as
+        | { name?: string; aliases?: string[] }
+        | undefined;
 
       if (!cfg?.name) {
         logger.warn(`⚠️  Skipping ${file}: missing config.name`);
@@ -208,10 +213,26 @@ async function syncCommandsAndEvents(
   sessionConfigs: SessionConfigs,
 ): Promise<void> {
   const allSessions = [
-    ...sessionConfigs.discord.map((s) => ({ userId: s.userId, sessionId: s.sessionId, platform: Platforms.Discord })),
-    ...sessionConfigs.telegram.map((s) => ({ userId: s.userId, sessionId: s.sessionId, platform: Platforms.Telegram })),
-    ...sessionConfigs.fbPage.map((s) => ({ userId: s.userId, sessionId: s.sessionId, platform: Platforms.FacebookPage })),
-    ...sessionConfigs.fbMessenger.map((s) => ({ userId: s.userId, sessionId: s.sessionId, platform: Platforms.FacebookMessenger })),
+    ...sessionConfigs.discord.map((s) => ({
+      userId: s.userId,
+      sessionId: s.sessionId,
+      platform: Platforms.Discord,
+    })),
+    ...sessionConfigs.telegram.map((s) => ({
+      userId: s.userId,
+      sessionId: s.sessionId,
+      platform: Platforms.Telegram,
+    })),
+    ...sessionConfigs.fbPage.map((s) => ({
+      userId: s.userId,
+      sessionId: s.sessionId,
+      platform: Platforms.FacebookPage,
+    })),
+    ...sessionConfigs.fbMessenger.map((s) => ({
+      userId: s.userId,
+      sessionId: s.sessionId,
+      platform: Platforms.FacebookMessenger,
+    })),
   ];
 
   for (const sess of allSessions) {
@@ -238,8 +259,20 @@ async function syncCommandsAndEvents(
     const cmdArr = [...cmdList];
     const evtArr = [...evtList];
 
-    if (cmdArr.length > 0) await upsertSessionCommands(sess.userId, sess.platform, sess.sessionId, cmdArr);
-    if (evtArr.length > 0) await upsertSessionEvents(sess.userId, sess.platform, sess.sessionId, evtArr);
+    if (cmdArr.length > 0)
+      await upsertSessionCommands(
+        sess.userId,
+        sess.platform,
+        sess.sessionId,
+        cmdArr,
+      );
+    if (evtArr.length > 0)
+      await upsertSessionEvents(
+        sess.userId,
+        sess.platform,
+        sess.sessionId,
+        evtArr,
+      );
   }
 
   logger.info(
@@ -277,17 +310,24 @@ async function main(): Promise<void> {
   // emoji — slash-commands.ts sanitizes both automatically, but logging here surfaces the
   // issue once, globally, before any transport boots so developers can fix the source modules.
   // Skipped entirely when no Telegram session uses the '/' prefix.
-  const hasTelegramSlashSession = sessionConfigs.telegram.some((c) => c.prefix === '/');
+  const hasTelegramSlashSession = sessionConfigs.telegram.some(
+    (c) => c.prefix === '/',
+  );
   if (hasTelegramSlashSession) {
     for (const [, mod] of commands) {
-      const cfg = mod['config'] as { name?: string; description?: string } | undefined;
+      const cfg = mod['config'] as
+        | { name?: string; description?: string }
+        | undefined;
       if (!cfg?.name) continue;
       if (cfg.name.includes('-')) {
         logger.warn(
           `[app] Telegram command name "${cfg.name}" contains hyphens — not supported, will be registered as "${cfg.name.replace(/-/g, '_')}"`,
         );
       }
-      if (cfg.description && /\p{Extended_Pictographic}/u.test(cfg.description)) {
+      if (
+        cfg.description &&
+        /\p{Extended_Pictographic}/u.test(cfg.description)
+      ) {
         logger.warn(
           `[app] Telegram command "${cfg.name}" description contains emoji — not supported, emoji will be stripped`,
         );
@@ -307,10 +347,19 @@ async function main(): Promise<void> {
   // Transports that do not support a given event type simply never emit it;
   // no platform branching or special-casing needed here.
   platform.on('message', async (payload: Record<string, unknown>) => {
-    const native = payload.native as import('@/engine/types/controller.types.js').NativeContext;
-    const threadID = (payload.event as Record<string, unknown>)['threadID'] as string | undefined;
-    const sessionPrefix = prefixManager.getPrefix(native.userId ?? '', native.platform, native.sessionId ?? '');
-    const threadPrefix = threadID ? prefixManager.getThreadPrefix(threadID) : undefined;
+    const native =
+      payload.native as import('@/engine/types/controller.types.js').NativeContext;
+    const threadID = (payload.event as Record<string, unknown>)['threadID'] as
+      | string
+      | undefined;
+    const sessionPrefix = prefixManager.getPrefix(
+      native.userId ?? '',
+      native.platform,
+      native.sessionId ?? '',
+    );
+    const threadPrefix = threadID
+      ? prefixManager.getThreadPrefix(threadID)
+      : undefined;
     // On Discord and Telegram, slash commands are registered globally per-session and cannot be
     // scoped to individual threads. When the session prefix is '/' and a group admin has set a
     // custom thread prefix (e.g. '!'), both must work simultaneously: '!ping' uses the thread
@@ -320,9 +369,11 @@ async function main(): Promise<void> {
         sessionPrefix === '/' &&
         threadPrefix !== undefined &&
         threadPrefix !== '/' &&
-        (native.platform === Platforms.Discord || native.platform === Platforms.Telegram)
+        (native.platform === Platforms.Discord ||
+          native.platform === Platforms.Telegram)
       ) {
-        const body = ((payload.event as Record<string, unknown>)['message'] ?? '') as string;
+        const body = ((payload.event as Record<string, unknown>)['message'] ??
+          '') as string;
         if (body.startsWith('/')) return '/';
       }
       return threadPrefix ?? sessionPrefix;
@@ -338,10 +389,19 @@ async function main(): Promise<void> {
   });
 
   platform.on('message_reply', async (payload: Record<string, unknown>) => {
-    const native = payload.native as import('@/engine/types/controller.types.js').NativeContext;
-    const threadID = (payload.event as Record<string, unknown>)['threadID'] as string | undefined;
-    const sessionPrefix = prefixManager.getPrefix(native.userId ?? '', native.platform, native.sessionId ?? '');
-    const threadPrefix = threadID ? prefixManager.getThreadPrefix(threadID) : undefined;
+    const native =
+      payload.native as import('@/engine/types/controller.types.js').NativeContext;
+    const threadID = (payload.event as Record<string, unknown>)['threadID'] as
+      | string
+      | undefined;
+    const sessionPrefix = prefixManager.getPrefix(
+      native.userId ?? '',
+      native.platform,
+      native.sessionId ?? '',
+    );
+    const threadPrefix = threadID
+      ? prefixManager.getThreadPrefix(threadID)
+      : undefined;
     // message_reply: same dual-prefix logic as 'message' — on Discord and Telegram when the
     // session prefix is '/' and a thread has a custom prefix, inspect the message body to
     // select the correct routing prefix so slash commands remain functional in all threads.
@@ -350,9 +410,11 @@ async function main(): Promise<void> {
         sessionPrefix === '/' &&
         threadPrefix !== undefined &&
         threadPrefix !== '/' &&
-        (native.platform === Platforms.Discord || native.platform === Platforms.Telegram)
+        (native.platform === Platforms.Discord ||
+          native.platform === Platforms.Telegram)
       ) {
-        const body = ((payload.event as Record<string, unknown>)['message'] ?? '') as string;
+        const body = ((payload.event as Record<string, unknown>)['message'] ??
+          '') as string;
         if (body.startsWith('/')) return '/';
       }
       return threadPrefix ?? sessionPrefix;

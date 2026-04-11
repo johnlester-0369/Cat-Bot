@@ -83,14 +83,19 @@ export interface SessionConfigs {
  * when a platform directory was absent.
  */
 export async function loadSessionConfigs(): Promise<SessionConfigs> {
-  const [discordCreds, telegramCreds, fbPageCreds, fbMessengerCreds, botSessions] =
-    await Promise.all([
-      findAllDiscordCredentials(),
-      findAllTelegramCredentials(),
-      findAllFbPageCredentials(),
-      findAllFbMessengerCredentials(),
-      findAllBotSessions(),
-    ]);
+  const [
+    discordCreds,
+    telegramCreds,
+    fbPageCreds,
+    fbMessengerCreds,
+    botSessions,
+  ] = await Promise.all([
+    findAllDiscordCredentials(),
+    findAllTelegramCredentials(),
+    findAllFbPageCredentials(),
+    findAllFbMessengerCredentials(),
+    findAllBotSessions(),
+  ]);
 
   // Sync all loaded prefixes into the dynamic PrefixManager.
   // Track which sessions have isRunning !== false — built in the same pass to avoid a second query.
@@ -99,7 +104,12 @@ export async function loadSessionConfigs(): Promise<SessionConfigs> {
   for (const session of botSessions) {
     try {
       const platformStr = fromPlatformNumericId(session.platformId);
-      prefixManager.setPrefix(session.userId, platformStr, session.sessionId, session.prefix ?? '/');
+      prefixManager.setPrefix(
+        session.userId,
+        platformStr,
+        session.sessionId,
+        session.prefix ?? '/',
+      );
     } catch {
       // Ignore unknown platform IDs gracefully
     }
@@ -107,7 +117,11 @@ export async function loadSessionConfigs(): Promise<SessionConfigs> {
     if (session.isRunning !== false) runningKeys.add(sessionKey);
   }
 
-  function getPrefix(userId: string, platformId: number, sessionId: string): string {
+  function getPrefix(
+    userId: string,
+    platformId: number,
+    sessionId: string,
+  ): string {
     try {
       const platformStr = fromPlatformNumericId(platformId);
       return prefixManager.getPrefix(userId, platformStr, sessionId);
@@ -118,43 +132,103 @@ export async function loadSessionConfigs(): Promise<SessionConfigs> {
 
   // isRunning = false sessions are excluded so a stopped bot never boots at process start or restart.
   const discord: ResolvedDiscordConfig[] = discordCreds
-    .filter((c: { userId: string; platformId: number; sessionId: string; discordToken: string; discordClientId: string }) => runningKeys.has(`${c.userId}:${c.platformId}:${c.sessionId}`))
-    .map((c: { userId: string; platformId: number; sessionId: string; discordToken: string; discordClientId: string }) => ({
-      token: c.discordToken,
-      clientId: c.discordClientId,
-      prefix: getPrefix(c.userId, c.platformId, c.sessionId),
-      userId: c.userId,
-      sessionId: c.sessionId,
-    }));
+    .filter(
+      (c: {
+        userId: string;
+        platformId: number;
+        sessionId: string;
+        discordToken: string;
+        discordClientId: string;
+      }) => runningKeys.has(`${c.userId}:${c.platformId}:${c.sessionId}`),
+    )
+    .map(
+      (c: {
+        userId: string;
+        platformId: number;
+        sessionId: string;
+        discordToken: string;
+        discordClientId: string;
+      }) => ({
+        token: c.discordToken,
+        clientId: c.discordClientId,
+        prefix: getPrefix(c.userId, c.platformId, c.sessionId),
+        userId: c.userId,
+        sessionId: c.sessionId,
+      }),
+    );
 
   const telegram: ResolvedTelegramConfig[] = telegramCreds
-    .filter((c: { userId: string; platformId: number; sessionId: string; telegramToken: string }) => runningKeys.has(`${c.userId}:${c.platformId}:${c.sessionId}`))
-    .map((c: { userId: string; platformId: number; sessionId: string; telegramToken: string }) => ({
-      botToken: c.telegramToken,
-      prefix: getPrefix(c.userId, c.platformId, c.sessionId),
-      userId: c.userId,
-      sessionId: c.sessionId,
-    }));
+    .filter(
+      (c: {
+        userId: string;
+        platformId: number;
+        sessionId: string;
+        telegramToken: string;
+      }) => runningKeys.has(`${c.userId}:${c.platformId}:${c.sessionId}`),
+    )
+    .map(
+      (c: {
+        userId: string;
+        platformId: number;
+        sessionId: string;
+        telegramToken: string;
+      }) => ({
+        botToken: c.telegramToken,
+        prefix: getPrefix(c.userId, c.platformId, c.sessionId),
+        userId: c.userId,
+        sessionId: c.sessionId,
+      }),
+    );
 
   const fbPage: ResolvedFbPageConfig[] = fbPageCreds
-    .filter((c: { userId: string; platformId: number; sessionId: string; fbAccessToken: string; fbPageId: string }) => runningKeys.has(`${c.userId}:${c.platformId}:${c.sessionId}`))
-    .map((c: { userId: string; platformId: number; sessionId: string; fbAccessToken: string; fbPageId: string }) => ({
-      pageAccessToken: c.fbAccessToken,
-      pageId: c.fbPageId,
-      userId: c.userId,
-      sessionId: c.sessionId,
-      prefix: getPrefix(c.userId, c.platformId, c.sessionId),
-    }));
+    .filter(
+      (c: {
+        userId: string;
+        platformId: number;
+        sessionId: string;
+        fbAccessToken: string;
+        fbPageId: string;
+      }) => runningKeys.has(`${c.userId}:${c.platformId}:${c.sessionId}`),
+    )
+    .map(
+      (c: {
+        userId: string;
+        platformId: number;
+        sessionId: string;
+        fbAccessToken: string;
+        fbPageId: string;
+      }) => ({
+        pageAccessToken: c.fbAccessToken,
+        pageId: c.fbPageId,
+        userId: c.userId,
+        sessionId: c.sessionId,
+        prefix: getPrefix(c.userId, c.platformId, c.sessionId),
+      }),
+    );
 
   const fbMessenger: ResolvedFbMessengerConfig[] = fbMessengerCreds
-    .filter((c: { userId: string; platformId: number; sessionId: string; appstate: string }) => runningKeys.has(`${c.userId}:${c.platformId}:${c.sessionId}`))
-    .map((c: { userId: string; platformId: number; sessionId: string; appstate: string }) => ({
-      // appstate is stored as JSON.stringify'd text; the login module parses it
-      appstate: c.appstate,
-      prefix: getPrefix(c.userId, c.platformId, c.sessionId),
-      userId: c.userId,
-      sessionId: c.sessionId,
-    }));
+    .filter(
+      (c: {
+        userId: string;
+        platformId: number;
+        sessionId: string;
+        appstate: string;
+      }) => runningKeys.has(`${c.userId}:${c.platformId}:${c.sessionId}`),
+    )
+    .map(
+      (c: {
+        userId: string;
+        platformId: number;
+        sessionId: string;
+        appstate: string;
+      }) => ({
+        // appstate is stored as JSON.stringify'd text; the login module parses it
+        appstate: c.appstate,
+        prefix: getPrefix(c.userId, c.platformId, c.sessionId),
+        userId: c.userId,
+        sessionId: c.sessionId,
+      }),
+    );
 
   logger.info(
     `[session-loader] Loaded from DB — Discord: ${discord.length}, Telegram: ${telegram.length}, ` +

@@ -26,10 +26,15 @@ import {
  * Facebook ownership-verification handshake — sent when a new webhook subscription
  * is created in Meta App Dashboard. Responds with hub.challenge on success.
  */
-export async function handleVerification(req: Request, res: Response): Promise<void> {
+export async function handleVerification(
+  req: Request,
+  res: Response,
+): Promise<void> {
   // Express 5 types req.params values as string | string[] — coerce to string
   const rawUserId = req.params['user_id'];
-  const userId = Array.isArray(rawUserId) ? (rawUserId[0] ?? '') : (rawUserId ?? '');
+  const userId = Array.isArray(rawUserId)
+    ? (rawUserId[0] ?? '')
+    : (rawUserId ?? '');
   const mode = req.query['hub.mode'];
   const challenge = req.query['hub.challenge'];
   const verifyToken = req.query['hub.verify_token'];
@@ -47,7 +52,9 @@ export async function handleVerification(req: Request, res: Response): Promise<v
   const expectedToken = generateVerifyToken(userId);
 
   if (verifyToken !== expectedToken) {
-    logger.warn(`[user ${userId}] Webhook verification failed — token mismatch`);
+    logger.warn(
+      `[user ${userId}] Webhook verification failed — token mismatch`,
+    );
     res.sendStatus(403);
     return;
   }
@@ -61,7 +68,9 @@ export async function handleVerification(req: Request, res: Response): Promise<v
       logger.info(`[user ${userId}] Webhook verified by Facebook`);
       res.status(200).send(challenge);
     } catch (err) {
-      logger.error(`[user ${userId}] Failed to update webhook status`, { error: err });
+      logger.error(`[user ${userId}] Failed to update webhook status`, {
+        error: err,
+      });
       res.sendStatus(500);
     }
   } else {
@@ -81,7 +90,9 @@ export async function handleVerification(req: Request, res: Response): Promise<v
 export function handleWebhookEvent(req: Request, res: Response): void {
   // Express 5 types req.params values as string | string[] — coerce to string
   const rawUserId = req.params['user_id'];
-  const userId = Array.isArray(rawUserId) ? (rawUserId[0] ?? '') : (rawUserId ?? '');
+  const userId = Array.isArray(rawUserId)
+    ? (rawUserId[0] ?? '')
+    : (rawUserId ?? '');
 
   // Ack before any async work — Facebook will retry delivery if it does not
   // receive 200 within 20 s, causing duplicate event processing.
@@ -90,7 +101,9 @@ export function handleWebhookEvent(req: Request, res: Response): void {
   const body = req.body as FacebookWebhookBody;
   // Allow delivery when there is an active session OR a pending credential validation
   if (!findAnySessionForUserId(userId) && !isPendingFbPageValidation(userId)) {
-    logger.warn(`POST /api/v1/facebook-page/${userId} — no registered session found`);
+    logger.warn(
+      `POST /api/v1/facebook-page/${userId} — no registered session found`,
+    );
     return;
   }
 
@@ -108,7 +121,15 @@ export function handleWebhookEvent(req: Request, res: Response): void {
       // proving the access token is actually scoped to this Page (second auth layer).
       const senderObj = messaging['sender'] as { id?: string } | undefined;
       const senderPsid = senderObj?.id;
-      if (messageText && checkAndResolveOtp(String(userId), String(pageId), messageText, senderPsid)) {
+      if (
+        messageText &&
+        checkAndResolveOtp(
+          String(userId),
+          String(pageId),
+          messageText,
+          senderPsid,
+        )
+      ) {
         continue; // OTP consumed — skip session routing for this message
       }
 

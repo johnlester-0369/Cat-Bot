@@ -25,7 +25,7 @@ import { isAuthError } from '@/engine/lib/retry.lib.js';
 export async function createDiscordClient(
   token: string,
   sessionLogger: SessionLogger,
-  onFatalError?: (err: Error) => void
+  onFatalError?: (err: Error) => void,
 ): Promise<Client> {
   const client = new Client({
     intents: [
@@ -59,10 +59,16 @@ export async function createDiscordClient(
   client.on('error', (err: Error) => {
     if (isAuthError(err)) {
       // Pass authentication drops up to the orchestrator to sync UI
-      sessionLogger.error('[discord] Session offline — token revoked or auth error mid-session', { error: err });
+      sessionLogger.error(
+        '[discord] Session offline — token revoked or auth error mid-session',
+        { error: err },
+      );
       onFatalError?.(err);
     } else {
-      sessionLogger.error('[discord] Client error (gateway will auto-reconnect)', { error: err });
+      sessionLogger.error(
+        '[discord] Client error (gateway will auto-reconnect)',
+        { error: err },
+      );
     }
   });
 

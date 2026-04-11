@@ -24,8 +24,8 @@ import {
   normalizeGuildMemberRemoveEvent,
   normalizeMessageCreateEvent,
   normalizeMessageReactionAddEvent,
-  normalizeMessageDeleteEvent
- } from './utils/normalizers.util.js';
+  normalizeMessageDeleteEvent,
+} from './utils/normalizers.util.js';
 import { clearGuildCommands } from './slash-commands.js';
 import { OptionType } from '@/engine/modules/command/command-option.constants.js';
 
@@ -123,7 +123,12 @@ export async function attachEventHandlers(
         messageID: interaction.message.id,
         timestamp: Date.now(),
       };
-      const native = { platform: Platforms.Discord, userId, sessionId, interaction };
+      const native = {
+        platform: Platforms.Discord,
+        userId,
+        sessionId,
+        interaction,
+      };
       emitter.emit('button_action', { api, event, native, prefix });
       return;
     }
@@ -138,7 +143,8 @@ export async function attachEventHandlers(
     // Pre-resolve interaction.options into a name→value record so validateCommandOptions
     // constructs OptionsMap from interaction values directly, preserving Discord's native type coercion.
     const cfg = (mod?.['config'] as Record<string, unknown>) ?? {};
-    const optionDefs = (cfg['options'] as Array<{ name: string; type?: string }>) ?? [];
+    const optionDefs =
+      (cfg['options'] as Array<{ name: string; type?: string }>) ?? [];
     const optionsRecord: Record<string, string> = {};
     for (const opt of optionDefs) {
       if (opt.type === OptionType.user) {
@@ -163,8 +169,13 @@ export async function attachEventHandlers(
     event['optionsRecord'] = optionsRecord;
     // Mock a text message body so `message.handler.ts` routes it correctly through `parseCommand`
     event['message'] = `${prefix}${commandName} ${args.join(' ')}`.trim();
-    const native = { platform: Platforms.Discord, userId, sessionId, interaction };
-    
+    const native = {
+      platform: Platforms.Discord,
+      userId,
+      sessionId,
+      interaction,
+    };
+
     // Emit 'message' so app.ts routes it to message.handler.ts, centralising ctx creation
     emitter.emit('message', { api, event, native, prefix });
   });
@@ -218,7 +229,13 @@ export async function attachEventHandlers(
       reaction as import('discord.js').MessageReaction,
       user as import('discord.js').User,
     );
-    const native = { platform: Platforms.Discord, userId, sessionId, reaction, user };
+    const native = {
+      platform: Platforms.Discord,
+      userId,
+      sessionId,
+      reaction,
+      user,
+    };
     emitter.emit('message_reaction', { api, event, native, prefix });
   });
 

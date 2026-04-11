@@ -22,7 +22,10 @@ export const onCommand = async ({
 }: AppCtx): Promise<void> => {
   const threadID = event['threadID'] as string | undefined;
   if (!threadID) {
-    await chat.replyMessage({ style: MessageStyle.MARKDOWN, message: '❌ Could not resolve thread ID for this platform.' });
+    await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
+      message: '❌ Could not resolve thread ID for this platform.',
+    });
     return;
   }
   // thread.getName() is cache-first (Discord/Telegram) or DB-backed (FB) — no extra API round-trip

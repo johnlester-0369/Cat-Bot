@@ -10,7 +10,11 @@
  * at the top of their function body and receive a fully initialised ctx.
  */
 
-import type { BaseCtx, CommandMap, NativeContext } from '@/engine/types/controller.types.js';
+import type {
+  BaseCtx,
+  CommandMap,
+  NativeContext,
+} from '@/engine/types/controller.types.js';
 import type { UnifiedApi } from '@/engine/adapters/models/api.model.js';
 import {
   createThreadContext,
@@ -20,8 +24,14 @@ import {
 } from '@/engine/adapters/models/context.model.js';
 import { createLogger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 import { PLATFORM_TO_ID } from '@/engine/modules/platform/platform.constants.js';
-import { getUserName, getAllUserSessionData } from '@/engine/repos/users.repo.js';
-import { getThreadName, getAllGroupThreadIds } from '@/engine/repos/threads.repo.js';
+import {
+  getUserName,
+  getAllUserSessionData,
+} from '@/engine/repos/users.repo.js';
+import {
+  getThreadName,
+  getAllGroupThreadIds,
+} from '@/engine/repos/threads.repo.js';
 import {
   createCollectionManager,
   createThreadCollectionManager,
@@ -54,7 +64,9 @@ export function buildBaseCtx(
   const user = createUserContext(api);
   const logger = createLogger({
     userId: native.userId ?? '',
-    platformId: (PLATFORM_TO_ID as Record<string, number>)[native.platform] ?? native.platform,
+    platformId:
+      (PLATFORM_TO_ID as Record<string, number>)[native.platform] ??
+      native.platform,
     sessionId: native.sessionId ?? '',
   });
 
@@ -76,16 +88,34 @@ export function buildBaseCtx(
       users: {
         getName: getUserName,
         // Pre-scoped to (sessionOwnerUserId, platform, sessionId) — command modules pass only botUserId
-        collection: createCollectionManager(native.userId ?? '', native.platform, native.sessionId ?? ''),
+        collection: createCollectionManager(
+          native.userId ?? '',
+          native.platform,
+          native.sessionId ?? '',
+        ),
         // Returns all bot_users_session records for the current bot identity
-        getAll: () => getAllUserSessionData(native.userId ?? '', native.platform, native.sessionId ?? ''),
+        getAll: () =>
+          getAllUserSessionData(
+            native.userId ?? '',
+            native.platform,
+            native.sessionId ?? '',
+          ),
       },
       threads: {
         getName: getThreadName,
         // Pre-scoped to session coords — per-thread features call collection(botThreadId) directly
-        collection: createThreadCollectionManager(native.userId ?? '', native.platform, native.sessionId ?? ''),
+        collection: createThreadCollectionManager(
+          native.userId ?? '',
+          native.platform,
+          native.sessionId ?? '',
+        ),
         // Pre-scoped closure mirrors db.users.getAll — command modules call getGroupIds() with no args
-        getGroupIds: () => getAllGroupThreadIds(native.userId ?? '', native.platform, native.sessionId ?? ''),
+        getGroupIds: () =>
+          getAllGroupThreadIds(
+            native.userId ?? '',
+            native.platform,
+            native.sessionId ?? '',
+          ),
       },
     },
   };

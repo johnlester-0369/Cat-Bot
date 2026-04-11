@@ -83,17 +83,25 @@ class FacebookApi extends UnifiedApi {
     userID: string,
     nickname: string,
   ): Promise<void> {
-    logger.debug('[facebook-messenger] setNickname called', { threadID, userID });
+    logger.debug('[facebook-messenger] setNickname called', {
+      threadID,
+      userID,
+    });
     return setNickname(this.#api, threadID, userID, nickname);
   }
   override getUserInfo(
     userIds: string[],
   ): Promise<Record<string, { name: string }>> {
-    logger.debug('[facebook-messenger] getUserInfo called', { userCount: userIds.length });
+    logger.debug('[facebook-messenger] getUserInfo called', {
+      userCount: userIds.length,
+    });
     return getUserInfo(this.#api, userIds);
   }
   override setGroupName(threadID: string, name: string): Promise<void> {
-    logger.debug('[facebook-messenger] setGroupName called', { threadID, name });
+    logger.debug('[facebook-messenger] setGroupName called', {
+      threadID,
+      name,
+    });
     return setGroupName(this.#api, threadID, name);
   }
   override setGroupImage(
@@ -104,22 +112,33 @@ class FacebookApi extends UnifiedApi {
     return setGroupImage(this.#api, threadID, imageSource);
   }
   override removeGroupImage(_threadID: string): Promise<void> {
-    logger.debug('[facebook-messenger] removeGroupImage called', { threadID: _threadID });
+    logger.debug('[facebook-messenger] removeGroupImage called', {
+      threadID: _threadID,
+    });
     return removeGroupImage();
   }
   override addUserToGroup(threadID: string, userID: string): Promise<void> {
-    logger.debug('[facebook-messenger] addUserToGroup called', { threadID, userID });
+    logger.debug('[facebook-messenger] addUserToGroup called', {
+      threadID,
+      userID,
+    });
     return addUserToGroup(this.#api, threadID, userID);
   }
   override removeUserFromGroup(
     threadID: string,
     userID: string,
   ): Promise<void> {
-    logger.debug('[facebook-messenger] removeUserFromGroup called', { threadID, userID });
+    logger.debug('[facebook-messenger] removeUserFromGroup called', {
+      threadID,
+      userID,
+    });
     return removeUserFromGroup(this.#api, threadID, userID);
   }
   override setGroupReaction(threadID: string, emoji: string): Promise<void> {
-    logger.debug('[facebook-messenger] setGroupReaction called', { threadID, emoji });
+    logger.debug('[facebook-messenger] setGroupReaction called', {
+      threadID,
+      emoji,
+    });
     return setGroupReaction(this.#api, threadID, emoji);
   }
   override replyMessage(
@@ -134,7 +153,11 @@ class FacebookApi extends UnifiedApi {
     messageID: string,
     emoji: string,
   ): Promise<void> {
-    logger.debug('[facebook-messenger] reactToMessage called', { threadID, messageID, emoji });
+    logger.debug('[facebook-messenger] reactToMessage called', {
+      threadID,
+      messageID,
+      emoji,
+    });
     return reactToMessage(this.#api, threadID, messageID, emoji);
   }
   override getBotID(): Promise<string> {
@@ -156,7 +179,9 @@ class FacebookApi extends UnifiedApi {
    * resolved this way reflect the most recently observed display name for the user.
    */
   override getUserName(userID: string): Promise<string> {
-    logger.debug('[facebook-messenger] getUserName called (db fallback)', { userID });
+    logger.debug('[facebook-messenger] getUserName called (db fallback)', {
+      userID,
+    });
     return dbGetUserName(userID);
   }
 
@@ -164,7 +189,9 @@ class FacebookApi extends UnifiedApi {
    * Delegates to the database layer — thread names are stored in bot_threads on first encounter.
    */
   override getThreadName(threadID: string): Promise<string> {
-    logger.debug('[facebook-messenger] getThreadName called (db fallback)', { threadID });
+    logger.debug('[facebook-messenger] getThreadName called (db fallback)', {
+      threadID,
+    });
     return dbGetThreadName(threadID);
   }
 }

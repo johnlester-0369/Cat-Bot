@@ -53,13 +53,14 @@ export function getSession(
  * userId URL segment at that point, not the pageId, so we cannot key directly.
  * verifyToken validation is deferred to server-level configuration (to be refined).
  */
-export function findAnySessionForUserId(userId: string): PageSessionConfig | undefined {
+export function findAnySessionForUserId(
+  userId: string,
+): PageSessionConfig | undefined {
   for (const [key, s] of sessions) {
     if (key.startsWith(`${userId}:`)) return s;
   }
   return undefined;
 }
-
 
 /**
  * Returns deduplicated userIds across all registered sessions.

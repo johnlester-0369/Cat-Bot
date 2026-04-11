@@ -76,7 +76,10 @@ export const PROTO_UNIFIED_THREAD_INFO: Readonly<UnifiedThreadInfo> =
 export function createUnifiedThreadInfo(
   data: Partial<UnifiedThreadInfo>,
 ): UnifiedThreadInfo {
-  logger.debug('[thread.model] createUnifiedThreadInfo called', { platform: data.platform, threadID: data.threadID });
+  logger.debug('[thread.model] createUnifiedThreadInfo called', {
+    platform: data.platform,
+    threadID: data.threadID,
+  });
   return {
     platform: data.platform ?? 'unknown',
     threadID: data.threadID ?? '',

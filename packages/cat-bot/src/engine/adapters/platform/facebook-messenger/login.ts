@@ -35,12 +35,15 @@ export async function startBot(
     // appstate is JSON.stringify'd in the DB — parse it back to the array fca-unofficial expects
     appState = JSON.parse(config.appstate) as unknown;
   } catch (err) {
-    sessionLogger.error('[facebook-messenger] Failed to parse appstate from database', { error: err });
+    sessionLogger.error(
+      '[facebook-messenger] Failed to parse appstate from database',
+      { error: err },
+    );
     throw new Error(
       '[facebook-messenger] Invalid appstate: JSON.parse failed — ' +
         'ensure the appstate column contains a valid JSON-serialised array',
       // Attach root cause to preserve the full error stack for debugging
-      { cause: err }
+      { cause: err },
     );
   }
 
@@ -50,9 +53,11 @@ export async function startBot(
         opts: { appState: unknown },
         cb: (err: unknown, api: FcaApi) => void,
       ) => void
-    )({ appState }, async(err, api) => {
+    )({ appState }, async (err, api) => {
       if (err) {
-        sessionLogger.error('[facebook-messenger] Login failed', { error: err });
+        sessionLogger.error('[facebook-messenger] Login failed', {
+          error: err,
+        });
         reject(err);
         return;
       }
@@ -65,11 +70,17 @@ export async function startBot(
 
       // extra layer of login validation to ensure the appstate is valid
       await new Promise<void>((r) => {
-        api.refreshFb_dtsg?.((_err: unknown, info: { data?: { fb_dtsg?: string } }) => {
-          if(!info?.data?.fb_dtsg) reject({message: "Could not find fb_dtsg in HTML after requesting Facebook."})
-          r(undefined)
-        })
-      })
+        api.refreshFb_dtsg?.(
+          (_err: unknown, info: { data?: { fb_dtsg?: string } }) => {
+            if (!info?.data?.fb_dtsg)
+              reject({
+                message:
+                  'Could not find fb_dtsg in HTML after requesting Facebook.',
+              });
+            r(undefined);
+          },
+        );
+      });
       sessionLogger.info('[facebook-messenger] Bot initialised successfully!');
       resolve({ api, listener: null });
     });

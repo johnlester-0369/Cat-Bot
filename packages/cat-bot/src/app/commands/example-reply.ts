@@ -46,7 +46,10 @@ const STATE = {
 };
 
 export const onCommand = async ({ chat, state }: AppCtx) => {
-  const messageID = await chat.replyMessage({ style: MessageStyle.MARKDOWN, message: '**What is your name?**' });
+  const messageID = await chat.replyMessage({
+    style: MessageStyle.MARKDOWN,
+    message: '**What is your name?**',
+  });
 
   // Guard: platforms that do not return a message ID from replyMessage cannot support onReply
   // because there is no stable key to register the pending state against.
@@ -74,7 +77,10 @@ export const onReply = {
   [STATE.awaiting_name]: async ({ chat, session, event, state }: AppCtx) => {
     session.context.name = event['message'];
 
-    const messageID = await chat.replyMessage({ style: MessageStyle.MARKDOWN, message: '**How old are you?**' });
+    const messageID = await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
+      message: '**How old are you?**',
+    });
 
     state.delete(session.id);
 

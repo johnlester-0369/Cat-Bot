@@ -10,7 +10,10 @@
  * Add middleware via use.onReply([yourMiddleware]) in src/middleware/index.ts.
  */
 
-import type { MiddlewareFn, OnReplyCtx } from '@/engine/types/middleware.types.js';
+import type {
+  MiddlewareFn,
+  OnReplyCtx,
+} from '@/engine/types/middleware.types.js';
 
 /**
  * Default passthrough — state was already validated by dispatchOnReply (state lookup,

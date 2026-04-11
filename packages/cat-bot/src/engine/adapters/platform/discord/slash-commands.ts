@@ -123,7 +123,18 @@ function buildSlashCommandPayloads(
 export async function registerSlashCommands(
   options: SlashCommandOptions,
 ): Promise<void> {
-  const { client, commands, prefix, clientId, token, userId, sessionId, sessionLogger, disabledNames, forceRegister } = options;
+  const {
+    client,
+    commands,
+    prefix,
+    clientId,
+    token,
+    userId,
+    sessionId,
+    sessionLogger,
+    disabledNames,
+    forceRegister,
+  } = options;
 
   if (!clientId) {
     sessionLogger.warn(
@@ -147,7 +158,11 @@ export async function registerSlashCommands(
     // Skip the REST call when already registered AND the command set is identical.
     // Hash mismatch means a command was added, removed, or reconfigured since last deploy.
     // forceRegister overrides the skip — a dashboard toggle changes the enabled-set without altering the hash.
-    if (!forceRegister && credential?.isCommandRegister && credential?.commandHash === currentHash) {
+    if (
+      !forceRegister &&
+      credential?.isCommandRegister &&
+      credential?.commandHash === currentHash
+    ) {
       sessionLogger.info(
         '[discord] Slash commands up-to-date (hash match) — skipping registration',
       );
@@ -185,16 +200,23 @@ export async function registerSlashCommands(
         commandHash: currentHash,
       });
     } catch (err) {
-      sessionLogger.warn('[discord] Slash command registration failed (non-fatal)', {
-        error: err,
-      });
+      sessionLogger.warn(
+        '[discord] Slash command registration failed (non-fatal)',
+        {
+          error: err,
+        },
+      );
     }
   } else {
     // Skip when already cleared AND the fingerprint matches — hash equality is the gate,
     // not a null check. Storing currentHash on clear means this guard fires correctly on
     // every subsequent restart without an unnecessary REST round-trip.
     // forceRegister overrides so a toggle re-confirms the cleared state even without a hash change.
-    if (!forceRegister && !credential?.isCommandRegister && credential?.commandHash === currentHash) {
+    if (
+      !forceRegister &&
+      !credential?.isCommandRegister &&
+      credential?.commandHash === currentHash
+    ) {
       sessionLogger.info(
         `[discord] Slash commands already cleared (hash match) — skipping`,
       );
@@ -214,9 +236,12 @@ export async function registerSlashCommands(
         commandHash: currentHash,
       });
     } catch (err) {
-      sessionLogger.warn('[discord] Failed to clear global commands (non-fatal)', {
-        error: err,
-      });
+      sessionLogger.warn(
+        '[discord] Failed to clear global commands (non-fatal)',
+        {
+          error: err,
+        },
+      );
     }
   }
 }
@@ -241,8 +266,11 @@ export async function clearGuildCommands(
       `[discord] Cleared guild-scoped commands in new guild: ${guildId}`,
     );
   } catch (err) {
-    sessionLogger.warn(`[discord] Failed to clear commands in new guild ${guildId}`, {
-      error: err,
-    });
+    sessionLogger.warn(
+      `[discord] Failed to clear commands in new guild ${guildId}`,
+      {
+        error: err,
+      },
+    );
   }
 }

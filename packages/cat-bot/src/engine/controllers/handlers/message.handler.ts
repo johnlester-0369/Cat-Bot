@@ -25,10 +25,16 @@ import {
   middlewareRegistry,
   runMiddlewareChain,
 } from '@/engine/lib/middleware.lib.js';
-import type { OnChatCtx, OnCommandCtx } from '@/engine/types/middleware.types.js';
+import type {
+  OnChatCtx,
+  OnCommandCtx,
+} from '@/engine/types/middleware.types.js';
 import { findSimilarCommand } from '@/engine/modules/command/command-suggest.util.js';
 import { OptionsMap } from '@/engine/modules/options/options-map.lib.js';
-import { isCommandEnabled, findSessionCommands } from '@/engine/modules/session/bot-session-commands.repo.js';
+import {
+  isCommandEnabled,
+  findSessionCommands,
+} from '@/engine/modules/session/bot-session-commands.repo.js';
 import { isPlatformAllowed } from '@/engine/modules/platform/platform-filter.util.js';
 // BaseCtx construction delegated to shared factory — eliminates ~35-line duplication across handlers
 import { buildBaseCtx } from '../factories/ctx.factory.js';
@@ -40,7 +46,10 @@ import { buildBaseCtx } from '../factories/ctx.factory.js';
  * message. An empty set is returned on DB error (fail-open) so "did you mean?"
  * suggestions continue to function even when the DB is temporarily unreachable.
  */
-async function getDisabledNamesForSession(native: NativeContext, commands: CommandMap): Promise<Set<string>> {
+async function getDisabledNamesForSession(
+  native: NativeContext,
+  commands: CommandMap,
+): Promise<Set<string>> {
   const disabledNames = new Set<string>();
 
   // Pre-populate with commands not supported on this platform so they are omitted from suggestions
@@ -55,7 +64,11 @@ async function getDisabledNamesForSession(native: NativeContext, commands: Comma
   const sessionId = native.sessionId ?? '';
   if (!sessionUserId || !sessionId) return disabledNames;
   try {
-    const rows = await findSessionCommands(sessionUserId, native.platform, sessionId);
+    const rows = await findSessionCommands(
+      sessionUserId,
+      native.platform,
+      sessionId,
+    );
     for (const r of rows) {
       if (!r.isEnable) disabledNames.add(r.commandName);
     }
@@ -107,8 +120,12 @@ export async function handleMessage(
   const args = body.trim().split(/\s+/).filter(Boolean);
 
   let isCommandInvocation = false;
-  let parsed: import('@/engine/types/controller.types.js').ParsedCommand | undefined;
-  let mod: import('@/engine/types/controller.types.js').CommandModule | undefined;
+  let parsed:
+    | import('@/engine/types/controller.types.js').ParsedCommand
+    | undefined;
+  let mod:
+    | import('@/engine/types/controller.types.js').CommandModule
+    | undefined;
 
   // Prefix commands vs. Prefix-less commands
   if (body.startsWith(prefix)) {
@@ -124,7 +141,9 @@ export async function handleMessage(
   } else if (args.length > 0) {
     const firstToken = args[0]!.toLowerCase();
     const noPrefixMod = commands.get(firstToken);
-    const noPrefixCfg = noPrefixMod?.['config'] as Record<string, unknown> | undefined;
+    const noPrefixCfg = noPrefixMod?.['config'] as
+      | Record<string, unknown>
+      | undefined;
     if (noPrefixCfg?.['hasPrefix'] === false) {
       if (noPrefixMod && isPlatformAllowed(noPrefixMod, native.platform)) {
         isCommandInvocation = true;
@@ -150,7 +169,9 @@ export async function handleMessage(
       async () => {
         // Handle raw prefixes that result in no resolvable command after parsing
         if (!commandCtx.parsed && body.startsWith(prefix)) {
-          await chat.replyMessage({ message: `Type ${prefix}help for available commands.` });
+          await chat.replyMessage({
+            message: `Type ${prefix}help for available commands.`,
+          });
           return;
         }
         if (!commandCtx.parsed) return;
@@ -159,8 +180,15 @@ export async function handleMessage(
         const m = commandCtx.mod;
 
         if (!m) {
-          const disabledNames = await getDisabledNamesForSession(native, commands);
-          const suggestion = findSimilarCommand(p.name, commands, disabledNames);
+          const disabledNames = await getDisabledNamesForSession(
+            native,
+            commands,
+          );
+          const suggestion = findSimilarCommand(
+            p.name,
+            commands,
+            disabledNames,
+          );
           await chat.replyMessage({
             message: suggestion
               ? `No command "${p.name}" found. Did you mean "${suggestion}"?`
@@ -175,11 +203,23 @@ export async function handleMessage(
         const sessionId = native.sessionId ?? '';
 
         if (sessionUserId && sessionId) {
-          const enabled = await isCommandEnabled(sessionUserId, native.platform, sessionId, canonicalName);
+          const enabled = await isCommandEnabled(
+            sessionUserId,
+            native.platform,
+            sessionId,
+            canonicalName,
+          );
           if (!enabled) {
-            const disabledNames = await getDisabledNamesForSession(native, commands);
+            const disabledNames = await getDisabledNamesForSession(
+              native,
+              commands,
+            );
             disabledNames.add(canonicalName);
-            const suggestion = findSimilarCommand(p.name, commands, disabledNames);
+            const suggestion = findSimilarCommand(
+              p.name,
+              commands,
+              disabledNames,
+            );
             await chat.replyMessage({
               message: suggestion
                 ? `No command "${p.name}" found. Did you mean "${suggestion}"?`
@@ -189,8 +229,15 @@ export async function handleMessage(
           }
         }
 
-        await dispatchCommand(commands, p, commandCtx, api, event['threadID'] as string, prefix);
-      }
+        await dispatchCommand(
+          commands,
+          p,
+          commandCtx,
+          api,
+          event['threadID'] as string,
+          prefix,
+        );
+      },
     );
   }
 }

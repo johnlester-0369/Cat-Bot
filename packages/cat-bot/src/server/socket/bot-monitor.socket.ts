@@ -42,9 +42,12 @@ export function registerBotMonitorHandlers(io: SocketIOServer): void {
   // Session manager emits 'status' whenever markActive/markInactive is called.
   // The key is the full `${userId}:${platform}:${sessionId}` string; the web client
   // extracts the sessionId (UUID) by splitting on ':' and taking the last segment.
-  sessionManager.on('status', (data: { key: string; active: boolean; startedAt?: number }) => {
-    io.emit('bot:status:change', data);
-  });
+  sessionManager.on(
+    'status',
+    (data: { key: string; active: boolean; startedAt?: number }) => {
+      io.emit('bot:status:change', data);
+    },
+  );
 
   // ── Per-connection request handler ────────────────────────────────────────────
   io.on('connection', (socket) => {
@@ -58,12 +61,15 @@ export function registerBotMonitorHandlers(io: SocketIOServer): void {
         data !== null &&
         typeof data === 'object' &&
         Array.isArray((data as Record<string, unknown>)['sessionIds'])
-          ? ((data as Record<string, unknown>)['sessionIds'] as unknown[]).filter(
-              (s): s is string => typeof s === 'string',
-            )
+          ? (
+              (data as Record<string, unknown>)['sessionIds'] as unknown[]
+            ).filter((s): s is string => typeof s === 'string')
           : [];
 
-      const statuses: Record<string, { active: boolean; startedAt: number | null }> = {};
+      const statuses: Record<
+        string,
+        { active: boolean; startedAt: number | null }
+      > = {};
       for (const sid of sessionIds) {
         statuses[sid] = {
           active: sessionManager.getStatusBySessionId(sid),

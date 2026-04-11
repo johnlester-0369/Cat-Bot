@@ -29,7 +29,7 @@ const DELTA_NEXT = 5;
 /** Converts raw EXP to a level number. */
 function expToLevel(exp: number): number {
   if (exp <= 0) return 0;
-  return Math.floor((1 + Math.sqrt(1 + 8 * exp / DELTA_NEXT)) / 2);
+  return Math.floor((1 + Math.sqrt(1 + (8 * exp) / DELTA_NEXT)) / 2);
 }
 
 /** Minimum EXP required to reach a specific level. */
@@ -37,7 +37,6 @@ function levelToExp(level: number): number {
   if (level <= 0) return 0;
   return Math.floor(((level * level - level) * DELTA_NEXT) / 2);
 }
-
 
 export const config = {
   name: 'rank',
@@ -59,7 +58,12 @@ export const config = {
   ],
 };
 
-export const onCommand = async ({ chat, event, db, native }: AppCtx): Promise<void> => {
+export const onCommand = async ({
+  chat,
+  event,
+  db,
+  native,
+}: AppCtx): Promise<void> => {
   const mentions = event['mentions'] as Record<string, string> | undefined;
   const mentionIDs = Object.keys(mentions ?? {});
 
@@ -67,7 +71,10 @@ export const onCommand = async ({ chat, event, db, native }: AppCtx): Promise<vo
   const targetID = mentionIDs[0] ?? (event['senderID'] as string | undefined);
 
   if (!targetID) {
-    await chat.replyMessage({ style: MessageStyle.MARKDOWN, message: '❌ Could not identify the target user on this platform.' });
+    await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
+      message: '❌ Could not identify the target user on this platform.',
+    });
     return;
   }
 
@@ -76,19 +83,19 @@ export const onCommand = async ({ chat, event, db, native }: AppCtx): Promise<vo
   let exp = 0;
   if (await userColl.isCollectionExist('xp')) {
     const xpColl = await userColl.getCollection('xp');
-    exp = (await xpColl.get('exp') as number | undefined) ?? 0;
+    exp = ((await xpColl.get('exp')) as number | undefined) ?? 0;
   }
 
-  const level       = expToLevel(exp);
+  const level = expToLevel(exp);
   const currentBase = levelToExp(level);
-  const nextBase    = levelToExp(level + 1);
-  const currentExp  = exp - currentBase;
-  const expNeeded   = nextBase - currentBase;
+  const nextBase = levelToExp(level + 1);
+  const currentExp = exp - currentBase;
+  const expNeeded = nextBase - currentBase;
 
   // Compute leaderboard rank by scanning all session users' EXP blobs.
   // Fail-open: rank defaults to 1 when session identity is absent or DB query fails.
   let leaderboardRank = 1;
-  let totalRanked    = 1;
+  let totalRanked = 1;
   const { userId, platform, sessionId } = native;
   if (userId && platform && sessionId) {
     try {
@@ -96,7 +103,8 @@ export const onCommand = async ({ chat, event, db, native }: AppCtx): Promise<vo
       const leaderboard = allSessions
         .map(({ botUserId, data }) => {
           const xpData = data['xp'] as Record<string, unknown> | undefined;
-          const userExp = typeof xpData?.['exp'] === 'number' ? (xpData['exp'] as number) : 0;
+          const userExp =
+            typeof xpData?.['exp'] === 'number' ? (xpData['exp'] as number) : 0;
           return { botUserId, exp: userExp };
         })
         .sort((a, b) => b.exp - a.exp);

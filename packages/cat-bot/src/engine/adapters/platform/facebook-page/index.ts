@@ -34,7 +34,10 @@ import { createEventRouter } from './event-router.js';
 import { createPageApi } from './pageApi.js';
 import { createLogger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 import { sessionManager } from '@/engine/modules/session/session-manager.lib.js';
-import { PLATFORM_TO_ID, Platforms } from '@/engine/modules/platform/platform.constants.js';
+import {
+  PLATFORM_TO_ID,
+  Platforms,
+} from '@/engine/modules/platform/platform.constants.js';
 
 /**
  * Creates a Facebook Page platform listener.
@@ -58,10 +61,20 @@ export function createFacebookPageListener(
   emitter.start = async () => {
     sessionLogger.info('[facebook-page] Starting Listener...');
     // Pass pageId directly — no Graph API fetch required; ID comes from credential.json.
-    const pageApi = createPageApi(config.pageAccessToken, config.pageId, sessionLogger, (err) => {
-      sessionLogger.error('[facebook-page] Session offline — page access token revoked or invalid', { error: err });
-      sessionManager.markInactive(`${config.userId}:${Platforms.FacebookPage}:${config.sessionId}`);
-    });
+    const pageApi = createPageApi(
+      config.pageAccessToken,
+      config.pageId,
+      sessionLogger,
+      (err) => {
+        sessionLogger.error(
+          '[facebook-page] Session offline — page access token revoked or invalid',
+          { error: err },
+        );
+        sessionManager.markInactive(
+          `${config.userId}:${Platforms.FacebookPage}:${config.sessionId}`,
+        );
+      },
+    );
     const onMessage = createEventRouter(
       pageApi,
       emitter,

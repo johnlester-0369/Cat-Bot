@@ -5,7 +5,10 @@
  * config.eventType[] gets its onEvent handler called in registration order.
  */
 
-import type { EventModuleMap, BaseCtx } from '@/engine/types/controller.types.js';
+import type {
+  EventModuleMap,
+  BaseCtx,
+} from '@/engine/types/controller.types.js';
 // Platform filter — enforces config.platform[] declared by each event module
 import { isPlatformAllowed } from '@/engine/modules/platform/platform-filter.util.js';
 // Event registry check — honours bot admin toggle decisions in bot_session_events
@@ -32,8 +35,14 @@ export async function dispatchEvent(
       // Skip modules disabled by the bot admin — keyed by config.name, not eventType,
       // so the dashboard label matches the module name the user recognises ('join', 'leave').
       if (sessionUserId && sessionId) {
-        const modName = ((mod['config'] as { name?: string } | undefined)?.name ?? '').toLowerCase();
-        if (modName && !(await isEventEnabled(sessionUserId, platform, sessionId, modName))) continue;
+        const modName = (
+          (mod['config'] as { name?: string } | undefined)?.name ?? ''
+        ).toLowerCase();
+        if (
+          modName &&
+          !(await isEventEnabled(sessionUserId, platform, sessionId, modName))
+        )
+          continue;
       }
       try {
         // Await handles both sync and async returns safely; catch blocks capture any rejections without assuming a .catch() method exists on the return value

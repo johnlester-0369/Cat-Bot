@@ -70,7 +70,9 @@ export function normalizeMessageEvent(
     isGroup: !!event.isGroup,
     mentions: event.mentions ?? {},
     // PROTO_REPLIED_MESSAGE requires number; PROTO_EVENT_MESSAGE allows string|number|null
-    timestamp: isReply ? (Number(event.timestamp) || 0) : (event.timestamp ?? null),
+    timestamp: isReply
+      ? Number(event.timestamp) || 0
+      : (event.timestamp ?? null),
   };
 
   if (isReply) {
@@ -78,20 +80,27 @@ export function normalizeMessageEvent(
       ...base,
       // fca-unofficial provides the full PROTO_REPLIED_MESSAGE shape on messageReply — pass all fields through
       // so command/event modules can safely read senderID, attachments, timestamp, etc. on the replied message.
-      messageReply: event.messageReply ? {
-        threadID: event.messageReply.threadID ?? '',
-        messageID: event.messageReply.messageID ?? '',
-        senderID: event.messageReply.senderID ?? '',
-        attachments: (event.messageReply.attachments ?? []).map((a) => ({
-          type: a.type ?? 'unknown',
-          url: a.url ?? null,
-        })),
-        args: event.messageReply.args ?? (event.messageReply.body ?? '').trim().split(/\s+/).filter(Boolean),
-        message: event.messageReply.body ?? '',
-        isGroup: !!event.messageReply.isGroup,
-        mentions: event.messageReply.mentions ?? {},
-        timestamp: event.messageReply.timestamp ?? 0,
-      } : null,
+      messageReply: event.messageReply
+        ? {
+            threadID: event.messageReply.threadID ?? '',
+            messageID: event.messageReply.messageID ?? '',
+            senderID: event.messageReply.senderID ?? '',
+            attachments: (event.messageReply.attachments ?? []).map((a) => ({
+              type: a.type ?? 'unknown',
+              url: a.url ?? null,
+            })),
+            args:
+              event.messageReply.args ??
+              (event.messageReply.body ?? '')
+                .trim()
+                .split(/\s+/)
+                .filter(Boolean),
+            message: event.messageReply.body ?? '',
+            isGroup: !!event.messageReply.isGroup,
+            mentions: event.messageReply.mentions ?? {},
+            timestamp: event.messageReply.timestamp ?? 0,
+          }
+        : null,
     };
   }
 
