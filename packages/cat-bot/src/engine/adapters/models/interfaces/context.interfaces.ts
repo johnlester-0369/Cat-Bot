@@ -18,6 +18,7 @@ import type {
 } from './api.interfaces.js';
 import type { UnifiedThreadInfo } from '../thread.model.js';
 import type { UnifiedUserInfo } from '../user.model.js';
+import type { MessageStyleValue } from '@/engine/constants/message-style.constants.js';
 
 /** Shared thread override options for context functions */
 export interface ThreadOptions {
@@ -62,6 +63,13 @@ export interface ReplyOptions {
   thread_id?: string;
   messageID?: string;
   reply_to_message_id?: string;
+  /**
+   * Controls how the message text is rendered on the target platform.
+   * 'text'     → raw plain text (escapes markdown characters on Discord).
+   * 'markdown' → formatted text (MarkdownV2 on Telegram; Unicode styled on FB platforms).
+   * Omitting preserves the historic default behavior for each platform.
+   */
+  style?: MessageStyleValue;
 }
 
 /**

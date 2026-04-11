@@ -239,6 +239,7 @@ export function createChatContext(
       attachment = [],
       attachment_url = [],
       button = [],
+      style,
       ...opts
     } = {}) => {
       const targetThreadID = getThreadID(opts);
@@ -259,6 +260,7 @@ export function createChatContext(
           attachment_url,
           ...(customMessageID ? { reply_to_message_id: customMessageID } : {}),
           button: [],
+          ...(style !== undefined ? { style } : {}),
         });
         if (msgId) registerButtonFallbackState(String(msgId), button);
         return msgId;
@@ -269,6 +271,7 @@ export function createChatContext(
         attachment_url,
         ...(customMessageID ? { reply_to_message_id: customMessageID } : {}),
         button: resolveButtons(button),
+        ...(style !== undefined ? { style } : {}),
       });
     },
 
@@ -281,6 +284,7 @@ export function createChatContext(
       attachment = [],
       attachment_url = [],
       button = [],
+      style,
       ...opts
     } = {}) => {
       const targetThreadID = getThreadID(opts);
@@ -300,6 +304,7 @@ export function createChatContext(
           attachment_url,
           reply_to_message_id: targetMessageID,
           button: [],
+          ...(style !== undefined ? { style } : {}),
         });
         if (msgId) registerButtonFallbackState(String(msgId), button);
         return msgId;
@@ -310,6 +315,7 @@ export function createChatContext(
         attachment_url,
         reply_to_message_id: targetMessageID,
         button: resolveButtons(button),
+        ...(style !== undefined ? { style } : {}),
       });
     },
 

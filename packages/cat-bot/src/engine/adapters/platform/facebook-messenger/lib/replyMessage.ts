@@ -8,6 +8,8 @@
 import type { Readable } from 'stream';
 import { bufferToStream, urlToStream } from '../utils/index.js';
 
+// FB Messenger MQTT has no native markdown rendering; mdToText converts to styled Unicode characters
+import { mdToText } from '@/engine/utils/md-to-text.util.js';
 import type { ReplyMessageOptions } from '@/engine/adapters/models/api.model.js';
 
 /** fca sendMessage callback message info shape. */
@@ -41,6 +43,8 @@ export async function replyMessage(
   const attachment_url = options.attachment_url ?? [];
   const reply_to_message_id = options.reply_to_message_id;
   const mentions = options.mentions ?? [];
+  // Convert markdown to styled Unicode when requested — FB Messenger has no parse_mode equivalent
+  const finalMessage = options.style === 'markdown' ? mdToText(message) : message;
 
   // Download URL attachments first — explicit name controls fca MIME detection via .path
   const urlStreams = await Promise.all(
@@ -68,14 +72,14 @@ export async function replyMessage(
   const msg: string | object =
     allStreams.length > 0
       ? {
-          body: message,
+          body: finalMessage,
           attachment: allStreams.length === 1 ? allStreams[0] : allStreams,
           ...(fcaMentions.length ? { mentions: fcaMentions } : {}),
         }
       : // fca requires an object (not a plain string) when mentions are present, even for text-only replies
         fcaMentions.length
-        ? { body: message, mentions: fcaMentions }
-        : message || '';
+        ? { body: finalMessage, mentions: fcaMentions }
+        : finalMessage || '';
 
   return new Promise((resolve, reject) => {
     api.sendMessage(

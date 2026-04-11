@@ -20,6 +20,8 @@ export type { PlatformId } from '../thread.model.js';
 
 import type { ButtonStyleValue } from '@/engine/constants/button-style.constants.js';
 
+import type { MessageStyleValue } from '@/engine/constants/message-style.constants.js';
+
 /**
  * A mention placeholder embedded in a message body.
  * Each platform adapter translates the tag+user_id pair to its native mention format.
@@ -106,4 +108,11 @@ export interface ReplyMessageOptions {
   /** Resolved button definitions built by createChatContext. */
   button?: ButtonItem[];
   mentions?: MentionEntry[];
+  /**
+   * Controls how the message text is rendered.
+   * 'text'     → raw plain text; markdown syntax is escaped / not applied.
+   * 'markdown' → formatted text; each platform uses its native mechanism.
+   * Omitting this field preserves the historic default for that platform.
+   */
+  style?: MessageStyleValue;
 }
