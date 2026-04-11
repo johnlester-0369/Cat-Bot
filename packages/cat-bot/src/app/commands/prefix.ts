@@ -233,28 +233,10 @@ export const onCommand = async ({
 export const onChat = async ({
   event,
   chat,
-  db,
   native,
 }: AppCtx): Promise<void> => {
   const message = (event['message'] as string | undefined) ?? '';
   const threadID = event['threadID'] as string | undefined;
-
-  if (threadID) {
-    // Only attempt a DB load when the in-memory cache has no entry for this thread —
-    // avoids a collection read on every single message once the cache is warm.
-    if (prefixManager.getThreadPrefix(threadID) === undefined) {
-      try {
-        const threadColl = db.threads.collection(threadID);
-        if (await threadColl.isCollectionExist(SETTINGS_COLLECTION)) {
-          const settings = await threadColl.getCollection(SETTINGS_COLLECTION);
-          const stored = (await settings.get('prefix')) as string | undefined;
-          if (stored) prefixManager.setThreadPrefix(threadID, stored);
-        }
-      } catch {
-        // Non-fatal — cache stays empty; next message will retry the load
-      }
-    }
-  }
 
   // Respond to a bare "prefix" message (no command trigger required) — mirrors GoatBot's onChat pattern
   if (message.trim().toLowerCase() === 'prefix') {
