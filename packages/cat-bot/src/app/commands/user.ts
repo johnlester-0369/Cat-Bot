@@ -17,6 +17,7 @@ import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
 import { banUser, unbanUser } from '@/engine/repos/banned.repo.js';
 import { OptionType } from '@/engine/modules/command/command-option.constants.js';
+import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 
 export const config = {
   name: 'user',
@@ -55,7 +56,7 @@ export const onCommand = async ({
   const { userId, platform, sessionId } = native;
 
   if (!userId || !platform || !sessionId) {
-    await chat.replyMessage({ message: '❌ Cannot resolve session identity.' });
+    await chat.replyMessage({ message: '❌ Cannot resolve session identity.', style: MessageStyle.MARKDOWN });
     return;
   }
 
@@ -65,15 +66,14 @@ export const onCommand = async ({
   if (sub === 'ban') {
     const uid = args[1];
     if (!uid) {
-      await chat.replyMessage({ message: `❌ Usage: ${prefix}user ban <uid> [reason]` });
+      await chat.replyMessage({ message: `❌ Usage: ${prefix}user ban <uid> [reason]`, style: MessageStyle.MARKDOWN });
       return;
     }
-    // Remaining args after uid are joined as the reason so multi-word reasons work
     const reason = args.slice(2).join(' ') || undefined;
     await banUser(userId, platform, sessionId, uid, reason);
     const userName = await user.getName(uid);
     const reasonSuffix = reason ? ` — Reason: ${reason}` : '';
-    await chat.replyMessage({ message: `🚫 ${userName} has been banned from this session.${reasonSuffix}` });
+    await chat.replyMessage({ message: `🚫 **${userName}** has been banned from this session.${reasonSuffix}`, style: MessageStyle.MARKDOWN });
     return;
   }
 
@@ -81,12 +81,12 @@ export const onCommand = async ({
   if (sub === 'unban') {
     const uid = args[1];
     if (!uid) {
-      await chat.replyMessage({ message: `❌ Usage: ${prefix}user unban <uid>` });
+      await chat.replyMessage({ message: `❌ Usage: ${prefix}user unban <uid>`, style: MessageStyle.MARKDOWN });
       return;
     }
     await unbanUser(userId, platform, sessionId, uid);
     const userName = await user.getName(uid);
-    await chat.replyMessage({ message: `✅ ${userName} has been unbanned from this session.` });
+    await chat.replyMessage({ message: `✅ **${userName}** has been unbanned from this session.`, style: MessageStyle.MARKDOWN });
     return;
   }
 
@@ -97,5 +97,6 @@ export const onCommand = async ({
       `  ${prefix}user ban <uid> [reason]  — Ban a user from this session`,
       `  ${prefix}user unban <uid>         — Lift an existing user ban`,
     ].join('\n'),
+    style: MessageStyle.MARKDOWN,
   });
 };
