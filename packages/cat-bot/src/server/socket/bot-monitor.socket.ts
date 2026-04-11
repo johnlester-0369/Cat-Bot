@@ -98,5 +98,12 @@ export function registerBotMonitorHandlers(io: SocketIOServer): void {
       if (typeof key !== 'string') return;
       void socket.leave(`bot-log:${key}`);
     });
+
+    // Purge the server-side history buffer so the next subscribe hydration on this session
+    // key delivers only post-restart logs — client emits this before clearing its local state.
+    socket.on('bot:log:clear', (key: unknown) => {
+      if (typeof key !== 'string') return;
+      logRelay.clearKeyedHistory(key);
+    });
   });
 }
