@@ -12,6 +12,8 @@
 import { urlToStream, bufferToStream } from '@/engine/utils/streams.util.js';
 import type { PageApi } from '@/engine/adapters/platform/facebook-page/pageApi.js';
 import type { Readable } from 'stream';
+// FB Page Graph API has no markdown support; mdToText converts to styled Unicode characters
+import { mdToText } from '@/engine/utils/md-to-text.util.js';
 
 import type { ReplyMessageOptions } from '@/engine/adapters/models/api.model.js';
 
@@ -28,6 +30,8 @@ export async function replyMessage(
   const attachment = options.attachment ?? [];
   const attachment_url = options.attachment_url ?? [];
   const button = options.button ?? [];
+  // Convert markdown to styled Unicode when requested — the FB Page API has no parse_mode equivalent
+  const finalMessage = options.style === 'markdown' ? mdToText(message) : message;
 
   // Pass explicit name to urlToStream so pageApi's getAttachmentType() sees the caller-specified extension
   const urlStreams = await Promise.all(
@@ -63,7 +67,7 @@ export async function replyMessage(
             template: {
               template_type: 'button',
               // FB requires non-empty text (1–640 chars) on button templates
-              text: message || 'Choose an option:',
+              text: finalMessage || 'Choose an option:',
               buttons: fbButtons,
             },
           },
@@ -87,7 +91,7 @@ export async function replyMessage(
 
   if (allAttachments.length === 0) {
     return new Promise<string | undefined>((resolve, reject) => {
-      pageApi.sendMessage(message || '', threadID, (err, data) =>
+      pageApi.sendMessage(finalMessage || '', threadID, (err, data) =>
         err ? reject(err) : resolve(data?.messageID),
       );
     });
@@ -96,7 +100,7 @@ export async function replyMessage(
   // Send text caption first, then each attachment as a separate Graph API call
   if (message) {
     await new Promise<void>((resolve, reject) => {
-      pageApi.sendMessage(message, threadID, (err) =>
+      pageApi.sendMessage(finalMessage, threadID, (err) =>
         err ? reject(err) : resolve(),
       );
     });
