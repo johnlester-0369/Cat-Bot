@@ -52,9 +52,10 @@ export const config = {
   options: [
     {
       type: OptionType.user,
+      name: 'User',
       description: 'User to view rank',
       required: false,
-    },
+    }
   ],
 };
 
