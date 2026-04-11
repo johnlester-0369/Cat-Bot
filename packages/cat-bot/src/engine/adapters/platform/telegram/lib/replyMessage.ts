@@ -22,10 +22,7 @@ import {
 } from '@/engine/utils/streams.util.js';
 // text_mention entities allow tagging users by numeric ID without a public @username — Bot API 7.0+
 import { buildTelegramMentionEntities } from '../utils/helper.util.js';
-import {
-  validateMarkdownV2,
-  sanitizeMarkdownV2,
-} from '../utils/markdownv2.util.js';
+import { sanitizeMarkdownV2 } from '../utils/markdownv2.util.js';
 import type { ReplyMessageOptions } from '@/engine/adapters/models/api.model.js';
 
 // Augment Readable to carry a path property for extension-based routing
@@ -72,9 +69,9 @@ export async function replyMessage(
   // Mutation here means all downstream send paths (sendMessage, sendMediaGroup captions,
   // sendDocument, the button keyboard message) automatically use the corrected string
   // without per-call guards, and text_mention entities align with what Telegram parses.
-  if (parseMode === 'MarkdownV2' && !validateMarkdownV2(text)) {
-    text = sanitizeMarkdownV2(text);
-  }
+  // Always sanitize — sanitizeMarkdownV2 is idempotent, so running on already-valid
+  // text is a no-op. This avoids the double-call from the old validate-then-sanitize gate.
+  if (parseMode === 'MarkdownV2') text = sanitizeMarkdownV2(text);
 
   // Compute text_mention entities once for all send calls in this invocation.
   // Entities are computed against `text` AFTER sanitisation so byte-offsets align with
