@@ -76,7 +76,10 @@ export async function upsertUserSession(userId: string, platform: string, sessio
   await prisma.botUserSession.upsert({
     where: { userId_platformId_sessionId_botUserId: { userId, platformId: platformNumericId, sessionId, botUserId } },
     create: { userId, platformId: platformNumericId, sessionId, botUserId },
-    update: {},
+    // Same fix as upsertThreadSession — Prisma's @updatedAt only advances when a field is written.
+    // Without this, every message sees a permanently stale sender row and triggers getFullUserInfo
+    // on every single incoming event, regardless of how recently the user was synced.
+    update: { lastUpdatedAt: new Date() },
   });
 }
 

@@ -46,7 +46,10 @@ export async function upsertThreadSession(userId: string, platform: string, sess
   await prisma.botThreadSession.upsert({
     where: { userId_platformId_sessionId_botThreadId: { userId, platformId: platformNumericId, sessionId, botThreadId: threadId } },
     create: { userId, platformId: platformNumericId, sessionId, botThreadId: threadId },
-    update: {},
+    // Prisma's @updatedAt decorator only fires when at least one field is present in the update payload.
+    // An empty update: {} is a no-op — lastUpdatedAt stays frozen at creation time, making every
+    // subsequent staleness check see an expired timestamp and trigger a redundant API fetch.
+    update: { lastUpdatedAt: new Date() },
   });
 }
 

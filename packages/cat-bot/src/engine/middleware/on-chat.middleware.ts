@@ -25,8 +25,8 @@
 import type { MiddlewareFn, OnChatCtx } from '@/engine/types/middleware.types.js';
 import { syncThreadAndParticipants } from '@/engine/services/threads.service.js';
 import { syncUser } from '@/engine/services/users.service.js';
-import { getThreadSessionUpdatedAt } from '@/engine/repos/threads.repo.js';
-import { getUserSessionUpdatedAt } from '../repos/users.repo.js';
+import { getThreadSessionUpdatedAt, upsertThreadSession } from '@/engine/repos/threads.repo.js';
+import { getUserSessionUpdatedAt, upsertUserSession } from '../repos/users.repo.js';
 import { logger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 
 // ── Resync policy ────────────────────────────────────────────────────────────
@@ -66,9 +66,18 @@ export const chatPassthrough: MiddlewareFn<OnChatCtx> = async function (
       // cached metadata (name, member count, admin list) may have drifted from the platform's state.
       const threadStale = threadUpdatedAt === null || (Date.now() - threadUpdatedAt.getTime()) > SYNC_INTERVAL_MS;
       if (threadStale) {
-        // Thread sync also walks participantIDs so the sender is likely upserted here too.
-        // upsertThreadSession inside syncThreadAndParticipants will stamp lastUpdatedAt on completion.
-        await syncThreadAndParticipants(ctx, threadID, sessionUserId, sessionId);
+        // Optimistic timestamp: stamp lastUpdatedAt immediately when the session row already
+        // exists so concurrent messages racing the background API fetch don't each detect
+        // staleness and each fire redundant syncs. Only safe when the row exists (non-null)
+        // because the Prisma adapter enforces a FK from bot_thread_session → bot_thread;
+        // a brand-new thread (null) cannot have its session row written before upsertThread runs.
+        if (threadUpdatedAt !== null) {
+          void upsertThreadSession(sessionUserId, platform, sessionId, threadID);
+        }
+        // Fire-and-forget — bot pipeline advances immediately; the platform API fetch and
+        // subsequent DB writes run in the background. syncThreadAndParticipants will call
+        // upsertThreadSession again on completion, refreshing the timestamp a second time.
+        void syncThreadAndParticipants(ctx, threadID, sessionUserId, sessionId);
       }
 
       // Always check the sender explicitly — they may not appear in participantIDs on
@@ -78,8 +87,13 @@ export const chatPassthrough: MiddlewareFn<OnChatCtx> = async function (
         const senderUpdatedAt = await getUserSessionUpdatedAt(sessionUserId, platform, sessionId, senderID);
         const senderStale = senderUpdatedAt === null || (Date.now() - senderUpdatedAt.getTime()) > SYNC_INTERVAL_MS;
         if (senderStale) {
-          // upsertUserSession inside syncUser will stamp lastUpdatedAt on completion.
-          await syncUser(ctx, senderID, sessionUserId, sessionId);
+          // Same optimistic stamp pattern as thread: only when the row exists to avoid a
+          // FK violation on the very first time this user is seen in this session.
+          if (senderUpdatedAt !== null) {
+            void upsertUserSession(sessionUserId, platform, sessionId, senderID);
+          }
+          // Fire-and-forget — syncUser calls upsertUserSession again on completion.
+          void syncUser(ctx, senderID, sessionUserId, sessionId);
         }
       }
     } catch (err: unknown) {
