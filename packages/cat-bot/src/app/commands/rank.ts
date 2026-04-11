@@ -52,9 +52,10 @@ export const config = {
   options: [
     {
       type: OptionType.user,
+      name: 'User',
       description: 'User to view rank',
       required: false,
-    },
+    }
   ],
 };
 
@@ -68,7 +69,8 @@ export const onCommand = async ({
   const mentionIDs = Object.keys(mentions ?? {});
 
   // Priority: first @mention → sender. noUncheckedIndexedAccess: mentionIDs[0] is string | undefined.
-  const targetID = mentionIDs[0] ?? (event['senderID'] as string | undefined);
+  const targetID: string | undefined =
+    mentionIDs.length > 0 ? mentionIDs[0] : (event['senderID'] as string | undefined);
 
   if (!targetID) {
     await chat.replyMessage({
@@ -81,9 +83,11 @@ export const onCommand = async ({
   // Read EXP from the user's xp collection — returns 0 when never claimed
   const userColl = db.users.collection(targetID);
   let exp = 0;
+
   if (await userColl.isCollectionExist('xp')) {
     const xpColl = await userColl.getCollection('xp');
-    exp = ((await xpColl.get('exp')) as number | undefined) ?? 0;
+    const rawExp = await xpColl.get('exp');
+    exp = typeof rawExp === 'number' ? rawExp : 0;
   }
 
   const level = expToLevel(exp);
@@ -97,19 +101,30 @@ export const onCommand = async ({
   let leaderboardRank = 1;
   let totalRanked = 1;
   const { userId, platform, sessionId } = native;
+
   if (userId && platform && sessionId) {
     try {
       const allSessions = await db.users.getAll();
+
       const leaderboard = allSessions
         .map(({ botUserId, data }) => {
-          const xpData = data['xp'] as Record<string, unknown> | undefined;
+          const xpData = data?.['xp'] as Record<string, unknown> | undefined;
+
           const userExp =
-            typeof xpData?.['exp'] === 'number' ? (xpData['exp'] as number) : 0;
+            xpData && typeof xpData['exp'] === 'number'
+              ? (xpData['exp'] as number)
+              : 0;
+
           return { botUserId, exp: userExp };
         })
         .sort((a, b) => b.exp - a.exp);
+
       totalRanked = Math.max(1, leaderboard.length);
-      const pos = leaderboard.findIndex((u) => u.botUserId === targetID);
+
+      const pos = leaderboard.findIndex(
+        (u) => u.botUserId === targetID
+      );
+
       if (pos !== -1) leaderboardRank = pos + 1;
     } catch {
       // Fail-open: leaderboard unavailable — still show level and EXP
