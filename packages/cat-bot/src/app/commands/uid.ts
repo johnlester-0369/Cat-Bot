@@ -1,5 +1,6 @@
 import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
+import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 
 export const config = {
   name: 'uid',
@@ -25,8 +26,9 @@ export const onCommand = async ({
   const isReply = !!messageReply?.['senderID'];
 
   await chat.replyMessage({
-    message: targetID 
-      ? (isReply ? `Replied user ID: ${targetID}` : `Your user ID: ${targetID}`) 
+    style: MessageStyle.MARKDOWN,
+    message: targetID
+      ? (isReply ? `**Replied user ID:** \`${targetID}\`` : `**Your user ID:** \`${targetID}\``)
       : '❌ Could not resolve user ID for this platform.',
   });
 };

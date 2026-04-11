@@ -18,6 +18,7 @@
 
 import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
+import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 
 export const config = {
   name: 'daily',
@@ -48,7 +49,7 @@ export const onCommand = async ({ chat, event, db }: AppCtx): Promise<void> => {
   const senderID = event['senderID'] as string | undefined;
 
   if (!senderID) {
-    await chat.replyMessage({ message: '❌ Could not identify your user ID on this platform.' });
+    await chat.replyMessage({ style: MessageStyle.MARKDOWN, message: '❌ Could not identify your user ID on this platform.' });
     return;
   }
 
@@ -75,6 +76,7 @@ export const onCommand = async ({ chat, event, db }: AppCtx): Promise<void> => {
     const pad = (n: number) => String(n).padStart(2, '0');
 
     await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
       message: [
         "⏰ You've already claimed today's reward!",
         `Come back in: ${hours}h ${pad(minutes)}m ${pad(seconds)}s`,
@@ -108,13 +110,14 @@ export const onCommand = async ({ chat, event, db }: AppCtx): Promise<void> => {
 
   // ── Respond ───────────────────────────────────────────────────────────────
   const streakLine = newStreak > 1
-    ? `🔥 Streak: ${newStreak} days (+${streakBonus} bonus coins)`
-    : '🔥 Streak: 1 day (maintain a streak for bonus coins!)';
+    ? `🔥 Streak: **${newStreak} days** (+${streakBonus} bonus coins)`
+    : '🔥 Streak: **1 day** (maintain a streak for bonus coins!)';
 
   await chat.replyMessage({
+    style: MessageStyle.MARKDOWN,
     message: [
       '✅ Daily reward claimed!',
-      `💰 Coins: +${totalCoins}`,
+      `💰 Coins: **+${totalCoins}**`,
       streakLine,
       '⏰ Come back in 24 hours to keep your streak going!',
     ].join('\n'),

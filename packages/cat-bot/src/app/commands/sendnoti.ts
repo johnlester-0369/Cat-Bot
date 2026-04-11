@@ -24,6 +24,7 @@ import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
 import { OptionType } from '@/engine/modules/command/command-option.constants.js';
 import { Platforms } from '@/engine/modules/platform/platform.constants.js';
+import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 
 export const config = {
   name: 'sendnoti',
@@ -58,6 +59,7 @@ export const onCommand = async ({
   const text = args.join(' ').trim();
   if (!text) {
     await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
       message: `❌ Please provide a message to broadcast.\nUsage: ${prefix}sendnoti <message>`,
     });
     return;
@@ -69,6 +71,7 @@ export const onCommand = async ({
 
   if (groupThreadIds.length === 0) {
     await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
       message: 'ℹ️ No group threads found for this session. The bot must have received at least one message in a group before broadcast is available.',
     });
     return;
@@ -85,8 +88,9 @@ export const onCommand = async ({
 
     try {
       await chat.reply({
-        message: `» Notification «\n\n${text}`,
         thread_id: threadId,
+        style: MessageStyle.MARKDOWN,
+        message: `**» Notification «**\n\n${text}`,
       });
       sent++;
       // 500ms pause per send — keeps the bot under typical platform rate limits
@@ -104,5 +108,5 @@ export const onCommand = async ({
     lines.push(`⚠️ Failed to reach ${failed.length} thread(s) — they may have removed the bot or blocked sending.`);
   }
 
-  await chat.replyMessage({ message: lines.join('\n') });
+  await chat.replyMessage({ style: MessageStyle.MARKDOWN, message: lines.join('\n') });
 };

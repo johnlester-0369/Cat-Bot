@@ -1,6 +1,7 @@
 import { sessionManager } from '@/engine/modules/session/session-manager.lib.js';
 import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
+import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 
 export const config = {
   name: 'restart',
@@ -23,6 +24,7 @@ export const onCommand = async ({
 
   if (!userId || !sessionId || !platform) {
     await chat.reply({
+      style: MessageStyle.MARKDOWN,
       message:
         '❌ Cannot restart: missing session identity coordinates in the context.',
     });
@@ -33,7 +35,8 @@ export const onCommand = async ({
 
   // The message is dispatched before initiating the shutdown/startup sequence.
   await chat.reply({
-    message: `🔄 Restarting listener session...`,
+    style: MessageStyle.MARKDOWN,
+    message: `🔄 **Restarting** listener session...`,
   });
 
   try {

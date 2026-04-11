@@ -2,6 +2,7 @@ import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
 import { OptionType } from '@/engine/modules/command/command-option.constants.js';
 import { Platforms } from '@/engine/modules/platform/platform.constants.js';
+import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 
 export const config = {
   name: 'kick',
@@ -37,7 +38,7 @@ export const onCommand = async ({
   // 1. Guard: Ensure this is a group thread
   // Single-user DMs cannot have participants removed.
   if (!event['isGroup']) {
-    await chat.replyMessage({ message: '❌ This command can only be used in group chats.' });
+    await chat.replyMessage({ style: MessageStyle.MARKDOWN, message: '❌ This command can only be used in group chats.' });
     return;
   }
 
@@ -58,6 +59,7 @@ export const onCommand = async ({
 
   if (!targetID) {
     await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
       message: '❌ Please provide a user ID, @mention the user, or reply to their message to kick them.',
     });
     return;
@@ -66,14 +68,14 @@ export const onCommand = async ({
   // 3. Guard: Prevent the bot from attempting to kick itself
   const botID = await bot.getID();
   if (targetID === botID) {
-    await chat.replyMessage({ message: '❌ I cannot kick myself.' });
+    await chat.replyMessage({ style: MessageStyle.MARKDOWN, message: '❌ I cannot kick myself.' });
     return;
   }
   
   // Guard: Prevent the admin from accidentally kicking themselves
   const senderID = event['senderID'] as string | undefined;
   if (targetID === senderID) {
-    await chat.replyMessage({ message: '❌ You cannot kick yourself using this command.' });
+    await chat.replyMessage({ style: MessageStyle.MARKDOWN, message: '❌ You cannot kick yourself using this command.' });
     return;
   }
 
@@ -84,10 +86,11 @@ export const onCommand = async ({
   // 4. Execute removal via platform abstraction
   try {
     await thread.removeUser(targetID);
-    await chat.replyMessage({ message: `✅ ${userName} has been removed from the group.` });
+    await chat.replyMessage({ style: MessageStyle.MARKDOWN, message: `✅ **${userName}** has been removed from the group.` });
   } catch (err: unknown) {
     // Fails smoothly if the bot lacks native admin privileges on the platform
-    await chat.replyMessage({ 
+    await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
       message: `❌ Failed to remove ${userName}. Ensure I have admin privileges in this group.` 
     });
   }

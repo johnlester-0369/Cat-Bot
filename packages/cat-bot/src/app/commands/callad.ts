@@ -33,6 +33,7 @@ import { Role } from '@/engine/constants/role.constants.js';
 import { listBotAdmins } from '@/engine/repos/credentials.repo.js';
 import { OptionType } from '@/engine/modules/command/command-option.constants.js';
 import { Platforms } from '@/engine/modules/platform/platform.constants.js';
+import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 
 export const config = {
   name: 'callad',
@@ -74,15 +75,15 @@ export const onCommand = async ({
 }: AppCtx): Promise<void> => {
   const { userId, platform, sessionId } = native;
 
-  // Session identity required to resolve which admins belong to this bot session
   if (!userId || !platform || !sessionId) {
-    await chat.replyMessage({ message: '❌ Cannot resolve session identity.' });
+    await chat.replyMessage({ style: MessageStyle.MARKDOWN, message: '❌ Cannot resolve session identity.' });
     return;
   }
 
   const userMessage = args.join(' ').trim();
   if (!userMessage) {
     await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
       message: `❌ Please provide a message to send to the admin.\nUsage: ${prefix}callad <message>`,
     });
     return;
@@ -93,6 +94,7 @@ export const onCommand = async ({
   const admins = await listBotAdmins(userId, platform, sessionId);
   if (admins.length === 0) {
     await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
       message: `❌ No bot admins are registered for this session.\nAsk the session owner to run: ${prefix}admin add <uid>`,
     });
     return;
@@ -107,14 +109,15 @@ export const onCommand = async ({
   let forwarded = 0;
   for (const adminId of admins) {
     const botMsgId = await chat.reply({
+      style: MessageStyle.MARKDOWN,
       message: [
-        '📨 CALL ADMIN',
-        `From: ${senderID}`,
-        `Thread: ${userThreadID}`,
+        '📨 **CALL ADMIN**',
+        `**From:** \`${senderID}\``,
+        `**Thread:** \`${userThreadID}\``,
         '',
         userMessage,
         '',
-        '── Reply to this message to respond to the user ──',
+        '_Reply to this message to respond to the user_',
       ].join('\n'),
       thread_id: adminId,
     });
@@ -138,6 +141,7 @@ export const onCommand = async ({
   }
 
   await chat.replyMessage({
+    style: MessageStyle.MARKDOWN,
     message: forwarded > 0
       ? `✅ Your message has been forwarded to ${forwarded} admin(s).\nYou will be notified when they reply.`
       : '❌ Failed to reach any admin. Please try again later.',
@@ -170,12 +174,13 @@ export const onReply = {
 
     // Relay to user's thread, thread-pinned to their original message for clarity
     const botMsgId = await chat.reply({
+      style: MessageStyle.MARKDOWN,
       message: [
-        '📩 Reply from admin:',
+        '📩 **Reply from admin:**',
         '',
         adminMessage,
         '',
-        '── Reply to this message to continue the conversation ──',
+        '_Reply to continue the conversation_',
       ].join('\n'),
       thread_id: userThreadID,
       reply_to_message_id: userMessageID,
@@ -226,12 +231,13 @@ export const onReply = {
 
     // Relay user's reply to admin, thread-pinned to the admin's last message
     const botMsgId = await chat.reply({
+      style: MessageStyle.MARKDOWN,
       message: [
-        `📨 Reply from user (${senderID}):`,
+        `📨 **Reply from user** (\`${senderID}\`):`,
         '',
         userMessage,
         '',
-        '── Reply to this message to respond to the user ──',
+        '_Reply to this message to respond to the user_',
       ].join('\n'),
       thread_id: adminThreadID,
       reply_to_message_id: adminMessageID,

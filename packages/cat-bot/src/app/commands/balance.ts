@@ -19,6 +19,7 @@
 import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
 import { OptionType } from '@/engine/modules/command/command-option.constants.js';
+import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 
 export const config = {
   name: 'balance',
@@ -67,9 +68,9 @@ export const onCommand = async ({ chat, event, db }: AppCtx): Promise<void> => {
       // Platforms embed '@' in the mention display name — strip it for cleaner output
       const displayName = (mentions?.[uid] ?? uid).replace(/^@/, '');
       const coins = await getCoins(db, uid);
-      lines.push(`${displayName}: ${coins.toLocaleString()} coins`);
+      lines.push(`**${displayName}:** ${coins.toLocaleString()} coins`);
     }
-    await chat.replyMessage({ message: lines.join('\n') });
+    await chat.replyMessage({ style: MessageStyle.MARKDOWN, message: lines.join('\n') });
     return;
   }
 
@@ -77,6 +78,7 @@ export const onCommand = async ({ chat, event, db }: AppCtx): Promise<void> => {
   const senderID = event['senderID'] as string | undefined;
   if (!senderID) {
     await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
       message: '❌ Could not identify your user ID on this platform.',
     });
     return;
@@ -84,6 +86,7 @@ export const onCommand = async ({ chat, event, db }: AppCtx): Promise<void> => {
 
   const coins = await getCoins(db, senderID);
   await chat.replyMessage({
-    message: `💰 Your balance: ${coins.toLocaleString()} coins`,
+    style: MessageStyle.MARKDOWN,
+    message: `💰 **Your balance:** ${coins.toLocaleString()} coins`,
   });
 };

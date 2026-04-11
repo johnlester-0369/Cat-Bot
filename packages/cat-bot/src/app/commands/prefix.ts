@@ -27,6 +27,7 @@ import { prefixManager } from '@/engine/modules/prefix/prefix-manager.lib.js';
 import { isBotAdmin, updateBotSessionPrefix } from '@/engine/repos/credentials.repo.js';
 import { OptionType } from '@/engine/modules/command/command-option.constants.js';
 import { triggerSlashSync } from '@/engine/modules/prefix/slash-sync.lib.js';
+import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 
 export const config = {
   name: 'prefix',
@@ -87,13 +88,14 @@ export const onCommand = async ({
     }
 
     await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
       message: [
-        `🌐 System prefix: ${systemPrefix}`,
-        `💠 Thread prefix: ${threadPrefix}`,
+        `🌐 **System prefix:** \`${systemPrefix}\``,
+        `💠 **Thread prefix:** \`${threadPrefix}\``,
         '',
-        `${prefix}prefix <new>      — change this thread's prefix`,
-        `${prefix}prefix <new> -g   — change system prefix (bot admins only)`,
-        `${prefix}prefix reset      — restore this thread's prefix to system default`,
+        `\`${prefix}prefix <new>\` — change this thread's prefix`,
+        `\`${prefix}prefix <new> -g\` — change system prefix (bot admins only)`,
+        `\`${prefix}prefix reset\` — restore this thread's prefix to system default`,
       ].join('\n'),
     });
     return;
@@ -113,13 +115,14 @@ export const onCommand = async ({
         // Non-fatal — continue to clear the in-memory cache regardless
       }
       // Remove from in-memory cache so the next message falls back to session prefix immediately
-      prefixManager.clearThreadPrefix(threadID);
-    }
+    prefixManager.clearThreadPrefix(threadID);
     await chat.replyMessage({
-      message: `✅ Thread prefix reset to system default: ${systemPrefix}`,
+      style: MessageStyle.MARKDOWN,
+      message: `✅ Thread prefix reset to system default: \`${systemPrefix}\``,
     });
     return;
   }
+}
 
   const newPrefix = args[0];
   const isGlobal = args[1] === '-g';
@@ -129,13 +132,14 @@ export const onCommand = async ({
   // Bot admins who want a permanent system prefix change should update it via the dashboard.
   if (isGlobal) {
     if (!userId || !platform || !sessionId || !senderID) {
-      await chat.replyMessage({ message: '❌ Cannot resolve session identity.' });
+      await chat.replyMessage({ style: MessageStyle.MARKDOWN, message: '❌ Cannot resolve session identity.' });
       return;
     }
 
     const isAdmin = await isBotAdmin(userId, platform, sessionId, senderID);
     if (!isAdmin) {
       await chat.replyMessage({
+        style: MessageStyle.MARKDOWN,
         message: '🚫 Only bot admins can change the system prefix.',
       });
       return;
@@ -156,8 +160,9 @@ export const onCommand = async ({
     });
 
     await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
       message: [
-        `✅ System prefix changed to: ${newPrefix}`,
+        `✅ System prefix changed to: \`${newPrefix}\``,
         '✅ Saved to database — this prefix will be restored after restart.',
       ].join('\n'),
     });
@@ -166,7 +171,7 @@ export const onCommand = async ({
 
   // ── Thread-level prefix change ────────────────────────────────────────────
   if (!threadID) {
-    await chat.replyMessage({ message: '❌ Could not resolve thread ID on this platform.' });
+    await chat.replyMessage({ style: MessageStyle.MARKDOWN, message: '❌ Could not resolve thread ID on this platform.' });
     return;
   }
 
@@ -180,6 +185,7 @@ export const onCommand = async ({
     await settings.set('prefix', newPrefix);
   } catch (err: unknown) {
     await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
       message: `❌ Failed to save thread prefix: ${String(err)}`,
     });
     return;
@@ -189,7 +195,8 @@ export const onCommand = async ({
   prefixManager.setThreadPrefix(threadID, newPrefix);
 
   await chat.replyMessage({
-    message: `✅ Thread prefix changed to: ${newPrefix}`,
+    style: MessageStyle.MARKDOWN,
+    message: `✅ Thread prefix changed to: \`${newPrefix}\``,
   });
 };
 
@@ -235,7 +242,8 @@ export const onChat = async ({ event, chat, db, native }: AppCtx): Promise<void>
       (threadID ? prefixManager.getThreadPrefix(threadID) : undefined) ?? systemPrefix;
 
     await chat.replyMessage({
-      message: `🌐 System prefix: ${systemPrefix}\n💠 Thread prefix: ${threadPrefix}`,
+      style: MessageStyle.MARKDOWN,
+      message: `🌐 **System prefix:** \`${systemPrefix}\`\n💠 **Thread prefix:** \`${threadPrefix}\``,
     });
   }
 };

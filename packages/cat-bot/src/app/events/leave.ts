@@ -1,4 +1,5 @@
 import type { AppCtx } from '@/engine/types/controller.types.js';
+import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 
 export const config = {
   name: 'leave',
@@ -28,11 +29,13 @@ export const onEvent = async ({ event, chat }: AppCtx) => {
     const message = logMessageBody
       ? `👋 ${logMessageBody}`
       : wasRemoved
-        ? `👋 A member has been removed from the group.`
-        : `👋 A member has left the group. Goodbye!`;
-
+        ? '👋 **A member has been removed** from the group.'
+        : '👋 **A member has left** the group.';
     // Send through conversational context to respect threading scopes
-    await chat.replyMessage({ message });
+    await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
+      message,
+    });
   } catch (err) {
     console.error('❌ leave event handler failed:', err);
   }

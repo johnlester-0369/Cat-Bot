@@ -17,6 +17,7 @@ import os from 'node:os';
 import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
 import { sessionManager } from '@/engine/modules/session/session-manager.lib.js';
+import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 
 export const config = {
   name: 'uptime',
@@ -67,8 +68,8 @@ export const onCommand = async ({ chat, startTime, native }: AppCtx): Promise<vo
   const [load1, load5, load15] = os.loadavg() as [number, number, number];
   // Windows guard — only show load when the platform actually reports it
   const loadLine = load1 > 0
-    ? `❯ CPU load (1/5/15 min): ${load1.toFixed(2)} / ${load5.toFixed(2)} / ${load15.toFixed(2)}`
-    : `❯ CPU load: N/A (Windows)`;
+    ? `❯ **CPU load (1/5/15 min):** ${load1.toFixed(2)} / ${load5.toFixed(2)} / ${load15.toFixed(2)}`
+    : `❯ **CPU load:** N/A (Windows)`;
 
   const ping = Date.now() - startTime;
 
@@ -88,13 +89,14 @@ export const onCommand = async ({ chat, startTime, native }: AppCtx): Promise<vo
 
   await chat.replyMessage({
     message: [
-      `⏱️ Uptime: ${pad(hours)}h ${pad(minutes)}m ${pad(seconds)}s`,
-      `❯ Bot session: ${botUptimeFmt}`,
+      `⏱️ **Uptime:** ${pad(hours)}h ${pad(minutes)}m ${pad(seconds)}s`,
+      `❯ **Bot session:** ${botUptimeFmt}`,
       '',
-      `❯ RAM (host)  — Total: ${formatBytes(totalRam)} | Used: ${formatBytes(usedRam)} | Free: ${formatBytes(freeRam)}`,
-      `❯ RAM (node)  — RSS: ${formatBytes(mem.rss)} | Heap used: ${formatBytes(mem.heapUsed)}`,
+      `❯ **RAM (host)** — Total: ${formatBytes(totalRam)} | Used: ${formatBytes(usedRam)} | Free: ${formatBytes(freeRam)}`,
+      `❯ **RAM (node)** — RSS: ${formatBytes(mem.rss)} | Heap used: ${formatBytes(mem.heapUsed)}`,
       loadLine,
-      `❯ Ping: ${ping}ms`,
+      `❯ **Ping:** ${ping}ms`,
     ].join('\n'),
+    style: MessageStyle.MARKDOWN,
   });
 };

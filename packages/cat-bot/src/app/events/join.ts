@@ -1,4 +1,5 @@
 import type { AppCtx } from '@/engine/types/controller.types.js';
+import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 
 export const config = {
   name: 'join',
@@ -26,14 +27,16 @@ export const onEvent = async ({ event, chat }: AppCtx) => {
     let message;
     if (added.length === 1) {
       // safe fallback given the preceding length check
-      message = `👋 Welcome to the group, ${getName(added[0]!)}!`;
+      message = `👋 Welcome to the group, **${getName(added[0]!)}**!`;
     } else {
-      const names = added.map((p) => `• ${getName(p)}`).join('\n');
+      const names = added.map((p) => `• **${getName(p)}**`).join('\n');
       message = `👋 Welcome to the group!\n\n${names}`;
     }
-
     // Route event messaging dynamically through chat replies
-    await chat.replyMessage({ message });
+    await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
+      message,
+    });
   } catch (err) {
     console.error('❌ join event handler failed:', err);
   }

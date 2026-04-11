@@ -33,6 +33,7 @@
 import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
 import { ButtonStyle } from '@/engine/constants/button-style.constants.js';
+import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 
 export const config = {
   name: 'example_buttons',
@@ -65,7 +66,7 @@ export const menu = {
     label: '🏓 Ping',
     button_style: ButtonStyle.PRIMARY,
     run: async ({ chat }: AppCtx) => {
-      await chat.reply({ message: '🏓 Pong! The button system works.' });
+      await chat.reply({ style: MessageStyle.MARKDOWN, message: '🏓 **Pong!** The button system works.' });
     },
   },
 
@@ -76,6 +77,7 @@ export const menu = {
       // event.platform is set by the platform's button_action event builder
       const platform = event['platform'] || 'unknown';
       await chat.reply({
+        style: MessageStyle.MARKDOWN,
         message: `You are chatting via: ${platform}`,
       });
     },
@@ -86,8 +88,9 @@ export const menu = {
     button_style: ButtonStyle.SUCCESS,
     run: async ({ chat }: AppCtx) => {
       await chat.reply({
+        style: MessageStyle.MARKDOWN,
         message:
-          'Available commands: /help · /reply (conversation flow) · /react (reaction flow) · /example-buttons (this demo)',
+          'Available commands: `/help` · `/reply` (conversation flow) · `/react` (reaction flow) · `/example-buttons` (this demo)',
       });
     },
   },
@@ -100,7 +103,8 @@ export const menu = {
  */
 export const onCommand = async ({ chat }: AppCtx) => {
   await chat.reply({
-    message: '🎛️ Choose an action:',
+    style: MessageStyle.MARKDOWN,
+    message: '🎛️ **Choose an action:**',
     button: [ACTION_ID.ping, ACTION_ID.platform, ACTION_ID.help],
   });
 };

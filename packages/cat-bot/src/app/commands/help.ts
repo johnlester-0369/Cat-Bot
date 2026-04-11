@@ -43,6 +43,7 @@ import { Role } from '@/engine/constants/role.constants.js';
 import { findSessionCommands } from '@/engine/modules/session/bot-session-commands.repo.js';
 import { isPlatformAllowed } from '@/engine/modules/platform/platform-filter.util.js';
 import { OptionType } from '@/engine/modules/command/command-option.constants.js';
+import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 
 export const config = {
   name: 'help',
@@ -176,6 +177,7 @@ export const onCommand = async ({
     const mod = commands.get(arg);
     if (!mod) {
       await chat.replyMessage({
+        style: MessageStyle.MARKDOWN,
         message: `Command "${arg}" was not found.\nType ${prefix}help to see all available commands.`,
       });
       return;
@@ -187,6 +189,7 @@ export const onCommand = async ({
     const canonicalName = (modCfg?.['name'] as string | undefined)?.toLowerCase() ?? arg;
     if (disabledNames.has(canonicalName)) {
       await chat.replyMessage({
+        style: MessageStyle.MARKDOWN,
         message: `Command "${arg}" was not found.\nType ${prefix}help to see all available commands.`,
       });
       return;
@@ -208,19 +211,20 @@ export const onCommand = async ({
     const usageLine   = `${prefix}${name}${usage ? ` ${usage}` : ''}`;
 
     await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
       message: [
-        `『 ${name} 』`,
+        `『 **${name}** 』`,
         `» ${description}`,
         ``,
         HR,
-        `Category: ${category}`,
-        `Aliases : ${aliases}`,
-        `Usage   : ${usageLine}`,
+        `**Category:** ${category}`,
+        `**Aliases:** ${aliases}`,
+        `**Usage:** \`${usageLine}\``,
         HR,
-        `Role    : ${role}`,
-        `Cooldown: ${cooldown}`,
-        `Version : ${version}`,
-        `Author  : ${author}`
+        `**Role:** ${role}`,
+        `**Cooldown:** ${cooldown}`,
+        `**Version:** ${version}`,
+        `**Author:** ${author}`,
       ].join('\n'),
     });
     return;
@@ -250,10 +254,11 @@ export const onCommand = async ({
     // Right-align numbers up to 99 so entries line up cleanly in monospace chat
     const padNum = String(num).padStart(2, ' ');
     // Crop long descriptions so a single entry never wraps across two chat lines
-    return `${padNum}. ${prefix}${name} — ${crop(desc, 38)}`;
+    return `${padNum}. \`${prefix}${name}\` — ${crop(desc, 38)}`;
   });
 
   await chat.replyMessage({
+    style: MessageStyle.MARKDOWN,
     message: [
       `Commands`,
       HR,

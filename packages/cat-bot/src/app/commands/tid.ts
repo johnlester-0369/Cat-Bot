@@ -1,5 +1,6 @@
 import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
+import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 
 export const config = {
   name: 'tid',
@@ -21,12 +22,13 @@ export const onCommand = async ({
 }: AppCtx): Promise<void> => {
   const threadID = event['threadID'] as string | undefined;
   if (!threadID) {
-    await chat.replyMessage({ message: '❌ Could not resolve thread ID for this platform.' });
+    await chat.replyMessage({ style: MessageStyle.MARKDOWN, message: '❌ Could not resolve thread ID for this platform.' });
     return;
   }
   // thread.getName() is cache-first (Discord/Telegram) or DB-backed (FB) — no extra API round-trip
   const threadName = await thread.getName();
   await chat.replyMessage({
-    message: `Thread ID: ${threadID}\nThread Name: ${threadName}`,
+    style: MessageStyle.MARKDOWN,
+    message: `**Thread ID:** \`${threadID}\`\n**Thread Name:** ${threadName}`,
   });
 };

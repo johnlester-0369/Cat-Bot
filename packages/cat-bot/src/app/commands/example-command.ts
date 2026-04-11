@@ -1,5 +1,6 @@
 import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
+import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 
 export const config = {
   name: 'example_command',
@@ -17,6 +18,7 @@ export const config = {
 export const onCommand = async ({ chat }: AppCtx) => {
   // chat.replyMessage threads the response as a quote-reply to the triggering message
   await chat.replyMessage({
-    message: 'Hello',
+    style: MessageStyle.MARKDOWN,
+    message: '**Hello**',
   });
 };

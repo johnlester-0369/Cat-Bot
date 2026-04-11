@@ -25,6 +25,7 @@
 import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
 import { OptionType } from '@/engine/modules/command/command-option.constants.js';
+import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 
 /** Must match the constant in rank.ts — controls EXP-to-level curve. */
 const DELTA_NEXT = 5;
@@ -105,7 +106,8 @@ export const onChat = async ({ event, db, chat }: AppCtx): Promise<void> => {
 
     const name = await db.users.getName(senderID);
     await chat.replyMessage({
-      message: `🎉 Congratulations ${name}! You reached level ${newLevel}!`,
+      style: MessageStyle.MARKDOWN,
+      message: `🎉 Congratulations **${name}**! You reached **level ${newLevel}**!`,
     });
   } catch {
     // Swallow all errors — EXP accumulation must never disrupt normal chat flow
@@ -121,7 +123,7 @@ export const onChat = async ({ event, db, chat }: AppCtx): Promise<void> => {
 export const onCommand = async ({ chat, args, event, db, prefix = '' }: AppCtx): Promise<void> => {
   const threadID = event['threadID'] as string | undefined;
   if (!threadID) {
-    await chat.replyMessage({ message: '❌ This command can only be used in a thread.' });
+    await chat.replyMessage({ style: MessageStyle.MARKDOWN, message: '❌ This command can only be used in a thread.' });
     return;
   }
 
@@ -138,6 +140,7 @@ export const onCommand = async ({ chat, args, event, db, prefix = '' }: AppCtx):
       }
     } catch { /* fail-open */ }
     await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
       message: [
         `Rankup notifications are currently ${current ? '✅ on' : '🔕 off'} for this thread.`,
         `Usage: ${prefix}rankup on | off`,
@@ -155,6 +158,7 @@ export const onCommand = async ({ chat, args, event, db, prefix = '' }: AppCtx):
   await settings.set('enabled', enabled);
 
   await chat.replyMessage({
+    style: MessageStyle.MARKDOWN,
     message: enabled
       ? '✅ Rankup notifications enabled for this thread.'
       : '🔕 Rankup notifications disabled for this thread.',

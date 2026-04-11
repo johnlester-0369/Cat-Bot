@@ -21,6 +21,7 @@
 import os from 'node:os';
 import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
+import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 
 export const config = {
   name: 'system',
@@ -90,8 +91,8 @@ export const onCommand = async ({ chat, startTime }: AppCtx): Promise<void> => {
   // os.loadavg() is [1min, 5min, 15min] on POSIX; [0, 0, 0] on Windows
   const [load1, load5, load15] = os.loadavg() as [number, number, number];
   const loadLine = load1 > 0
-    ? `Load avg (1/5/15 min): ${load1.toFixed(2)} / ${load5.toFixed(2)} / ${load15.toFixed(2)}`
-    : `Load avg: N/A (Windows)`;
+    ? `**Load avg (1/5/15 min):** ${load1.toFixed(2)} / ${load5.toFixed(2)} / ${load15.toFixed(2)}`
+    : `**Load avg:** N/A (Windows)`;
 
   const platform   = os.platform();   // 'linux', 'darwin', 'win32', ...
   const osType     = os.type();       // 'Linux', 'Darwin', 'Windows_NT'
@@ -102,30 +103,31 @@ export const onCommand = async ({ chat, startTime }: AppCtx): Promise<void> => {
   const ping = Date.now() - startTime;
 
   await chat.replyMessage({
+    style: MessageStyle.MARKDOWN,
     message: [
-      '====== System Info ======',
+      '**System Info**',
       '',
-      '==== 「 CPU 」 ====',
-      `Model: ${cpuModel}`,
-      `Logical Cores: ${logicalCores}`,
-      `Speed: ${speedGHz} GHz`,
+      '**— CPU —**',
+      `**Model:** ${cpuModel}`,
+      `**Logical Cores:** ${logicalCores}`,
+      `**Speed:** ${speedGHz} GHz`,
       loadLine,
       '',
-      '==== 「 MEMORY 」 ====',
-      `Total: ${formatBytes(totalRam)}`,
-      `Used: ${formatBytes(usedRam)} (${usedPct}%)`,
-      `Free: ${formatBytes(freeRam)}`,
-      `Node RSS: ${formatBytes(nodeMem.rss)}`,
-      `Node Heap: ${formatBytes(nodeMem.heapUsed)} / ${formatBytes(nodeMem.heapTotal)}`,
+      '**— Memory —**',
+      `**Total:** ${formatBytes(totalRam)}`,
+      `**Used:** ${formatBytes(usedRam)} (${usedPct}%)`,
+      `**Free:** ${formatBytes(freeRam)}`,
+      `**Node RSS:** ${formatBytes(nodeMem.rss)}`,
+      `**Node Heap:** ${formatBytes(nodeMem.heapUsed)} / ${formatBytes(nodeMem.heapTotal)}`,
       '',
-      '==== 「 OS 」 ====',
-      `Type: ${osType}`,
-      `Platform: ${platform}`,
-      `Release: ${osRelease}`,
-      `Arch: ${arch}`,
-      `Host Uptime: ${formatUptime(hostUptime)}`,
-      `Process Uptime: ${formatUptime(Math.floor(process.uptime()))}`,
-      `Ping: ${ping}ms`,
+      '**— OS —**',
+      `**Type:** ${osType}`,
+      `**Platform:** ${platform}`,
+      `**Release:** ${osRelease}`,
+      `**Arch:** ${arch}`,
+      `**Host Uptime:** ${formatUptime(hostUptime)}`,
+      `**Process Uptime:** ${formatUptime(Math.floor(process.uptime()))}`,
+      `**Ping:** ${ping}ms`,
     ].join('\n'),
   });
 };
