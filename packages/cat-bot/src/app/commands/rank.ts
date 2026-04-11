@@ -21,6 +21,7 @@
 import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
 import { OptionType } from '@/engine/modules/command/command-option.constants.js';
+import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 
 /** Controls how quickly users level up — higher = slower progression. */
 const DELTA_NEXT = 5;
@@ -44,7 +45,7 @@ export const config = {
   version: '1.0.0',
   role: Role.ANYONE,
   author: 'John Lester',
-  description: 'View your level and leaderboard rank, or that of a @mentioned user',
+  description: 'View your level, EXP, and leaderboard rank',
   category: 'Economy',
   usage: '[@mention]',
   cooldown: 5,
@@ -52,7 +53,6 @@ export const config = {
   options: [
     {
       type: OptionType.user,
-      name: 'user',
       description: 'User to view rank',
       required: false,
     },
@@ -67,7 +67,7 @@ export const onCommand = async ({ chat, event, db, native }: AppCtx): Promise<vo
   const targetID = mentionIDs[0] ?? (event['senderID'] as string | undefined);
 
   if (!targetID) {
-    await chat.replyMessage({ message: '❌ Could not identify the target user on this platform.' });
+    await chat.replyMessage({ style: MessageStyle.MARKDOWN, message: '❌ Could not identify the target user on this platform.' });
     return;
   }
 
@@ -114,11 +114,12 @@ export const onCommand = async ({ chat, event, db, native }: AppCtx): Promise<vo
       : await db.users.getName(targetID);
 
   await chat.replyMessage({
+    style: MessageStyle.MARKDOWN,
     message: [
-      `👤 ${displayName}`,
-      `🏆 Rank: #${leaderboardRank}/${totalRanked}`,
-      `⭐ Level: ${level}`,
-      `📊 EXP: ${currentExp}/${expNeeded}`
+      `👤 **${displayName}**`,
+      `🏆 Rank: **#${leaderboardRank}**/${totalRanked}`,
+      `⭐ Level: **${level}**`,
+      `📊 EXP: ${currentExp}/${expNeeded}`,
     ].join('\n'),
   });
 };
