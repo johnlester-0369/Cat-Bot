@@ -22,6 +22,10 @@ import {
 } from '@/engine/utils/streams.util.js';
 // text_mention entities allow tagging users by numeric ID without a public @username — Bot API 7.0+
 import { buildTelegramMentionEntities } from '../utils/helper.util.js';
+import {
+  validateMarkdownV2,
+  sanitizeMarkdownV2,
+} from '../utils/markdownv2.util.js';
 import type {
   ReplyMessageOptions,
 } from '@/engine/adapters/models/api.model.js';
@@ -41,6 +45,7 @@ export async function replyMessage(
     reply_to_message_id,
     button = [],
     mentions = [],
+    style,
   }: ReplyMessageOptions = {},
 ): Promise<string | undefined> {
   // Use the explicit _threadID when it resolves to a non-zero number so the bot
@@ -48,26 +53,49 @@ export async function replyMessage(
   // triggered the current update.  Falls back to ctx.chat?.id for the standard
   // same-chat reply path.
   const chatId = Number(_threadID) || (ctx.chat?.id as number);
-  const text =
+  // `let` — sanitizeMarkdownV2 may reassign; avoids scattering a safeText alias through all send paths
+  let text =
     typeof msgBody === 'string'
       ? msgBody
       // Fallback matches SendPayload explicitly to prevent dropping `message` vs `body` payloads
       : ((msgBody as { message?: string })?.message ?? (msgBody as { body?: string })?.body ?? '');
 
-  // Compute text_mention entities once for all send calls in this invocation
+  // Hoist parseMode before entities — entity byte-offsets must be computed against the final
+  // string Telegram actually receives, so sanitisation must happen first.
+  // Legacy 'Markdown' mode is intentionally not used — Telegram officially deprecated it.
+  const parseMode = style === 'markdown' ? 'MarkdownV2' as const : undefined;
+
+  // Escape bare MarkdownV2 reserved characters before computing mention entity offsets.
+  // The 18 reserved chars (_ * [ ] ( ) ~ ` > # + - = | { } . !) cause 400 Bot API errors
+  // when unescaped. sanitizeMarkdownV2 skips chars already preceded by '\' (valid escape
+  // sequences), so intentional formatting like *bold* and _italic_ is preserved.
+  // Mutation here means all downstream send paths (sendMessage, sendMediaGroup captions,
+  // sendDocument, the button keyboard message) automatically use the corrected string
+  // without per-call guards, and text_mention entities align with what Telegram parses.
+  if (parseMode === 'MarkdownV2' && !validateMarkdownV2(text)) {
+    text = sanitizeMarkdownV2(text);
+  }
+
+  // Compute text_mention entities once for all send calls in this invocation.
+  // Entities are computed against `text` AFTER sanitisation so byte-offsets align with
+  // what Telegram receives — inserting '\' shifts positions and would misplace highlights.
+  // textExtra uses 'entities'; captionExtra uses 'caption_entities' — Telegram distinguishes
+  // these two fields and silently ignores 'entities' on media (sendMediaGroup, sendDocument).
   const entities = buildTelegramMentionEntities(text, mentions);
-  // textExtra: 'entities' field used by sendMessage (plain text messages)
-  // captionExtra: 'caption_entities' field used by media methods
-  // Telegram distinguishes these two fields — using 'entities' on a media method silently ignores the value
   const replyExtra = reply_to_message_id
     ? { reply_parameters: { message_id: Number(reply_to_message_id) } }
     : {};
-  const textExtra = { ...replyExtra, ...(entities.length ? { entities } : {}) };
+  const textExtra = {
+    ...replyExtra,
+    ...(entities.length ? { entities } : {}),
+    ...(parseMode !== undefined ? { parse_mode: parseMode } : {}),
+  };
   const captionExtra = {
     ...replyExtra,
     ...(entities.length
       ? { caption_entities: entities as MessageEntity[] }
       : {}),
+    ...(parseMode !== undefined ? { parse_mode: parseMode } : {}),
   };
 
   // Build Telegram InlineKeyboardMarkup when buttons are requested.
@@ -138,13 +166,15 @@ export async function replyMessage(
             await streamToBuffer(s),
             s.path || `photo_${idx}.jpg`,
           ),
-          // caption_entities on the first item applies the mention highlights to the album caption
+          // caption_entities and parse_mode on the first item apply to the album caption only;
+          // subsequent items in the group intentionally omit them (Telegram Bot API limitation)
           ...(idx === 0 && text
             ? {
                 caption: text,
                 ...(entities.length
                   ? { caption_entities: entities as MessageEntity[] }
                   : {}),
+                ...(parseMode !== undefined ? { parse_mode: parseMode } : {}),
               }
             : {}),
         })),
@@ -184,6 +214,7 @@ export async function replyMessage(
   if (replyMarkup) {
     const sent = await ctx.telegram.sendMessage(chatId, text || '\u200b', {
       ...replyExtra,
+      ...(parseMode !== undefined ? { parse_mode: parseMode } : {}),
       reply_markup: replyMarkup,
     });
     return String(sent.message_id);
