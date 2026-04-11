@@ -30,6 +30,7 @@
 
 import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
+import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 
 export const config = {
   name: 'example_react',
@@ -55,13 +56,15 @@ const STATE = {
 
 export const onCommand = async ({ chat, state }: AppCtx) => {
   const messageID = await chat.replyMessage({
-    message: 'React to this message!\n❤️ love  😂 funny  😢 sad',
+    style: MessageStyle.MARKDOWN,
+    message: '**React to this message!**\n❤️ love  😂 funny  😢 sad',
   });
 
   // Guard: platforms that do not return a message ID from replyMessage cannot support
   // onReact because there is no stable key to register the pending state against.
   if (!messageID) {
     await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
       message:
         '❌ onReact unavailable: this platform did not return a message ID from chat.replyMessage().',
     });
@@ -86,7 +89,7 @@ export const onReact = {
     // Remove state before replying so a second ❤️ reaction on the same message
     // does not re-trigger this handler after the conversation is complete.
     state.delete(session.id);
-    await chat.reply({ message: 'You chose: love ❤️' });
+    await chat.reply({ style: MessageStyle.MARKDOWN, message: 'You chose: **love ❤️**' });
   },
 
   /**
@@ -94,14 +97,11 @@ export const onReact = {
    */
   [STATE.laugh]: async ({ chat, session, state }: AppCtx) => {
     state.delete(session.id);
-    await chat.reply({ message: 'You chose: funny 😂' });
+    await chat.reply({ style: MessageStyle.MARKDOWN, message: 'You chose: **funny 😂**' });
   },
 
-  /**
-   * User reacted with 😢 — confirms sad reaction and tears down state.
-   */
   [STATE.sad]: async ({ chat, session, state }: AppCtx) => {
     state.delete(session.id);
-    await chat.reply({ message: 'You chose: sad 😢' });
+    await chat.reply({ style: MessageStyle.MARKDOWN, message: 'You chose: **sad 😢**' });
   },
 };

@@ -25,6 +25,7 @@
 
 import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
+import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 
 export const config = {
   name: 'example_reply',
@@ -45,12 +46,13 @@ const STATE = {
 };
 
 export const onCommand = async ({ chat, state }: AppCtx) => {
-  const messageID = await chat.replyMessage({ message: 'What is your name?' });
+  const messageID = await chat.replyMessage({ style: MessageStyle.MARKDOWN, message: '**What is your name?**' });
 
   // Guard: platforms that do not return a message ID from replyMessage cannot support onReply
   // because there is no stable key to register the pending state against.
   if (!messageID) {
     await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
       message:
         '❌ onReply unavailable: this platform did not return a message ID from chat.replyMessage().',
     });
@@ -70,13 +72,10 @@ export const onReply = {
    * Stores the name, removes the awaiting_name state, asks for age.
    */
   [STATE.awaiting_name]: async ({ chat, session, event, state }: AppCtx) => {
-    // event.message is the user's reply text (the name they typed)
     session.context.name = event['message'];
 
-    const messageID = await chat.replyMessage({ message: 'How old are you?' });
+    const messageID = await chat.replyMessage({ style: MessageStyle.MARKDOWN, message: '**How old are you?**' });
 
-    // Remove the current state before registering the next one — prevents double-firing
-    // if the user somehow quotes the same bot message again after the flow has advanced.
     state.delete(session.id);
 
     if (messageID) {
@@ -100,7 +99,8 @@ export const onReply = {
     state.delete(session.id);
 
     await chat.replyMessage({
-      message: `Done! ${session.context.name}, ${session.context.age}`,
+      style: MessageStyle.MARKDOWN,
+      message: `Done! **${session.context.name}**, ${session.context.age}`,
     });
   },
 };
