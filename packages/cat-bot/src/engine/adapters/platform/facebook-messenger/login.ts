@@ -16,9 +16,10 @@
 import type { FcaApi, StartBotConfig, StartBotResult } from './types.js';
 import type { SessionLogger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 
-// fca-unofficial has no published @types package — import as unknown and cast at call sites
+// fca-unofficial's default export is the CJS module.exports object — the login function with
+// fcaInstances attached as a property. Import as default to access the full surface.
 // @ts-expect-error - no published @types package
-import login from '@johnlester-0369/fca-unofficial';
+import fca from '@johnlester-0369/fca-unofficial';
 
 /**
  * Logs in via fca-unofficial using the appstate string loaded from the database.
@@ -47,13 +48,24 @@ export async function startBot(
     );
   }
 
+  // Obtain the login fn and EventEmitter logger from fcaInstances. emitLogger:true routes all
+  // fca internal output through fcaLogger events instead of raw stderr — keeps process output
+  // clean and ensures fca login/MQTT messages flow to the dashboard console via SessionLogger.
+  const { login, fcaLogger } = (fca as {
+    fcaInstances: (opts: { emitLogger?: boolean }) => {
+      login: (opts: { appState: unknown }, cb: (err: unknown, api: FcaApi) => void) => void;
+      fcaLogger: { on: (event: string, cb: (log: Record<string, unknown>) => void) => void };
+    };
+  }).fcaInstances({ emitLogger: true });
+  // Bridge fca structured log entries ({level, message}) to the session-scoped logger so the
+  // dashboard console receives the full fca login sequence and MQTT lifecycle output.
+  fcaLogger.on('info', (l) => sessionLogger.info(`[facebook-messenger] ${l.message}`));
+  fcaLogger.on('warn', (l) => sessionLogger.warn(`[facebook-messenger] ${l.message}`));
+  fcaLogger.on('error', (l) => sessionLogger.error(`[facebook-messenger] ${l.message}`));
+  fcaLogger.on('log', (l) => sessionLogger.info(`[facebook-messenger] ${l.message}`));
+
   return new Promise((resolve, reject) => {
-    (
-      login as (
-        opts: { appState: unknown },
-        cb: (err: unknown, api: FcaApi) => void,
-      ) => void
-    )({ appState }, async (err, api) => {
+    login({ appState }, async (err, api) => {
       if (err) {
         sessionLogger.error('[facebook-messenger] Login failed', {
           error: err,
