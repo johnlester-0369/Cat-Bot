@@ -10,6 +10,18 @@ import type { Readable } from 'stream';
 import type { EventEmitter } from 'events';
 
 /**
+ * MQTT connection lifecycle state — delivered as the third argument of listenMqtt callbacks.
+ * Surfaces connect/disconnect/close/error transitions independently of the message event stream
+ * so callers can log operational health without conflating lifecycle signals with errors.
+ */
+export interface MqttState {
+  type: 'connect' | 'disconnect' | 'close' | 'error';
+  userID?: string | undefined;
+  region?: string | undefined;
+  [key: string]: unknown;
+}
+
+/**
  * Full interface for the fca-unofficial api object.
  * fca-unofficial has no published @types package — this declaration captures
  * every method consumed by any lib/ file in this adapter.
@@ -102,7 +114,7 @@ export interface FcaApi {
   refreshFb_dtsg?: (
     cb: (err: unknown, info: { data?: { fb_dtsg?: string } }) => void,
   ) => void;
-  listenMqtt(cb: (err: unknown, event: Record<string, unknown>) => void): {
+  listenMqtt(cb: (err: unknown, event: Record<string, unknown>, state?: MqttState) => void): {
     stopListeningAsync: () => Promise<void>;
   };
 }
