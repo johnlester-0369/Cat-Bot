@@ -9,9 +9,11 @@ import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  escapeMarkdown,
 } from 'discord.js';
 import type { SendPayload } from '@/engine/adapters/models/api.model.js';
 import type { ButtonItem } from '@/engine/adapters/models/api.model.js';
+import type { MessageStyleValue } from '@/engine/constants/message-style.constants.js';
 import { streamToBuffer, urlToStream } from '../utils/helper.util.js';
 
 type SendFn = (
@@ -27,6 +29,7 @@ interface ReplyOptions {
   attachment_url?: Array<{ name: string; url: string }>;
   reply_to_message_id?: string;
   button?: ButtonItem[];
+  style?: MessageStyleValue;
 }
 
 export async function replyMessage(
@@ -37,6 +40,7 @@ export async function replyMessage(
     attachment_url = [],
     reply_to_message_id,
     button = [],
+    style,
   }: ReplyOptions = {},
 ): Promise<string | undefined> {
   // Accept both direct string and SendPayload-style object with a `body` field
@@ -44,6 +48,10 @@ export async function replyMessage(
     typeof msgBody === 'string'
       ? msgBody
       : (msgBody.message ?? (msgBody as unknown as { body?: string })?.body ?? '');
+  // Discord renders markdown by default; when the caller requests raw text, escape
+  // all Discord-flavored markdown syntax so characters like * _ ~ | display literally.
+  // style='markdown' (or omitted) passes through unchanged — Discord auto-renders.
+  const finalContent = style === 'text' ? escapeMarkdown(content) : content;
   const files: AttachmentBuilder[] = [];
 
   // Destructure {name, stream} — name drives the AttachmentBuilder filename shown in Discord
@@ -92,5 +100,5 @@ export async function replyMessage(
     }
   }
 
-  return sendFn(content, files, reply_to_message_id, components);
+  return sendFn(finalContent, files, reply_to_message_id, components);
 }
