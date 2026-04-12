@@ -73,6 +73,10 @@ type Difficulty = (typeof DIFFICULTIES)[number];
 // change (e.g. adding a variation selector) only needs to be made in one place.
 const STATE = {
   TRUE: '❤',
+  // Discord normalises every heart reaction to U+2764 + U+FE0F (Variation Selector-16),
+  // emitting '❤️' rather than the bare '❤' that FB Messenger, FB Page, and Telegram send.
+  // Both variants must be registered so the same quiz works across all four platforms.
+  TRUE_DISCORD: '❤️',
   FALSE: '😢',
 } as const;
 
@@ -159,7 +163,7 @@ export const onCommand = async ({
       ``,
       question,
       ``,
-      `❤ → **True**   |   😢 → **False**`,
+      `❤️ → **True**   |   😢 → **False**`,
       `_You have ${TIMEOUT_MS / 1000} seconds to react!_`,
     ].join('\n'),
   });
@@ -185,7 +189,7 @@ export const onCommand = async ({
   // Listing the accepted emojis here makes valid reactions self-documenting in the state store.
   state.create({
     id: state.generateID({ id: msgIdStr }),
-    state: [STATE.TRUE, STATE.FALSE],
+    state: [STATE.TRUE, STATE.TRUE_DISCORD, STATE.FALSE],
     context: {
       answer,
       question,
@@ -245,8 +249,11 @@ async function handleReact(
 // ── Reaction handlers — emoji keys match what dispatchOnReact receives ────────
 
 export const onReact = {
-  /** User reacted with ❤ — interpreted as "True". */
+  /** User reacted with ❤ (U+2764) — interpreted as "True". Fired by FB Messenger, FB Page, Telegram. */
   [STATE.TRUE]: async (ctx: AppCtx) => handleReact(ctx, 'True'),
+
+  /** User reacted with ❤️ (U+2764+FE0F) — Discord appends Variation Selector-16 to every heart reaction. */
+  [STATE.TRUE_DISCORD]: async (ctx: AppCtx) => handleReact(ctx, 'True'),
 
   /** User reacted with 😢 — interpreted as "False". */
   [STATE.FALSE]: async (ctx: AppCtx) => handleReact(ctx, 'False'),
