@@ -15,7 +15,7 @@ import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
 import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 import { ButtonStyle } from '@/engine/constants/button-style.constants.js';
-import { Platforms } from '@/engine/modules/platform/platform.constants.js';
+import { hasNativeButtons } from '@/engine/utils/ui-capabilities.util.js';
 
 // Subreddits chosen for consistently high image-post density and meme relevance
 const SUBREDDITS = [
@@ -153,10 +153,6 @@ export const onCommand = async (ctx: AppCtx): Promise<void> => {
     const meme = await fetchMeme();
 
     // Limit interactive buttons to platforms that properly support visual components
-    const hasNativeButtons =
-      native.platform === Platforms.Discord ||
-      native.platform === Platforms.Telegram ||
-      native.platform === Platforms.FacebookPage;
 
     // Isolate file extension to ensure proper MIME resolution during platform download
     const extMatch = meme.url.match(/\.(jpg|jpeg|png|gif)(\?|$)/i);
@@ -169,7 +165,7 @@ export const onCommand = async (ctx: AppCtx): Promise<void> => {
         `📍 r/${meme.subreddit}  |  👍 ${fmt(meme.score)}  |  💬 ${fmt(meme.numComments)}`,
       ].join('\n'),
       attachment_url: [{ name: `meme.${ext}`, url: meme.url }],
-      ...(hasNativeButtons ? { button: [ACTION_ID.next] } : {}),
+      ...(hasNativeButtons(native.platform) ? { button: [ACTION_ID.next] } : {}),
     };
 
     // Update the existing message if triggered via button; otherwise send a new message

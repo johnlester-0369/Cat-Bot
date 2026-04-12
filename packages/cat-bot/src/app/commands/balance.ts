@@ -21,7 +21,7 @@ import { Role } from '@/engine/constants/role.constants.js';
 import { OptionType } from '@/engine/modules/command/command-option.constants.js';
 import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 import { ButtonStyle } from '@/engine/constants/button-style.constants.js';
-import { Platforms } from '@/engine/modules/platform/platform.constants.js';
+import { hasNativeButtons } from '@/engine/utils/ui-capabilities.util.js';
 
 export const config = {
   name: 'balance',
@@ -149,16 +149,11 @@ export const onCommand = async ({
     return;
   }
 
-  const hasNativeButtons =
-    native.platform === Platforms.Discord ||
-    native.platform === Platforms.Telegram ||
-    native.platform === Platforms.FacebookPage;
-
   const coins = await getCoins(db, senderID);
   await chat.replyMessage({
     style: MessageStyle.MARKDOWN,
     message: `💰 **Your balance:** ${coins.toLocaleString()} coins`,
     // Only inject on the self-balance path — button checks the sender's daily, which is correct here.
-    ...(hasNativeButtons ? { button: [ACTION_ID.daily_status] } : {}),
+    ...(hasNativeButtons(native.platform) ? { button: [ACTION_ID.daily_status] } : {}),
   });
 };

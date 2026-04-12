@@ -27,7 +27,7 @@ import { Role } from '@/engine/constants/role.constants.js';
 import { OptionType } from '@/engine/modules/command/command-option.constants.js';
 import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 import { ButtonStyle } from '@/engine/constants/button-style.constants.js';
-import { Platforms } from '@/engine/modules/platform/platform.constants.js';
+import { hasNativeButtons } from '@/engine/utils/ui-capabilities.util.js';
 
 /** Must match the constant in rank.ts — controls EXP-to-level curve. */
 const DELTA_NEXT = 5;
@@ -192,10 +192,6 @@ export const onCommand = async ({
     } catch {
       /* fail-open */
     }
-    const hasNativeButtons =
-      native.platform === Platforms.Discord ||
-      native.platform === Platforms.Telegram ||
-      native.platform === Platforms.FacebookPage;
 
     await chat.replyMessage({
       style: MessageStyle.MARKDOWN,
@@ -203,7 +199,7 @@ export const onCommand = async ({
         `Rankup notifications are currently ${current ? '✅ on' : '🔕 off'} for this thread.`,
         `Usage: ${prefix}rankup on | off`,
       ].join('\n'),
-      ...(hasNativeButtons ? { button: [ACTION_ID.my_level] } : {}),
+      ...(hasNativeButtons(native.platform) ? { button: [ACTION_ID.my_level] } : {}),
     });
     return;
   }

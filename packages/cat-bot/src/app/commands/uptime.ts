@@ -19,7 +19,7 @@ import { Role } from '@/engine/constants/role.constants.js';
 import { sessionManager } from '@/engine/modules/session/session-manager.lib.js';
 import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 import { ButtonStyle } from '@/engine/constants/button-style.constants.js';
-import { Platforms } from '@/engine/modules/platform/platform.constants.js';
+import { hasNativeButtons } from '@/engine/utils/ui-capabilities.util.js';
 
 export const config = {
   name: 'uptime',
@@ -104,10 +104,6 @@ export const onCommand = async ({
 
   // Button only on platforms with native component support — FB Messenger text-menu
   // fallback would add unnecessary noise to a resource-metrics display.
-  const hasNativeButtons =
-    native.platform === Platforms.Discord ||
-    native.platform === Platforms.Telegram ||
-    native.platform === Platforms.FacebookPage;
 
   const payload = {
     message: [
@@ -120,7 +116,7 @@ export const onCommand = async ({
       `❯ **Ping:** ${ping}ms`,
     ].join('\n'),
     style: MessageStyle.MARKDOWN,
-    ...(hasNativeButtons ? { button: [ACTION_ID.refresh] } : {}),
+    ...(hasNativeButtons(native.platform) ? { button: [ACTION_ID.refresh] } : {}),
   };
 
   // Update the existing message if triggered via button; otherwise send a new message
