@@ -73,6 +73,10 @@ type Difficulty = (typeof DIFFICULTIES)[number];
 // change (e.g. adding a variation selector) only needs to be made in one place.
 const STATE = {
   TRUE: '❤',
+  // Discord normalises every heart reaction to U+2764 + U+FE0F (Variation Selector-16),
+  // emitting '❤️' rather than the bare '❤' that FB Messenger, FB Page, and Telegram send.
+  // Both variants must be registered so the same quiz works across all four platforms.
+  TRUE_DISCORD: '❤️',
   FALSE: '😢',
 } as const;
 
