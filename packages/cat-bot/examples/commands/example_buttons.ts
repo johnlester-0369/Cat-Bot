@@ -65,9 +65,10 @@ export const menu = {
   [ACTION_ID.ping]: {
     label: '🏓 Ping',
     button_style: ButtonStyle.PRIMARY,
-    run: async ({ chat }: AppCtx) => {
-      await chat.reply({
+    run: async ({ chat, event }: AppCtx) => {
+      await chat.editMessage({
         style: MessageStyle.MARKDOWN,
+        message_id_to_edit: event['messageID'] as string,
         message: '🏓 **Pong!** The button system works.',
       });
     },
@@ -79,8 +80,9 @@ export const menu = {
     run: async ({ chat, event }: AppCtx) => {
       // event.platform is set by the platform's button_action event builder
       const platform = event['platform'] || 'unknown';
-      await chat.reply({
+      await chat.editMessage({
         style: MessageStyle.MARKDOWN,
+        message_id_to_edit: event['messageID'] as string,
         message: `You are chatting via: ${platform}`,
       });
     },
@@ -89,9 +91,10 @@ export const menu = {
   [ACTION_ID.help]: {
     label: '❓ Help',
     button_style: ButtonStyle.SUCCESS,
-    run: async ({ chat }: AppCtx) => {
-      await chat.reply({
+    run: async ({ chat, event }: AppCtx) => {
+      await chat.editMessage({
         style: MessageStyle.MARKDOWN,
+        message_id_to_edit: event['messageID'] as string,
         message:
           'Available commands: `/help` · `/reply` (conversation flow) · `/react` (reaction flow) · `/example-buttons` (this demo)',
       });
