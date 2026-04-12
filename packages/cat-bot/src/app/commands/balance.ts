@@ -20,6 +20,8 @@ import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
 import { OptionType } from '@/engine/modules/command/command-option.constants.js';
 import { MessageStyle } from '@/engine/constants/message-style.constants.js';
+import { ButtonStyle } from '@/engine/constants/button-style.constants.js';
+import { Platforms } from '@/engine/modules/platform/platform.constants.js';
 
 export const config = {
   name: 'balance',
@@ -55,7 +57,57 @@ async function getCoins(db: AppCtx['db'], uid: string): Promise<number> {
   return val ?? 0;
 }
 
-export const onCommand = async ({ chat, event, db }: AppCtx): Promise<void> => {
+const ACTION_ID = { daily_status: 'daily_status' } as const;
+
+// Complement to /balance: shows when the daily claim resets so the user doesn't
+// need to switch commands to check — closes the balance → daily economy loop.
+export const menu = {
+  [ACTION_ID.daily_status]: {
+    label: '📅 Daily Status',
+    button_style: ButtonStyle.SECONDARY,
+    run: async ({ chat, event, db }: AppCtx) => {
+      const senderID = event['senderID'] as string | undefined;
+      if (!senderID) {
+        await chat.editMessage({
+          style: MessageStyle.MARKDOWN,
+          message_id_to_edit: event['messageID'] as string,
+          message: '❌ Could not identify your user ID on this platform.',
+        });
+        return;
+      }
+      const userColl = db.users.collection(senderID);
+      if (!(await userColl.isCollectionExist('money'))) {
+        await chat.editMessage({
+          style: MessageStyle.MARKDOWN,
+          message_id_to_edit: event['messageID'] as string,
+          message: "📅 You haven't claimed `/daily` yet — your first reward is waiting!",
+        });
+        return;
+      }
+      const money = await userColl.getCollection('money');
+      const lastClaim = (await money.get('lastClaim') as number | undefined);
+      const COOLDOWN_MS = 24 * 60 * 60 * 1000;
+      if (!lastClaim || Date.now() - lastClaim >= COOLDOWN_MS) {
+        await chat.editMessage({
+          style: MessageStyle.MARKDOWN,
+          message_id_to_edit: event['messageID'] as string,
+          message: '📅 Your daily reward is **ready**! Use `/daily` to claim.',
+        });
+      } else {
+        const remaining = COOLDOWN_MS - (Date.now() - lastClaim);
+        const hours = Math.floor(remaining / (1000 * 60 * 60));
+        const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+        await chat.editMessage({
+          style: MessageStyle.MARKDOWN,
+          message_id_to_edit: event['messageID'] as string,
+          message: `⏰ Next daily claim in: **${hours}h ${minutes}m**`,
+        });
+      }
+    },
+  },
+};
+
+export const onCommand = async ({ chat, event, db, native }: AppCtx): Promise<void> => {
   const mentions = event['mentions'] as Record<string, string> | undefined;
   const mentionIDs = Object.keys(mentions ?? {});
 
@@ -65,14 +117,16 @@ export const onCommand = async ({ chat, event, db }: AppCtx): Promise<void> => {
   if (mentionIDs.length > 0) {
     const lines: string[] = [];
     for (const uid of mentionIDs) {
-      // Platforms embed '@' in the mention display name — strip it for cleaner output
-      const displayName = (mentions?.[uid] ?? uid).replace(/^@/, '');
-      const coins = await getCoins(db, uid);
-      lines.push(`**${displayName}:** ${coins.toLocaleString()} coins`);
-    }
-    await chat.replyMessage({
-      style: MessageStyle.MARKDOWN,
-      message: lines.join('\n'),
+    // Platforms embed '@' in the mention display name — strip it for cleaner output
+    const displayName = (mentions?.[uid] ?? uid).replace(/^@/, '');
+    const coins = await getCoins(db, uid);
+    lines.push(`**${displayName}:** ${coins.toLocaleString()} coins`);
+  }
+  // No button on the mention path — the balance is for the mentioned user, not the sender;
+  // a daily_status button would check the SENDER's daily, which is confusing in context.
+  await chat.replyMessage({
+    style: MessageStyle.MARKDOWN,
+    message: lines.join('\n'),
     });
     return;
   }
@@ -87,9 +141,16 @@ export const onCommand = async ({ chat, event, db }: AppCtx): Promise<void> => {
     return;
   }
 
+  const hasNativeButtons =
+    native.platform === Platforms.Discord ||
+    native.platform === Platforms.Telegram ||
+    native.platform === Platforms.FacebookPage;
+
   const coins = await getCoins(db, senderID);
   await chat.replyMessage({
     style: MessageStyle.MARKDOWN,
     message: `💰 **Your balance:** ${coins.toLocaleString()} coins`,
+    // Only inject on the self-balance path — button checks the sender's daily, which is correct here.
+    ...(hasNativeButtons ? { button: [ACTION_ID.daily_status] } : {}),
   });
 };
