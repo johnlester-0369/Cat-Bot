@@ -127,6 +127,17 @@ export function createTelegramListener(
       const handler = await activeBot.createWebhook({
         domain,
         path: webhookPath,
+        // message_reaction is opt-in since Bot API 7.0 — Telegram only delivers these
+        // updates to a webhook endpoint when allowed_updates is explicitly set via
+        // setWebhook(). createWebhook() spreads extra keys directly into setWebhook(),
+        // so omitting this list means reactions silently never arrive in webhook mode.
+        // Must mirror the allowedUpdates array in the polling launch() call below.
+        allowed_updates: [
+          'message',
+          'message_reaction',
+          'message_reaction_count',
+          'callback_query',
+        ],
       });
       registerTelegramWebhookHandler(
         `${config.userId}:${config.sessionId}`,
