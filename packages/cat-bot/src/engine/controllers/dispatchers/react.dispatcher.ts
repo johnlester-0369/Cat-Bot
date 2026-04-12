@@ -56,10 +56,14 @@ export async function dispatchOnReact(
     string,
     (ctx: unknown) => Promise<void>
   >;
-  // Dispatch on the actual emoji from the event — each reaction type maps to a separate handler.
+  // When stored.state is an array it acts as an emoji allowlist declared at state.create() time.
+  // Only emojis in that list are valid for this pending state — any other reaction is ignored,
+  // preventing unrelated reactions on the same message from advancing the flow unexpectedly.
+  if (Array.isArray(stored.state) && !stored.state.includes(emoji)) return false;
+  // Scalar state is a step label (onReply pattern reused) — no allowlist check needed.
+  // In both cases, dispatch on the live emoji from the event, not on stored.state.
   const handler = onReact[emoji];
   if (typeof handler !== 'function') return false;
-
   const session = { id: lookupKey, ...stored };
   const { state } = createStateContext(stored.command, event);
   // Attach emoji and messageID to reactCtx so onReact middleware can apply per-emoji guards
