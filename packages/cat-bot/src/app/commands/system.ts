@@ -23,7 +23,7 @@ import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
 import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 import { ButtonStyle } from '@/engine/constants/button-style.constants.js';
-import { Platforms } from '@/engine/modules/platform/platform.constants.js';
+import { hasNativeButtons } from '@/engine/utils/ui-capabilities.util.js';
 
 export const config = {
   name: 'system',
@@ -116,11 +116,6 @@ export const onCommand = async ({
   const hostUptime = os.uptime(); // host OS uptime in seconds (NOT process uptime)
 
   // Skip buttons on FB Messenger — text-menu fallback adds noise to a multi-line info card.
-  const hasNativeButtons =
-    native.platform === Platforms.Discord ||
-    native.platform === Platforms.Telegram ||
-    native.platform === Platforms.FacebookPage;
-
   const ping = Date.now() - startTime;
 
   const payload = {
@@ -150,7 +145,7 @@ export const onCommand = async ({
       `**Process Uptime:** ${formatUptime(Math.floor(process.uptime()))}`,
       `**Ping:** ${ping}ms`,
     ].join('\n'),
-    ...(hasNativeButtons ? { button: [ACTION_ID.refresh] } : {}),
+    ...(hasNativeButtons(native.platform) ? { button: [ACTION_ID.refresh] } : {}),
   };
 
   // Update the existing message if triggered via button; otherwise send a new message
