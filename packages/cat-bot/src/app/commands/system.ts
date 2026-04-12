@@ -22,6 +22,8 @@ import os from 'node:os';
 import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
 import { MessageStyle } from '@/engine/constants/message-style.constants.js';
+import { ButtonStyle } from '@/engine/constants/button-style.constants.js';
+import { Platforms } from '@/engine/modules/platform/platform.constants.js';
 
 export const config = {
   name: 'system',
@@ -74,7 +76,10 @@ function formatUptime(totalSeconds: number): string {
   return parts.join(' ');
 }
 
-export const onCommand = async ({ chat, startTime }: AppCtx): Promise<void> => {
+const ACTION_ID = { refresh: 'refresh' } as const;
+
+// onCommand defined before menu so the refresh handler can reference it directly.
+export const onCommand = async ({ chat, startTime, native, event }: AppCtx): Promise<void> => {
   const cpus = os.cpus();
 
   // os.cpus() returns one entry per logical core — deduplicate model name and derive
@@ -105,9 +110,15 @@ export const onCommand = async ({ chat, startTime }: AppCtx): Promise<void> => {
   const arch = os.arch(); // 'x64', 'arm64', ...
   const hostUptime = os.uptime(); // host OS uptime in seconds (NOT process uptime)
 
+  // Skip buttons on FB Messenger — text-menu fallback adds noise to a multi-line info card.
+  const hasNativeButtons =
+    native.platform === Platforms.Discord ||
+    native.platform === Platforms.Telegram ||
+    native.platform === Platforms.FacebookPage;
+
   const ping = Date.now() - startTime;
 
-  await chat.replyMessage({
+  const payload = {
     style: MessageStyle.MARKDOWN,
     message: [
       '**System Info**',
@@ -134,5 +145,23 @@ export const onCommand = async ({ chat, startTime }: AppCtx): Promise<void> => {
       `**Process Uptime:** ${formatUptime(Math.floor(process.uptime()))}`,
       `**Ping:** ${ping}ms`,
     ].join('\n'),
-  });
+    ...(hasNativeButtons ? { button: [ACTION_ID.refresh] } : {}),
+  };
+
+  // Update the existing message if triggered via button; otherwise send a new message
+  if (event['type'] === 'button_action') {
+    await chat.editMessage({ ...payload, message_id_to_edit: event['messageID'] as string });
+  } else {
+    await chat.replyMessage(payload);
+  }
+};
+
+// Placed after onCommand — const is fully initialized when this object literal evaluates.
+export const menu = {
+  [ACTION_ID.refresh]: {
+    label: '🔄 Refresh',
+    button_style: ButtonStyle.SECONDARY,
+    // Re-fetches all hardware metrics identically to re-issuing /system.
+    run: (ctx: AppCtx) => onCommand(ctx),
+  },
 };
