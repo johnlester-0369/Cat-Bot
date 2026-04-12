@@ -20,7 +20,7 @@ import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
 import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 import { ButtonStyle } from '@/engine/constants/button-style.constants.js';
-import { Platforms } from '@/engine/modules/platform/platform.constants.js';
+import { hasNativeButtons } from '@/engine/utils/ui-capabilities.util.js';
 
 export const config = {
   name: 'daily',
@@ -160,10 +160,6 @@ export const onCommand = async ({
 
   // Button offered only on platforms with native components — encourages the economy
   // loop (daily → balance check) without adding text-menu noise on FB Messenger.
-  const hasNativeButtons =
-    native.platform === Platforms.Discord ||
-    native.platform === Platforms.Telegram ||
-    native.platform === Platforms.FacebookPage;
 
   // ── Respond ───────────────────────────────────────────────────────────────
   const streakLine =
@@ -179,6 +175,6 @@ export const onCommand = async ({
       streakLine,
       '⏰ Come back in 24 hours to keep your streak going!',
     ].join('\n'),
-    ...(hasNativeButtons ? { button: [ACTION_ID.check_balance] } : {}),
+    ...(hasNativeButtons(native.platform) ? { button: [ACTION_ID.check_balance] } : {}),
   });
 };
