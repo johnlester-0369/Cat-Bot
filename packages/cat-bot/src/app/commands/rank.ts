@@ -23,7 +23,7 @@ import { Role } from '@/engine/constants/role.constants.js';
 import { OptionType } from '@/engine/modules/command/command-option.constants.js';
 import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 import { ButtonStyle } from '@/engine/constants/button-style.constants.js';
-import { Platforms } from '@/engine/modules/platform/platform.constants.js';
+import { hasNativeButtons } from '@/engine/utils/ui-capabilities.util.js';
 
 /** Controls how quickly users level up — higher = slower progression. */
 const DELTA_NEXT = 5;
@@ -173,11 +173,6 @@ export const onCommand = async ({
 
   const displayName =
     mentionIDs.length > 0
-      ? (mentions?.[targetID] ?? targetID).replace(/^@/, '')
-      : await db.users.getName(targetID);
-
-  const hasNativeButtons =
-    native.platform === Platforms.Discord ||
     native.platform === Platforms.Telegram ||
     native.platform === Platforms.FacebookPage;
 
@@ -189,6 +184,6 @@ export const onCommand = async ({
       `⭐ Level: **${level}**`,
       `📊 EXP: ${currentExp}/${expNeeded}`,
     ].join('\n'),
-    ...(hasNativeButtons ? { button: [ACTION_ID.check_balance] } : {}),
+    ...(hasNativeButtons(native.platform) ? { button: [ACTION_ID.check_balance] } : {}),
   });
 };
