@@ -33,6 +33,15 @@ export async function editMessage(
       message: options.message,
       button: options.button,
       style: options.style,
+      // Forward stream and URL attachments so commands like /meme that pass attachment_url
+      // on button_action events (editMessage path) still deliver their images. Without this
+      // forward, the meme image is silently dropped and only the caption + button arrive.
+      ...(options.attachment !== undefined
+        ? { attachment: options.attachment }
+        : {}),
+      ...(options.attachment_url !== undefined
+        ? { attachment_url: options.attachment_url }
+        : {}),
     });
   } else {
     await sendMessage(pageApi, options, threadID);
