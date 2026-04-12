@@ -189,7 +189,7 @@ export const onCommand = async ({
   // Listing the accepted emojis here makes valid reactions self-documenting in the state store.
   state.create({
     id: state.generateID({ id: msgIdStr }),
-    state: [STATE.TRUE, STATE.FALSE],
+    state: [STATE.TRUE, STATE.TRUE_DISCORD, STATE.FALSE],
     context: {
       answer,
       question,
