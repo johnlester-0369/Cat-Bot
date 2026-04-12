@@ -5,11 +5,17 @@
  * each attachment goes out as a separate POST /me/messages call.
  * Text caption is sent first (if present) so the recipient reads context
  * before seeing the attachment stream(s).
+ *
+ * URL-based attachments are sent via the Graph API's server-side URL fetch
+ * (attachment.payload.url) rather than downloading them first and re-uploading
+ * as a stream. This eliminates the proxy download round-trip, reduces latency,
+ * and avoids the broken stream path that was silently discarding images.
+ *
+ * Stream/buffer attachments (attachment[]) still use multipart form-data upload
+ * via pageApi.sendMessage({ body, attachment: stream }) → sendAttachmentMessage().
  */
 
-// Fix pre-existing bug: urlToStream and bufferToStream were used without being imported,
-// causing a ReferenceError at runtime whenever attachment_url or Buffer attachments were sent.
-import { urlToStream, bufferToStream } from '@/engine/utils/streams.util.js';
+import { bufferToStream } from '@/engine/utils/streams.util.js';
 import type { PageApi } from '@/engine/adapters/platform/facebook-page/pageApi.js';
 import type { Readable } from 'stream';
 // FB Page Graph API has no markdown support; mdToText converts to styled Unicode characters
@@ -34,21 +40,17 @@ export async function replyMessage(
   const finalMessage =
     options.style === 'markdown' ? mdToText(message) : message;
 
-  // Pass explicit name to urlToStream so pageApi's getAttachmentType() sees the caller-specified extension
-  const urlStreams = await Promise.all(
-    (attachment_url ?? []).map(({ name, url }) => urlToStream(url, name)),
+  // Normalize stream/buffer attachments into Readable streams for multipart upload.
+  // URL-based attachments (attachment_url) are handled separately via Graph API server-side fetch —
+  // no need to download them locally and re-upload.
+  const attachStreams: Array<Readable & { path?: string }> = attachment.map(
+    ({ name, stream }) => {
+      if (Buffer.isBuffer(stream)) return bufferToStream(stream, name);
+      const s = stream as Readable & { path?: string };
+      s.path = name;
+      return s;
+    },
   );
-  // Normalize each attachment: Buffer inputs are wrapped into a named PassThrough stream so
-  // sendAttachmentMessage's getAttachmentType() reads the correct MIME from the .path extension
-  const attachStreams: Array<Readable & { path?: string }> = (
-    attachment ?? []
-  ).map(({ name, stream }) => {
-    if (Buffer.isBuffer(stream)) return bufferToStream(stream, name);
-    const s = stream as Readable & { path?: string };
-    s.path = name;
-    return s;
-  });
-  const allAttachments = [...attachStreams, ...urlStreams];
 
   // Facebook Button Template: pairs a required non-empty text with up to 3 postback buttons.
   // We handle this BEFORE the plain-text path so the template is sent first when buttons
@@ -77,8 +79,12 @@ export async function replyMessage(
         );
       },
     );
-    // Send any remaining attachments as follow-up messages after the button template
-    for (const stream of allAttachments) {
+    // Send URL attachments via Graph API server-side URL fetch — faster than stream download/reupload
+    for (const { url, name } of attachment_url) {
+      await pageApi.sendUrlAttachment(url, threadID, name);
+    }
+    // Send any stream/buffer attachments via multipart form-data after the button template
+    for (const stream of attachStreams) {
       await new Promise<void>((resolve, reject) => {
         pageApi.sendMessage(
           { body: '', attachment: stream },
@@ -90,7 +96,9 @@ export async function replyMessage(
     return templateId;
   }
 
-  if (allAttachments.length === 0) {
+  const hasAttachments = attachStreams.length > 0 || attachment_url.length > 0;
+
+  if (!hasAttachments) {
     return new Promise<string | undefined>((resolve, reject) => {
       pageApi.sendMessage(finalMessage || '', threadID, (err, data) =>
         err ? reject(err) : resolve(data?.messageID),
@@ -108,7 +116,9 @@ export async function replyMessage(
   }
 
   let lastId: string | undefined;
-  for (const stream of allAttachments) {
+
+  // Stream/buffer attachments: multipart form-data upload via pageApi.sendMessage
+  for (const stream of attachStreams) {
     lastId = await new Promise<string | undefined>((resolve, reject) => {
       pageApi.sendMessage(
         { body: '', attachment: stream },
@@ -117,5 +127,11 @@ export async function replyMessage(
       );
     });
   }
+
+  // URL attachments: Graph API fetches the asset server-side — no local download needed
+  for (const { url, name } of attachment_url) {
+    lastId = await pageApi.sendUrlAttachment(url, threadID, name);
+  }
+
   return lastId;
 }

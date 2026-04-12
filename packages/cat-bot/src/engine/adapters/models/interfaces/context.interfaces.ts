@@ -28,6 +28,8 @@ export interface EditOptions {
   message_id_to_edit?: string;
   style?: MessageStyleValue;
   button?: string[];
+  attachment?: NamedStreamAttachment[];
+  attachment_url?: NamedUrlAttachment[];
   threadID?: string;
   thread_id?: string;
 }

@@ -152,7 +152,24 @@ export async function replyMessage(
     (s) => !photos.includes(s) && !gifs.includes(s) && !audios.includes(s),
   );
 
-  // Batch photos into one album — caption on first item only
+  // Single photo + buttons: sendPhoto supports reply_markup natively; sendMediaGroup never
+  // does — the Bot API simply ignores the field, causing the fallback block below to fire
+  // and produce a SECOND message containing only the buttons. Routing the single-photo+button
+  // case through sendPhoto collapses both into one message.
+  if (photos.length === 1 && replyMarkup) {
+    const sp = photos[0]!;
+    const sent = await ctx.telegram.sendPhoto(
+      chatId,
+      Input.fromBuffer(await streamToBuffer(sp), sp.path || 'photo.jpg'),
+      {
+        ...(text ? { caption: text } : {}),
+        ...captionExtra,
+        reply_markup: replyMarkup,
+      },
+    );
+    return String(sent.message_id);
+  }
+  // Batch multiple photos into one album — caption on first item only
   if (photos.length > 0) {
     await ctx.telegram.sendMediaGroup(
       chatId,

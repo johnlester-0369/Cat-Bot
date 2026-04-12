@@ -25,10 +25,35 @@ const MESSAGING_TYPE = 'RESPONSE';
 // the actual MIME type; audio extensions must be sent as type "audio", everything
 // else as type "image" (which also covers stickers rendered as images).
 const AUDIO_EXTENSIONS = new Set(['mp3', 'ogg', 'wav', 'm4a', 'aac', 'opus']);
+const VIDEO_EXTENSIONS = new Set(['mp4', 'mov', 'avi', 'webm', 'mkv', 'flv']);
 
 function getAttachmentType(filename: string): 'audio' | 'image' {
   const ext = (filename || '').split('.').pop()?.toLowerCase() ?? '';
   return AUDIO_EXTENSIONS.has(ext) ? 'audio' : 'image';
+}
+
+/**
+ * Derives the Graph API attachment type from a filename or URL path.
+ * Used when sending URL-based attachments — the Send API requires an explicit
+ * `type` field that matches the media category.
+ * Strips query-string suffixes before checking extension so ephemeral CDN URLs
+ * like "meme.jpg?v=12345" are classified correctly.
+ * Falls back to 'image' because most bot-delivered media is image content.
+ */
+export function getAttachmentTypeFromExt(
+  filename: string,
+): 'image' | 'video' | 'audio' | 'file' {
+  const ext =
+    (filename || '')
+      .split('?')[0]
+      ?.split('.')
+      .pop()
+      ?.toLowerCase() ?? '';
+  if (AUDIO_EXTENSIONS.has(ext)) return 'audio';
+  if (VIDEO_EXTENSIONS.has(ext)) return 'video';
+  if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(ext))
+    return 'image';
+  return 'file';
 }
 
 interface GraphMessageResponse {
@@ -75,6 +100,40 @@ export async function sendTemplateMessage(
   return res.data;
 }
 
+/**
+ * Sends an attachment referenced by a public URL through the Graph API without
+ * downloading it first. The Graph API fetches the asset server-side, eliminating
+ * the download-then-reupload round-trip that stream-based sending requires.
+ * Preferred for all URL-sourced assets (Reddit CDN, Imgur, etc.).
+ *
+ * Reference: developers.facebook.com/docs/messenger-platform/send-messages#url
+ */
+export async function sendUrlAttachment(
+  pageAccessToken: string,
+  recipientId: string,
+  url: string,
+  type: 'image' | 'video' | 'audio' | 'file' = 'image',
+): Promise<GraphMessageResponse> {
+  const res = await axios.post<GraphMessageResponse>(
+    `${FB_API_BASE}/me/messages`,
+    {
+      recipient: { id: recipientId },
+      message: {
+        attachment: {
+          type,
+          payload: {
+            url,
+            // Non-reusable: dynamic CDN links (Reddit, Imgur, etc.) expire and cannot be referenced later
+            is_reusable: false,
+          },
+        },
+      },
+      messaging_type: MESSAGING_TYPE,
+    },
+    { params: { access_token: pageAccessToken } },
+  );
+  return res.data;
+}
 export async function sendAttachmentMessage(
   pageAccessToken: string,
   recipientId: string,

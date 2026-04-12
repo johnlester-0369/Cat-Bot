@@ -105,6 +105,10 @@ export interface EditMessageOptions {
   message_id_to_edit?: string;
   style?: MessageStyleValue;
   button?: ButtonItem[];
+  /** Stream-based file attachments added to the edited message — uploaded by the platform wrapper (mirroring replyMessage attachment handling). */
+  attachment?: NamedStreamAttachment[];
+  /** URL-based file attachments — downloaded by the platform wrapper before upload; used to replace or augment message media. */
+  attachment_url?: NamedUrlAttachment[];
   /** Thread ID implicitly injected by chat.editMessage for fallback use by platforms that do not support native editing. */
   threadID?: string;
 }

@@ -67,6 +67,7 @@ export async function dispatchOnReply(
   >;
   const handler = onReply[stored.state];
   if (typeof handler !== 'function') return false;
+  const session = { id: lookupKey, ...stored };
   const { state } = createStateContext(stored.command, event);
   // Attach session to replyCtx before running middleware — onReply middleware can inspect
   // session.context for conversation-state-aware guards (e.g. step timeout checks).

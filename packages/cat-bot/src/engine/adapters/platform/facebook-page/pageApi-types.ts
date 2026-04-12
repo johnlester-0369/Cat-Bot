@@ -24,6 +24,8 @@ export interface PageApi {
     ) => void,
   ): void;
   getMessage(messageID: string): Promise<GetMessageResult | null>;
+  /** Sends an image/video/audio/file attachment via Graph API server-side URL fetch — no stream download needed. */
+  sendUrlAttachment(url: string, threadID: string, filename?: string): Promise<string | undefined>;
 }
 
 export interface GetMessageResult {

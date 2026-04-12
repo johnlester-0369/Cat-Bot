@@ -5,6 +5,7 @@
  */
 import {
   ActionRowBuilder,
+  AttachmentBuilder,
   ButtonBuilder,
   ButtonStyle,
   escapeMarkdown,
@@ -12,6 +13,7 @@ import {
   type TextChannel,
 } from 'discord.js';
 import type { EditMessageOptions } from '@/engine/adapters/models/api.model.js';
+import { streamToBuffer, urlToStream } from '../utils/helper.util.js';
 
 export async function editMessage(
   channel: TextChannel,
@@ -45,6 +47,33 @@ export async function editMessage(
   // which silently bypassed TypeScript's structural checks on the discord.js API surface.
   const payload: MessageEditOptions = { content: finalContent };
   const button = typeof options === 'object' ? options.button : undefined;
+
+  // Process attachment arrays into AttachmentBuilder objects — mirrors replyMessage.ts processing.
+  // Discord API v10: when `files` are supplied, all retained attachments are kept by default
+  // (no explicit `attachments: []` needed unless the caller wants to remove existing files).
+  const attachment = typeof options === 'object' ? options.attachment : undefined;
+  const attachmentUrl = typeof options === 'object' ? options.attachment_url : undefined;
+  const files: AttachmentBuilder[] = [];
+  if (attachment?.length) {
+    for (const { name, stream } of attachment) {
+      const buf = Buffer.isBuffer(stream)
+        ? stream
+        : await streamToBuffer(stream as NodeJS.ReadableStream);
+      files.push(new AttachmentBuilder(buf, { name: name || 'file.bin' }));
+    }
+  }
+  if (attachmentUrl?.length) {
+    for (const { name, url } of attachmentUrl) {
+      const s = await urlToStream(url, name);
+      const buf = await streamToBuffer(s);
+      files.push(
+        new AttachmentBuilder(buf, {
+          name: name || (s as unknown as { path?: string }).path || 'file.bin',
+        }),
+      );
+    }
+  }
+  if (files.length > 0) payload.files = files;
 
   // Convert Unified ButtonItems into Discord ActionRowBuilders.
   // Explicit undefined check (not truthiness) so an empty array [] correctly clears
