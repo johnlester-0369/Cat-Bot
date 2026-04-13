@@ -88,7 +88,9 @@ export async function dispatchOnReply(
         state,
         button,
         args: [],
-        options: import('@/engine/modules/options/options-map.lib.js').then(m => m.OptionsMap.empty()) as any,
+        options: import('@/engine/modules/options/options-map.lib.js').then(
+          (m) => m.OptionsMap.empty(),
+        ) as any,
         parsed: { name: stored.command, args: [] },
         emoji: '',
         messageID: (event['messageID'] as string) || '',

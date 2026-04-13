@@ -155,6 +155,8 @@ export const onCommand = async ({
     style: MessageStyle.MARKDOWN,
     message: `💰 **Your balance:** ${coins.toLocaleString()} coins`,
     // Only inject on the self-balance path — button checks the sender's daily, which is correct here.
-    ...(hasNativeButtons(native.platform) ? { button: [button.generateID({ id: BUTTON_ID.daily_status })] } : {}),
+    ...(hasNativeButtons(native.platform)
+      ? { button: [button.generateID({ id: BUTTON_ID.daily_status })] }
+      : {}),
   });
 };

@@ -44,11 +44,7 @@ export function getAttachmentTypeFromExt(
   filename: string,
 ): 'image' | 'video' | 'audio' | 'file' {
   const ext =
-    (filename || '')
-      .split('?')[0]
-      ?.split('.')
-      .pop()
-      ?.toLowerCase() ?? '';
+    (filename || '').split('?')[0]?.split('.').pop()?.toLowerCase() ?? '';
   if (AUDIO_EXTENSIONS.has(ext)) return 'audio';
   if (VIDEO_EXTENSIONS.has(ext)) return 'video';
   if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(ext))

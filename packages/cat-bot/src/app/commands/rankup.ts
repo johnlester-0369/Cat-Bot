@@ -200,7 +200,9 @@ export const onCommand = async ({
         `Rankup notifications are currently ${current ? '✅ on' : '🔕 off'} for this thread.`,
         `Usage: ${prefix}rankup on | off`,
       ].join('\n'),
-      ...(hasNativeButtons(native.platform) ? { button: [button.generateID({ id: BUTTON_ID.my_level })] } : {}),
+      ...(hasNativeButtons(native.platform)
+        ? { button: [button.generateID({ id: BUTTON_ID.my_level })] }
+        : {}),
     });
     return;
   }

@@ -78,7 +78,7 @@ function formatUptime(totalSeconds: number): string {
 
 const BUTTON_ID = { refresh: 'refresh' } as const;
 
-  // onCommand defined before button so the refresh handler can reference it directly.
+// onCommand defined before button so the refresh handler can reference it directly.
 export const onCommand = async ({
   chat,
   startTime,
@@ -121,7 +121,10 @@ export const onCommand = async ({
   const ping = Date.now() - startTime;
 
   // Reuse active instance ID during interaction so we do not bloat context memory
-  const buttonId = event['type'] === 'button_action' ? session.id : button.generateID({ id: BUTTON_ID.refresh, public: true });
+  const buttonId =
+    event['type'] === 'button_action'
+      ? session.id
+      : button.generateID({ id: BUTTON_ID.refresh, public: true });
 
   const payload = {
     style: MessageStyle.MARKDOWN,

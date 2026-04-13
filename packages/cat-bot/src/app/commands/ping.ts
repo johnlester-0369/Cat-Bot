@@ -33,13 +33,20 @@ export const button = {
         style: MessageStyle.MARKDOWN,
         message_id_to_edit: event.messageID as string,
         message: `🏓 Pong! Latency: \`${Date.now() - startTime}ms\``,
-        ...(hasNativeButtons(native.platform) ? { button: [scopedRefresh] } : {}),
+        ...(hasNativeButtons(native.platform)
+          ? { button: [scopedRefresh] }
+          : {}),
       });
     },
   },
 };
 
-export const onCommand = async ({ chat, startTime, native, button }: AppCtx) => {
+export const onCommand = async ({
+  chat,
+  startTime,
+  native,
+  button,
+}: AppCtx) => {
   // Scope the Refresh button's button ID to the sender so only the user who issued
   // /ping can click it — prevents other users from hijacking another person's flow.
   const scopedRefresh = button.generateID({ id: BUTTON_ID.refresh });

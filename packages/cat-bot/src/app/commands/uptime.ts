@@ -106,9 +106,12 @@ export const onCommand = async ({
 
   // Button only on platforms with native component support — FB Messenger text-menu
   // fallback would add unnecessary noise to a resource-metrics display.
-  
+
   // Reuse active instance ID during interaction
-  const buttonId = event['type'] === 'button_action' ? session.id : button.generateID({ id: BUTTON_ID.refresh, public: true });
+  const buttonId =
+    event['type'] === 'button_action'
+      ? session.id
+      : button.generateID({ id: BUTTON_ID.refresh, public: true });
 
   const payload = {
     message: [

@@ -14,7 +14,13 @@
 import axios from 'axios';
 import type { PageApi, GetMessageResult } from './pageApi-types.js';
 import { FB_API_BASE } from './pageApi-helpers.js';
-import { sendTextMessage, sendTemplateMessage, sendAttachmentMessage, sendUrlAttachment as httpSendUrlAttachment, getAttachmentTypeFromExt } from './pageApi-helpers.js';
+import {
+  sendTextMessage,
+  sendTemplateMessage,
+  sendAttachmentMessage,
+  sendUrlAttachment as httpSendUrlAttachment,
+  getAttachmentTypeFromExt,
+} from './pageApi-helpers.js';
 import type { SessionLogger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 import { isAuthError } from '@/engine/lib/retry.lib.js';
 
@@ -62,10 +68,16 @@ export function createPageApi(
               }
               // The attachment stream was previously discarded here — the caption was sent
               // but the file never arrived. sendAttachmentMessage delivers it via multipart upload.
-              const stream = msgObj['attachment'] as import('stream').Readable & {
+              const stream = msgObj[
+                'attachment'
+              ] as import('stream').Readable & {
                 path?: string;
               };
-              result = await sendAttachmentMessage(pageAccessToken, threadID, stream);
+              result = await sendAttachmentMessage(
+                pageAccessToken,
+                threadID,
+                stream,
+              );
             } else if (msgObj['template']) {
               // Button Template path — msg.template is the payload object built by lib/replyMessage.ts
               result = await sendTemplateMessage(
@@ -188,7 +200,12 @@ export function createPageApi(
       // attachment category is declared (image/video/audio/file).
       const type = getAttachmentTypeFromExt(filename || url);
       try {
-        const r = await httpSendUrlAttachment(pageAccessToken, threadID, url, type);
+        const r = await httpSendUrlAttachment(
+          pageAccessToken,
+          threadID,
+          url,
+          type,
+        );
         return r.message_id;
       } catch (err) {
         const axiosErr = err as {

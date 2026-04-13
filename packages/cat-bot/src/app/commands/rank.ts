@@ -172,9 +172,8 @@ export const onCommand = async ({
     }
   }
 
-  const displayName =
-    mentionIDs.length > 0
-    native.platform === Platforms.Telegram ||
+  const displayName = mentionIDs.length > 0;
+  native.platform === Platforms.Telegram ||
     native.platform === Platforms.FacebookPage;
 
   await chat.replyMessage({
@@ -185,6 +184,8 @@ export const onCommand = async ({
       `⭐ Level: **${level}**`,
       `📊 EXP: ${currentExp}/${expNeeded}`,
     ].join('\n'),
-    ...(hasNativeButtons(native.platform) ? { button: [button.generateID({ id: BUTTON_ID.check_balance })] } : {}),
+    ...(hasNativeButtons(native.platform)
+      ? { button: [button.generateID({ id: BUTTON_ID.check_balance })] }
+      : {}),
   });
 };

@@ -19,31 +19,41 @@ export const config = {
     {
       type: OptionType.string,
       name: 'input',
-      description: 'Text and language code separated by | (e.g., "Konnichiwa | ja")',
+      description:
+        'Text and language code separated by | (e.g., "Konnichiwa | ja")',
       required: true,
     },
   ],
 };
 
-export const onCommand = async ({ chat, event, args, prefix = '' }: AppCtx): Promise<void> => {
+export const onCommand = async ({
+  chat,
+  event,
+  args,
+  prefix = '',
+}: AppCtx): Promise<void> => {
   let lang = 'en'; // Default TTS language
   let text = '';
 
-  const messageReply = event['messageReply'] as Record<string, unknown> | undefined;
+  const messageReply = event['messageReply'] as
+    | Record<string, unknown>
+    | undefined;
 
   // Split on the first '|' to resolve "<text> | <lang>" — pipe unambiguously separates
   // multi-word text from the language code without relying on character-length heuristics.
   const rawInput = args.join(' ');
   const pipeIndex = rawInput.indexOf('|');
   const hasPipe = pipeIndex !== -1;
-  const beforePipe = hasPipe ? rawInput.slice(0, pipeIndex).trim() : rawInput.trim();
+  const beforePipe = hasPipe
+    ? rawInput.slice(0, pipeIndex).trim()
+    : rawInput.trim();
   const afterPipe = hasPipe ? rawInput.slice(pipeIndex + 1).trim() : '';
 
   if (messageReply) {
     const replyMsg = (messageReply['message'] as string) || '';
     // Reply path: the pipe specifies the TTS language only (e.g., "| ja").
     // Without a pipe, the entire input is treated as the lang code (backward-compat shortcut).
-    lang = hasPipe ? (afterPipe || 'en') : (rawInput.trim() || 'en');
+    lang = hasPipe ? afterPipe || 'en' : rawInput.trim() || 'en';
     text = replyMsg;
   } else {
     // Non-reply path: text is required on the left side of the pipe.
@@ -77,7 +87,7 @@ export const onCommand = async ({ chat, event, args, prefix = '' }: AppCtx): Pro
 
   try {
     const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=${lang}&client=tw-ob`;
-    
+
     // Fetch as a stream and pipe directly to the platform wrapper.
     // Avoids loading the full audio payload into memory or writing to disk.
     const response = await axios.get(url, { responseType: 'stream' });
@@ -89,7 +99,8 @@ export const onCommand = async ({ chat, event, args, prefix = '' }: AppCtx): Pro
   } catch (error) {
     await chat.replyMessage({
       style: MessageStyle.MARKDOWN,
-      message: '❌ An error occurred while generating audio. The service might be temporarily unavailable.',
+      message:
+        '❌ An error occurred while generating audio. The service might be temporarily unavailable.',
     });
   }
 };

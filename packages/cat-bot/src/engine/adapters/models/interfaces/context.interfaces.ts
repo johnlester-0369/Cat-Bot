@@ -159,14 +159,17 @@ export interface ButtonContext {
     /**
      * Generates a fully qualified callback ID for an interactive button.
      * Automatically appends the user scope (~senderID) unless public is true.
-     * 
+     *
      * @param options.id - The base button ID (e.g. 'refresh')
      * @param options.public - If true, anyone can click the button. Defaults to false.
      */
     generateID(options: { id: string; public?: boolean }): string;
-    
+
     /** Stores context data available via ctx.session inside the button's onClick handler. */
-    createContext(options: { id: string; context: Record<string, unknown> }): void;
+    createContext(options: {
+      id: string;
+      context: Record<string, unknown>;
+    }): void;
     getContext(id: string): Record<string, unknown> | null;
     deleteContext(id: string): void;
   };

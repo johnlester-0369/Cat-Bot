@@ -599,11 +599,14 @@ export function createButtonContext(
   return {
     button: {
       generateID({ id, public: isPublic = false }) {
-        logger.debug('[context.model] button.generateID called', { id, isPublic });
+        logger.debug('[context.model] button.generateID called', {
+          id,
+          isPublic,
+        });
         // Append a short random string to prevent context collision on repeated command invocations
         const instanceId = Math.random().toString(36).substring(2, 8);
         const baseWithInstance = `${id}#${instanceId}`;
-        
+
         if (isPublic) return baseWithInstance;
         return `${baseWithInstance}~${event['senderID'] as string}`;
       },

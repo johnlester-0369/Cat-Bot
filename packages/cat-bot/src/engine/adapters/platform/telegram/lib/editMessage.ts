@@ -72,12 +72,16 @@ export async function editMessage(
   // passed directly as `media` — Telegram downloads it server-side without a round-trip.
   // Caution: if the original message is text-only, the Bot API may return a 400 error;
   // this is surfaced to the caller rather than silently swallowed so the developer can adapt.
-  const attachment = typeof options === 'object' ? options.attachment : undefined;
-  const attachmentUrl = typeof options === 'object' ? options.attachment_url : undefined;
+  const attachment =
+    typeof options === 'object' ? options.attachment : undefined;
+  const attachmentUrl =
+    typeof options === 'object' ? options.attachment_url : undefined;
   if (attachment?.length || attachmentUrl?.length) {
     const mId = parseInt(messageID, 10);
     if (!Number.isFinite(mId) || mId <= 0)
-      throw new Error(`[telegram] editMessage: invalid messageID "${messageID}"`);
+      throw new Error(
+        `[telegram] editMessage: invalid messageID "${messageID}"`,
+      );
     // noUncheckedIndexedAccess: [0] returns T | undefined — explicit first/firstUrl guards below
     const first = attachment?.[0];
     const firstUrl = !first ? attachmentUrl?.[0] : undefined;

@@ -142,7 +142,10 @@ export async function attachEventHandlers(
         // appears in the channel. The showAlert param is a no-op on Discord (no alert popup API).
         ack: (text?: string) =>
           text
-            ? interaction.followUp({ content: text, flags: MessageFlags.Ephemeral })
+            ? interaction.followUp({
+                content: text,
+                flags: MessageFlags.Ephemeral,
+              })
             : Promise.resolve(undefined),
       };
       emitter.emit('button_action', { api, event, native, prefix });

@@ -62,7 +62,11 @@ export async function dispatchButtonFallback(
 
   const buttonDef = mod['button'] as Record<
     string,
-    { label: string; id: string; onClick?: (...args: unknown[]) => Promise<void> }
+    {
+      label: string;
+      id: string;
+      onClick?: (...args: unknown[]) => Promise<void>;
+    }
   >;
   const userInput = ((event['message'] ?? '') as string).trim();
   const buttons =
@@ -99,9 +103,11 @@ export async function dispatchButtonFallback(
   // Strip ~userId scope suffix before looking up the handler — FB Messenger button fallback
   // stores the full scoped ID for routing, but menu keys are the base button IDs without scope.
   const tildeIdx = matched.id.indexOf('~');
-  const withoutScope = tildeIdx === -1 ? matched.id : matched.id.slice(0, tildeIdx);
+  const withoutScope =
+    tildeIdx === -1 ? matched.id : matched.id.slice(0, tildeIdx);
   const hashIdx = withoutScope.indexOf('#');
-  const baseFallbackId = hashIdx === -1 ? withoutScope : withoutScope.slice(0, hashIdx);
+  const baseFallbackId =
+    hashIdx === -1 ? withoutScope : withoutScope.slice(0, hashIdx);
 
   const handler = buttonDef[baseFallbackId];
   if (!handler || typeof handler.onClick !== 'function') return false;
@@ -117,7 +123,8 @@ export async function dispatchButtonFallback(
   const { state } = createStateContext(stored.command, buttonEvent);
   const { button: btnCtx } = createButtonContext(stored.command, buttonEvent);
   const fullLocalId = matched.id;
-  const storedContext = buttonContextLib.get(`${stored.command}:${fullLocalId}`) ?? {};
+  const storedContext =
+    buttonContextLib.get(`${stored.command}:${fullLocalId}`) ?? {};
 
   // Re-bind ctx to the synthetic buttonEvent so chat.reply() targets the selection reply's
   // messageID rather than the original command trigger — ctx.prefix is forwarded unchanged.
@@ -173,7 +180,8 @@ export async function handleButtonAction(
   const commandName = buttonIdStr.slice(0, colonIdx);
   const fullLocalId = buttonIdStr.slice(colonIdx + 1);
 
-  const storedContext = buttonContextLib.get(`${commandName}:${fullLocalId}`) ?? {};
+  const storedContext =
+    buttonContextLib.get(`${commandName}:${fullLocalId}`) ?? {};
   const { state } = createStateContext(commandName, event);
   const { button: btnCtx } = createButtonContext(commandName, event);
 

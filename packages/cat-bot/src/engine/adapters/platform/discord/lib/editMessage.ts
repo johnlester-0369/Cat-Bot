@@ -51,8 +51,10 @@ export async function editMessage(
   // Process attachment arrays into AttachmentBuilder objects — mirrors replyMessage.ts processing.
   // Discord API v10: when `files` are supplied, all retained attachments are kept by default
   // (no explicit `attachments: []` needed unless the caller wants to remove existing files).
-  const attachment = typeof options === 'object' ? options.attachment : undefined;
-  const attachmentUrl = typeof options === 'object' ? options.attachment_url : undefined;
+  const attachment =
+    typeof options === 'object' ? options.attachment : undefined;
+  const attachmentUrl =
+    typeof options === 'object' ? options.attachment_url : undefined;
   const files: AttachmentBuilder[] = [];
   if (attachment?.length) {
     for (const { name, stream } of attachment) {

@@ -176,6 +176,8 @@ export const onCommand = async ({
       streakLine,
       '⏰ Come back in 24 hours to keep your streak going!',
     ].join('\n'),
-    ...(hasNativeButtons(native.platform) ? { button: [button.generateID({ id: BUTTON_ID.check_balance })] } : {}),
+    ...(hasNativeButtons(native.platform)
+      ? { button: [button.generateID({ id: BUTTON_ID.check_balance })] }
+      : {}),
   });
 };
