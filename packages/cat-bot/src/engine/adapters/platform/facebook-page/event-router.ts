@@ -87,7 +87,7 @@ export function createEventRouter(
       const event = {
         type: EventType.BUTTON_ACTION,
         platform: Platforms.FacebookPage,
-        actionId: postback['payload'] ?? '',
+        buttonId: postback['payload'] ?? '',
         // Page Messenger is always 1:1 — sender PSID is both senderID and threadID
         threadID: sender?.id ?? '',
         senderID: sender?.id ?? '',

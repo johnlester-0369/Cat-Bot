@@ -124,7 +124,7 @@ export async function attachEventHandlers(
       const event = {
         type: 'button_action',
         platform: Platforms.Discord,
-        actionId: interaction.customId,
+        buttonId: interaction.customId,
         threadID: interaction.channelId,
         senderID: interaction.user.id,
         // message.id is the bot message the button is attached to
