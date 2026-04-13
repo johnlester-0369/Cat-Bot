@@ -42,6 +42,7 @@
     "rootDirs": [
       "./src",
       "./adapters/json/src",
+      "./adapters/mongodb/src",
       "./adapters/prisma-sqlite/src",
       "./adapters/prisma-sqlite/src/generated/prisma"
     ]

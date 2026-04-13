@@ -6,10 +6,14 @@ import 'dotenv/config';
 //   DATABASE_TYPE unset → json.ts is NEVER evaluated.
 // No `import type` from either barrel — any compile-time type reference to prisma-sqlite.ts
 // would force tsc to chase into the generated Prisma files, crashing when they don't exist.
-const isJson = process.env['DATABASE_TYPE'] === 'json';
+const dbType = process.env['DATABASE_TYPE'];
 console.log
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const m = (await (isJson ? import('./json.js') : import('./prisma-sqlite.js'))) as any;
+const m = (await (
+  dbType === 'json'    ? import('./json.js')    :
+  dbType === 'mongodb' ? import('./mongodb.js') :
+                         import('./prisma-sqlite.js')
+)) as any;
 
 // --- BOT SESSION COMMANDS ---
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
@@ -139,3 +143,11 @@ export const banThread      = m.banThread;
 export const unbanThread    = m.unbanThread;
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 export const isThreadBanned = m.isThreadBanned;
+
+// --- MONGODB ---
+// mongoClient and getMongoDb are undefined at runtime when DATABASE_TYPE!='mongodb' —
+// callers (better-auth.lib.ts) guard with their own isMongo check before using them.
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+export const mongoClient = m.mongoClient;
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+export const getMongoDb  = m.getMongoDb;
