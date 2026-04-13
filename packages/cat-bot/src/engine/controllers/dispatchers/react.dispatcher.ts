@@ -12,7 +12,10 @@
 
 import type { BaseCtx, CommandMap } from '@/engine/types/controller.types.js';
 import { resolveStateEntry } from '../utils/state-lookup.util.js';
-import { createStateContext } from '@/engine/adapters/models/context.model.js';
+import {
+  createStateContext,
+  createButtonContext,
+} from '@/engine/adapters/models/context.model.js';
 import {
   middlewareRegistry,
   runMiddlewareChain,
@@ -67,6 +70,7 @@ export async function dispatchOnReact(
   if (typeof handler !== 'function') return false;
   const session = { id: lookupKey, ...stored };
   const { state } = createStateContext(stored.command, event);
+  const { button } = createButtonContext(stored.command, event);
   // Attach emoji and messageID to reactCtx so onReact middleware can apply per-emoji guards
   // (e.g. allowlist enforcement, cooldown checks by emoji type).
   const reactCtx: OnReactCtx = { ...ctx, session, emoji, messageID };
@@ -76,7 +80,14 @@ export async function dispatchOnReact(
     middlewareRegistry.getOnReact(),
     reactCtx,
     async () => {
-      await handler({ ...reactCtx, state }).catch((err: unknown) => {
+      await handler({
+        ...reactCtx,
+        state,
+        button,
+        args: [],
+        options: import('@/engine/modules/options/options-map.lib.js').then(m => m.OptionsMap.empty()) as any,
+        parsed: { name: stored.command, args: [] },
+      }).catch((err: unknown) => {
         console.error(`❌ onReact "${stored.command}.${emoji}" failed`, err);
       });
     },

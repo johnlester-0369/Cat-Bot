@@ -12,7 +12,10 @@
 
 import type { BaseCtx, CommandMap } from '@/engine/types/controller.types.js';
 import { resolveStateEntry } from '../utils/state-lookup.util.js';
-import { createStateContext } from '@/engine/adapters/models/context.model.js';
+import {
+  createStateContext,
+  createButtonContext,
+} from '@/engine/adapters/models/context.model.js';
 import { dispatchButtonFallback } from './button.dispatcher.js';
 import {
   middlewareRegistry,
@@ -69,6 +72,7 @@ export async function dispatchOnReply(
   if (typeof handler !== 'function') return false;
   const session = { id: lookupKey, ...stored };
   const { state } = createStateContext(stored.command, event);
+  const { button } = createButtonContext(stored.command, event);
   // Attach session to replyCtx before running middleware — onReply middleware can inspect
   // session.context for conversation-state-aware guards (e.g. step timeout checks).
   const replyCtx: OnReplyCtx = { ...ctx, session };
@@ -79,7 +83,16 @@ export async function dispatchOnReply(
     middlewareRegistry.getOnReply(),
     replyCtx,
     async () => {
-      await handler({ ...replyCtx, state }).catch((err: unknown) => {
+      await handler({
+        ...replyCtx,
+        state,
+        button,
+        args: [],
+        options: import('@/engine/modules/options/options-map.lib.js').then(m => m.OptionsMap.empty()) as any,
+        parsed: { name: stored.command, args: [] },
+        emoji: '',
+        messageID: (event['messageID'] as string) || '',
+      }).catch((err: unknown) => {
         console.error(
           `❌ onReply "${stored.command}.${stored.state}" failed`,
           err,

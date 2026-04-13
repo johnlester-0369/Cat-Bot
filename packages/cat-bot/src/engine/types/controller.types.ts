@@ -16,6 +16,7 @@ import type { StateContext } from '@/engine/adapters/models/context.model.js';
 import type { SessionLogger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 import type { OptionsMap } from '@/engine/modules/options/options-map.lib.js';
 import type { CollectionManager } from '@/engine/lib/db-collection.lib.js';
+import type { ButtonContext } from '@/engine/adapters/models/interfaces/index.js';
 
 /** A command module loaded from src/modules/commands/ */
 export type CommandModule = Record<string, unknown>;
@@ -98,6 +99,8 @@ export interface AppCtx extends BaseCtx {
   parsed: ParsedCommand;
   /** The state context for registering pending flows (available in onCommand, onReply, onReact). */
   state: StateContext['state'];
+  /** The button context for scoped button ID generation and persistence. */
+  button: ButtonContext['button'];
   /** The active session data for the current flow (available in onReply, onReact). */
   session: { id: string; context: Record<string, unknown> };
   /** The reaction emoji (available in onReact). */

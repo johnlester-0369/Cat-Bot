@@ -19,6 +19,7 @@ import type { UnifiedApi } from '@/engine/adapters/models/api.model.js';
 import {
   createStateContext,
   createChatContext,
+  createButtonContext,
 } from '@/engine/adapters/models/context.model.js';
 // OptionsMap needed to seed commandCtx.options before validateCommandOptions middleware
 import { OptionsMap } from '@/engine/modules/options/options-map.lib.js';
@@ -52,18 +53,19 @@ export async function dispatchCommand(
   // applied by earlier middleware (e.g. a future auth middleware attaching a user
   // profile to ctx) are visible when the handler executes.
   const { state } = createStateContext(parsed.name, ctx.event);
+  const { button } = createButtonContext(parsed.name, ctx.event);
   // Command-name-aware chat context resolves bare action IDs to "commandName:actionId"
   // callback payloads at dispatch time so button handlers route back to the right command.
   const commandChat = createChatContext(
     api,
     ctx.event,
     parsed.name,
-    (mod['menu'] as Record<
+    (mod['button'] as Record<
       string,
       {
         label?: string;
-        button_style?: string;
-        run?: (...args: unknown[]) => unknown;
+        style?: string;
+        onClick?: (...args: unknown[]) => unknown;
       }
     >) ?? null,
   );
@@ -72,7 +74,11 @@ export async function dispatchCommand(
     ...ctx,
     args: parsed.args,
     state,
+    button,
     chat: commandChat,
+    session: { id: '', context: {} },
+    emoji: '',
+    messageID: (ctx.event['messageID'] as string) || '',
   }).catch((err: unknown) => {
     console.error(`❌ Command "${parsed.name}" failed`, err);
   });
