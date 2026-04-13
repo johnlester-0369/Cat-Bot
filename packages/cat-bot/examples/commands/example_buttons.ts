@@ -12,12 +12,12 @@
  *   1. onCommand calls chat.reply({ button: [ACTION_ID.ping, ...] }) with bare action IDs.
  *   2. createChatContext.resolveButtons() prefixes each ID: "buttons:ping", "buttons:platform" etc.
  *   3. The platform sends those prefixed IDs as callback data (Discord: customId, Telegram:
- *      callback_data, FB Page: postback payload).
+ *      Facebook Page (postback payload).
  *   4. When clicked, the platform emits 'button_action' with event.actionId = "buttons:ping".
- *   5. handleButtonAction in controllers/index.js splits on ':' → command "buttons", local "ping".
- *   6. menu["ping"].run(ctx) is called with the full context object.
+ *   5. handleButtonAction in controllers/index.js splits on ':' → command "example_buttons", local "ping".
+ *   6. button["ping"].onClick(ctx) is called with the full context object.
  *
- * button_style values:
+ * style values:
  *   'primary'   → Discord blue   (ButtonStyle.Primary)
  *   'secondary' → Discord grey   (ButtonStyle.Secondary) — default
  *   'success'   → Discord green  (ButtonStyle.Success)
@@ -48,7 +48,7 @@ export const config = {
   hasPrefix: true,
 };
 
-// ACTION_IDs are the local keys used in the menu object.
+// ACTION_IDs are the local keys used in the button object.
 // createChatContext.resolveButtons() prefixes them with the command name at dispatch time —
 // command code never needs to know its own name or construct full callback IDs.
 const ACTION_ID = {
@@ -58,14 +58,14 @@ const ACTION_ID = {
 };
 
 /**
- * Button definitions exported as `menu`.
- * Keys match ACTION_ID values. `run` receives the same ctx shape as `onCommand`.
+ * Button definitions exported as `button`.
+ * Keys match ACTION_ID values. `onClick` receives the same ctx shape as `onCommand`.
  */
-export const menu = {
+export const button = {
   [ACTION_ID.ping]: {
     label: '🏓 Ping',
-    button_style: ButtonStyle.PRIMARY,
-    run: async ({ chat, event }: AppCtx) => {
+    style: ButtonStyle.PRIMARY,
+    onClick: async ({ chat, event }: AppCtx) => {
       await chat.editMessage({
         style: MessageStyle.MARKDOWN,
         message_id_to_edit: event['messageID'] as string,
@@ -76,8 +76,8 @@ export const menu = {
 
   [ACTION_ID.platform]: {
     label: '🌐 Platform',
-    button_style: ButtonStyle.SECONDARY,
-    run: async ({ chat, event }: AppCtx) => {
+    style: ButtonStyle.SECONDARY,
+    onClick: async ({ chat, event }: AppCtx) => {
       // event.platform is set by the platform's button_action event builder
       const platform = event['platform'] || 'unknown';
       await chat.editMessage({
@@ -90,8 +90,8 @@ export const menu = {
 
   [ACTION_ID.help]: {
     label: '❓ Help',
-    button_style: ButtonStyle.SUCCESS,
-    run: async ({ chat, event }: AppCtx) => {
+    style: ButtonStyle.SUCCESS,
+    onClick: async ({ chat, event }: AppCtx) => {
       await chat.editMessage({
         style: MessageStyle.MARKDOWN,
         message_id_to_edit: event['messageID'] as string,
@@ -107,10 +107,14 @@ export const menu = {
  * chat.reply() here uses the command-aware chat context created in dispatchCommand,
  * so button IDs are automatically resolved to "buttons:ping" etc. before the platform sees them.
  */
-export const onCommand = async ({ chat }: AppCtx) => {
+export const onCommand = async ({ chat, button }: AppCtx) => {
   await chat.reply({
     style: MessageStyle.MARKDOWN,
     message: '🎛️ **Choose an action:**',
-    button: [ACTION_ID.ping, ACTION_ID.platform, ACTION_ID.help],
+    button: [
+      button.generateID({ id: ACTION_ID.ping, public: true }),
+      button.generateID({ id: ACTION_ID.platform, public: true }),
+      button.generateID({ id: ACTION_ID.help, public: true }),
+    ],
   });
 };

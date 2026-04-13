@@ -78,12 +78,14 @@ function formatUptime(totalSeconds: number): string {
 
 const ACTION_ID = { refresh: 'refresh' } as const;
 
-// onCommand defined before menu so the refresh handler can reference it directly.
+  // onCommand defined before button so the refresh handler can reference it directly.
 export const onCommand = async ({
   chat,
   startTime,
   native,
   event,
+  button,
+  session,
 }: AppCtx): Promise<void> => {
   const cpus = os.cpus();
 
@@ -118,6 +120,9 @@ export const onCommand = async ({
   // Skip buttons on FB Messenger — text-menu fallback adds noise to a multi-line info card.
   const ping = Date.now() - startTime;
 
+  // Reuse active instance ID during interaction so we do not bloat context memory
+  const buttonId = event['type'] === 'button_action' ? session.id : button.generateID({ id: ACTION_ID.refresh, public: true });
+
   const payload = {
     style: MessageStyle.MARKDOWN,
     message: [
@@ -145,7 +150,7 @@ export const onCommand = async ({
       `**Process Uptime:** ${formatUptime(Math.floor(process.uptime()))}`,
       `**Ping:** ${ping}ms`,
     ].join('\n'),
-    ...(hasNativeButtons(native.platform) ? { button: [ACTION_ID.refresh] } : {}),
+    ...(hasNativeButtons(native.platform) ? { button: [buttonId] } : {}),
   };
 
   // Update the existing message if triggered via button; otherwise send a new message
@@ -160,11 +165,11 @@ export const onCommand = async ({
 };
 
 // Placed after onCommand — const is fully initialized when this object literal evaluates.
-export const menu = {
+export const button = {
   [ACTION_ID.refresh]: {
     label: '🔄 Refresh',
-    button_style: ButtonStyle.SECONDARY,
+    style: ButtonStyle.SECONDARY,
     // Re-fetches all hardware metrics identically to re-issuing /system.
-    run: (ctx: AppCtx) => onCommand(ctx),
+    onClick: (ctx: AppCtx) => onCommand(ctx),
   },
 };

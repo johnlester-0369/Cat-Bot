@@ -137,17 +137,17 @@ async function fetchMeme() {
 
 const ACTION_ID = { next: 'next' } as const;
 
-export const menu = {
+export const button = {
   [ACTION_ID.next]: {
     label: '🔄 Next Meme',
-    button_style: ButtonStyle.PRIMARY,
+    style: ButtonStyle.PRIMARY,
     // Re-invokes onCommand so the refresh replaces the current meme via editMessage, reducing chat clutter.
-    run: async (ctx: AppCtx) => onCommand(ctx),
+    onClick: async (ctx: AppCtx) => onCommand(ctx),
   },
 };
 
 export const onCommand = async (ctx: AppCtx): Promise<void> => {
-  const { chat, native, event } = ctx;
+  const { chat, native, event, button, session } = ctx;
 
   try {
     const meme = await fetchMeme();
@@ -158,6 +158,9 @@ export const onCommand = async (ctx: AppCtx): Promise<void> => {
     const extMatch = meme.url.match(/\.(jpg|jpeg|png|gif)(\?|$)/i);
     const ext = extMatch ? extMatch[1] : 'jpg';
 
+    // Reuse the active instance ID if triggered via button; generate a new one if fresh command
+    const buttonId = event['type'] === 'button_action' ? session.id : button.generateID({ id: ACTION_ID.next, public: true });
+
     const payload = {
       style: MessageStyle.MARKDOWN,
       message: [
@@ -165,7 +168,7 @@ export const onCommand = async (ctx: AppCtx): Promise<void> => {
         `📍 r/${meme.subreddit}  |  👍 ${fmt(meme.score)}  |  💬 ${fmt(meme.numComments)}`,
       ].join('\n'),
       attachment_url: [{ name: `meme.${ext}`, url: meme.url }],
-      ...(hasNativeButtons(native.platform) ? { button: [ACTION_ID.next] } : {}),
+      ...(hasNativeButtons(native.platform) ? { button: [buttonId] } : {}),
     };
 
     // Update the existing message if triggered via button; otherwise send a new message

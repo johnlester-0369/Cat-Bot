@@ -61,11 +61,11 @@ const ACTION_ID = { daily_status: 'daily_status' } as const;
 
 // Complement to /balance: shows when the daily claim resets so the user doesn't
 // need to switch commands to check — closes the balance → daily economy loop.
-export const menu = {
+export const button = {
   [ACTION_ID.daily_status]: {
     label: '📅 Daily Status',
-    button_style: ButtonStyle.SECONDARY,
-    run: async ({ chat, event, db }: AppCtx) => {
+    style: ButtonStyle.SECONDARY,
+    onClick: async ({ chat, event, db }: AppCtx) => {
       const senderID = event['senderID'] as string | undefined;
       if (!senderID) {
         await chat.editMessage({
@@ -115,6 +115,7 @@ export const onCommand = async ({
   event,
   db,
   native,
+  button,
 }: AppCtx): Promise<void> => {
   const mentions = event['mentions'] as Record<string, string> | undefined;
   const mentionIDs = Object.keys(mentions ?? {});
@@ -154,6 +155,6 @@ export const onCommand = async ({
     style: MessageStyle.MARKDOWN,
     message: `💰 **Your balance:** ${coins.toLocaleString()} coins`,
     // Only inject on the self-balance path — button checks the sender's daily, which is correct here.
-    ...(hasNativeButtons(native.platform) ? { button: [ACTION_ID.daily_status] } : {}),
+    ...(hasNativeButtons(native.platform) ? { button: [button.generateID({ id: ACTION_ID.daily_status })] } : {}),
   });
 };

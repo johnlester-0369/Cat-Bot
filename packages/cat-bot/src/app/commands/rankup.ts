@@ -122,11 +122,11 @@ const ACTION_ID = { my_level: 'my_level' } as const;
 
 // The rankup status view naturally prompts the question "what level am I at?" —
 // surfacing XP/level inline avoids an extra /rank command invocation.
-export const menu = {
+export const button = {
   [ACTION_ID.my_level]: {
     label: '📊 My Level',
-    button_style: ButtonStyle.SECONDARY,
-    run: async ({ chat, event, db }: AppCtx) => {
+    style: ButtonStyle.SECONDARY,
+    onClick: async ({ chat, event, db }: AppCtx) => {
       const senderID = event['senderID'] as string | undefined;
       if (!senderID) {
         await chat.editMessage({
@@ -167,6 +167,7 @@ export const onCommand = async ({
   db,
   native,
   prefix = '',
+  button,
 }: AppCtx): Promise<void> => {
   const threadID = event['threadID'] as string | undefined;
   if (!threadID) {
@@ -199,7 +200,7 @@ export const onCommand = async ({
         `Rankup notifications are currently ${current ? '✅ on' : '🔕 off'} for this thread.`,
         `Usage: ${prefix}rankup on | off`,
       ].join('\n'),
-      ...(hasNativeButtons(native.platform) ? { button: [ACTION_ID.my_level] } : {}),
+      ...(hasNativeButtons(native.platform) ? { button: [button.generateID({ id: ACTION_ID.my_level })] } : {}),
     });
     return;
   }

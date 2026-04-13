@@ -21,29 +21,34 @@ const ACTION_ID = { refresh: 'refresh' } as const;
 
 // Refresh re-measures round-trip latency on button click so the user gets a
 // fresh reading without re-typing the command — common for network spot-checks.
-export const menu = {
+export const button = {
   [ACTION_ID.refresh]: {
     label: '🔄 Refresh',
-    button_style: ButtonStyle.SECONDARY,
-    run: async ({ chat, startTime, event, native }: AppCtx) => {
+    style: ButtonStyle.SECONDARY,
+    onClick: async ({ chat, startTime, event, native, session }: AppCtx) => {
+      console.log(session)
+      const scopedRefresh = session.id; // Reuse active instance ID
       // FB Messenger has no native button components — it renders a numbered text-menu
       // fallback which clutters a simple one-liner response. Skip buttons there.
       await chat.editMessage({
         style: MessageStyle.MARKDOWN,
         message_id_to_edit: event.messageID as string,
         message: `🏓 Pong! Latency: \`${Date.now() - startTime}ms\``,
-        ...(hasNativeButtons(native.platform) ? { button: [ACTION_ID.refresh] } : {}),
+        ...(hasNativeButtons(native.platform) ? { button: [scopedRefresh] } : {}),
       });
     },
   },
 };
 
-export const onCommand = async ({ chat, startTime, native }: AppCtx) => {
+export const onCommand = async ({ chat, startTime, native, button }: AppCtx) => {
+  // Scope the Refresh button's action ID to the sender so only the user who issued
+  // /ping can click it — prevents other users from hijacking another person's flow.
+  const scopedRefresh = button.generateID({ id: ACTION_ID.refresh });
   // FB Messenger has no native button components — it renders a numbered text-menu
   // fallback which clutters a simple one-liner response. Skip buttons there.
   await chat.replyMessage({
     style: MessageStyle.MARKDOWN,
     message: `🏓 Pong! Latency: \`${Date.now() - startTime}ms\``,
-    ...(hasNativeButtons(native.platform) ? { button: [ACTION_ID.refresh] } : {}),
+    ...(hasNativeButtons(native.platform) ? { button: [scopedRefresh] } : {}),
   });
 };

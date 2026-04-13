@@ -51,11 +51,11 @@ const ACTION_ID = { check_balance: 'check_balance' } as const;
 
 // Natural economy-loop UX: after claiming, the most common next question is
 // "how many coins do I have now?" — surface it as a single button click.
-export const menu = {
+export const button = {
   [ACTION_ID.check_balance]: {
     label: '💰 My Balance',
-    button_style: ButtonStyle.SECONDARY,
-    run: async ({ chat, event, db }: AppCtx) => {
+    style: ButtonStyle.SECONDARY,
+    onClick: async ({ chat, event, db }: AppCtx) => {
       const senderID = event['senderID'] as string | undefined;
       if (!senderID) {
         await chat.editMessage({
@@ -90,6 +90,7 @@ export const onCommand = async ({
   event,
   db,
   native,
+  button,
 }: AppCtx): Promise<void> => {
   const senderID = event['senderID'] as string | undefined;
 
@@ -175,6 +176,6 @@ export const onCommand = async ({
       streakLine,
       '⏰ Come back in 24 hours to keep your streak going!',
     ].join('\n'),
-    ...(hasNativeButtons(native.platform) ? { button: [ACTION_ID.check_balance] } : {}),
+    ...(hasNativeButtons(native.platform) ? { button: [button.generateID({ id: ACTION_ID.check_balance })] } : {}),
   });
 };

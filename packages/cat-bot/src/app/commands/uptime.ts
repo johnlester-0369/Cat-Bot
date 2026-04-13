@@ -57,12 +57,14 @@ function formatBytes(bytes: number): string {
 
 const ACTION_ID = { refresh: 'refresh' } as const;
 
-// onCommand defined before menu so menu.refresh.run can reference it directly.
+// onCommand defined before button so button.refresh.onClick can reference it directly.
 export const onCommand = async ({
   chat,
   startTime,
   native,
   event,
+  button,
+  session,
 }: AppCtx): Promise<void> => {
   // process.uptime() returns fractional seconds since the Node.js process started
   const uptimeSeconds = process.uptime();
@@ -104,6 +106,9 @@ export const onCommand = async ({
 
   // Button only on platforms with native component support — FB Messenger text-menu
   // fallback would add unnecessary noise to a resource-metrics display.
+  
+  // Reuse active instance ID during interaction
+  const buttonId = event['type'] === 'button_action' ? session.id : button.generateID({ id: ACTION_ID.refresh, public: true });
 
   const payload = {
     message: [
@@ -116,7 +121,7 @@ export const onCommand = async ({
       `❯ **Ping:** ${ping}ms`,
     ].join('\n'),
     style: MessageStyle.MARKDOWN,
-    ...(hasNativeButtons(native.platform) ? { button: [ACTION_ID.refresh] } : {}),
+    ...(hasNativeButtons(native.platform) ? { button: [buttonId] } : {}),
   };
 
   // Update the existing message if triggered via button; otherwise send a new message
@@ -131,12 +136,12 @@ export const onCommand = async ({
 };
 
 // Placed after onCommand — const is initialized before this object literal evaluates,
-// so run: onCommand is a valid reference at module load time.
-export const menu = {
+// so onClick: onCommand is a valid reference at module load time.
+export const button = {
   [ACTION_ID.refresh]: {
     label: '🔄 Refresh',
-    button_style: ButtonStyle.SECONDARY,
+    style: ButtonStyle.SECONDARY,
     // Re-invokes onCommand so the refresh response is identical to re-issuing /uptime.
-    run: (ctx: AppCtx) => onCommand(ctx),
+    onClick: (ctx: AppCtx) => onCommand(ctx),
   },
 };
