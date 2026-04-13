@@ -160,7 +160,7 @@ export interface ButtonContext {
      * Generates a fully qualified callback ID for an interactive button.
      * Automatically appends the user scope (~senderID) unless public is true.
      * 
-     * @param options.id - The base action ID (e.g. 'refresh')
+     * @param options.id - The base button ID (e.g. 'refresh')
      * @param options.public - If true, anyone can click the button. Defaults to false.
      */
     generateID(options: { id: string; public?: boolean }): string;

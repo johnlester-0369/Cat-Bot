@@ -54,7 +54,7 @@ export async function dispatchCommand(
   // profile to ctx) are visible when the handler executes.
   const { state } = createStateContext(parsed.name, ctx.event);
   const { button } = createButtonContext(parsed.name, ctx.event);
-  // Command-name-aware chat context resolves bare action IDs to "commandName:actionId"
+  // Command-name-aware chat context resolves bare button IDs to "commandName:buttonId"
   // callback payloads at dispatch time so button handlers route back to the right command.
   const commandChat = createChatContext(
     api,

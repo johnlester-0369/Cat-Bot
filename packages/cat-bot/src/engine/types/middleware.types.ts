@@ -80,10 +80,10 @@ export interface OnReactCtx extends BaseCtx {
  * same pattern as OnCommandCtx.options seeded as OptionsMap.empty() before validateCommandOptions.
  */
 export interface OnButtonClickCtx extends BaseCtx {
-  /** Command name extracted from the "commandName:localActionId" prefix */
+  /** Command name extracted from the "commandName:localButtonId" prefix */
   commandName: string;
-  /** Base action ID without tilde scope suffix — populated by enforceButtonScope */
-  baseActionId: string;
+  /** Base button ID without tilde scope suffix — populated by enforceButtonScope */
+  baseButtonId: string;
   /** Scoped user ID from tilde suffix; null for unscoped buttons — populated by enforceButtonScope */
   scopeUserId: string | null;
   /** Platform acknowledgement callback — populated by enforceButtonScope */

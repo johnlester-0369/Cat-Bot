@@ -76,7 +76,7 @@ function formatUptime(totalSeconds: number): string {
   return parts.join(' ');
 }
 
-const ACTION_ID = { refresh: 'refresh' } as const;
+const BUTTON_ID = { refresh: 'refresh' } as const;
 
   // onCommand defined before button so the refresh handler can reference it directly.
 export const onCommand = async ({
@@ -121,7 +121,7 @@ export const onCommand = async ({
   const ping = Date.now() - startTime;
 
   // Reuse active instance ID during interaction so we do not bloat context memory
-  const buttonId = event['type'] === 'button_action' ? session.id : button.generateID({ id: ACTION_ID.refresh, public: true });
+  const buttonId = event['type'] === 'button_action' ? session.id : button.generateID({ id: BUTTON_ID.refresh, public: true });
 
   const payload = {
     style: MessageStyle.MARKDOWN,
@@ -166,7 +166,7 @@ export const onCommand = async ({
 
 // Placed after onCommand — const is fully initialized when this object literal evaluates.
 export const button = {
-  [ACTION_ID.refresh]: {
+  [BUTTON_ID.refresh]: {
     label: '🔄 Refresh',
     style: ButtonStyle.SECONDARY,
     // Re-fetches all hardware metrics identically to re-issuing /system.

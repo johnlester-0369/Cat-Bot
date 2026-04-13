@@ -17,16 +17,15 @@ export const config = {
   hasPrefix: true,
 };
 
-const ACTION_ID = { refresh: 'refresh' } as const;
+const BUTTON_ID = { refresh: 'refresh' } as const;
 
 // Refresh re-measures round-trip latency on button click so the user gets a
 // fresh reading without re-typing the command — common for network spot-checks.
 export const button = {
-  [ACTION_ID.refresh]: {
+  [BUTTON_ID.refresh]: {
     label: '🔄 Refresh',
     style: ButtonStyle.SECONDARY,
     onClick: async ({ chat, startTime, event, native, session }: AppCtx) => {
-      console.log(session)
       const scopedRefresh = session.id; // Reuse active instance ID
       // FB Messenger has no native button components — it renders a numbered text-menu
       // fallback which clutters a simple one-liner response. Skip buttons there.
@@ -41,9 +40,9 @@ export const button = {
 };
 
 export const onCommand = async ({ chat, startTime, native, button }: AppCtx) => {
-  // Scope the Refresh button's action ID to the sender so only the user who issued
+  // Scope the Refresh button's button ID to the sender so only the user who issued
   // /ping can click it — prevents other users from hijacking another person's flow.
-  const scopedRefresh = button.generateID({ id: ACTION_ID.refresh });
+  const scopedRefresh = button.generateID({ id: BUTTON_ID.refresh });
   // FB Messenger has no native button components — it renders a numbered text-menu
   // fallback which clutters a simple one-liner response. Skip buttons there.
   await chat.replyMessage({

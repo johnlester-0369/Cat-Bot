@@ -96,7 +96,7 @@ export async function replyMessage(
   };
 
   // Build Telegram InlineKeyboardMarkup when buttons are requested.
-  // Telegram callback_data is capped at 64 bytes — the "commandName:actionId" format
+  // Telegram callback_data is capped at 64 bytes — the "commandName:buttonId" format
   // is compact, but we slice defensively to avoid the Bot API rejecting longer IDs.
   const replyMarkup =
     button.length > 0

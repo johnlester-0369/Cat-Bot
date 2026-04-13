@@ -55,7 +55,7 @@ function formatBytes(bytes: number): string {
   return `${formatted} ${units[unitIndex] ?? 'Bytes'}`;
 }
 
-const ACTION_ID = { refresh: 'refresh' } as const;
+const BUTTON_ID = { refresh: 'refresh' } as const;
 
 // onCommand defined before button so button.refresh.onClick can reference it directly.
 export const onCommand = async ({
@@ -108,7 +108,7 @@ export const onCommand = async ({
   // fallback would add unnecessary noise to a resource-metrics display.
   
   // Reuse active instance ID during interaction
-  const buttonId = event['type'] === 'button_action' ? session.id : button.generateID({ id: ACTION_ID.refresh, public: true });
+  const buttonId = event['type'] === 'button_action' ? session.id : button.generateID({ id: BUTTON_ID.refresh, public: true });
 
   const payload = {
     message: [
@@ -138,7 +138,7 @@ export const onCommand = async ({
 // Placed after onCommand — const is initialized before this object literal evaluates,
 // so onClick: onCommand is a valid reference at module load time.
 export const button = {
-  [ACTION_ID.refresh]: {
+  [BUTTON_ID.refresh]: {
     label: '🔄 Refresh',
     style: ButtonStyle.SECONDARY,
     // Re-invokes onCommand so the refresh response is identical to re-issuing /uptime.

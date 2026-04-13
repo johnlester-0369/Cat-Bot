@@ -52,7 +52,7 @@ export async function dispatchOnReply(
   if (!resolution) return false;
   const { stored, lookupKey } = resolution;
 
-  // Button fallback path: routes numbered text replies to menu[actionId].run() for platforms
+  // Button fallback path: routes numbered text replies to menu[buttonId].run() for platforms
   // without native button support (Facebook Messenger). State is never deleted here.
   if (stored.context['type'] === 'button_fallback') {
     return dispatchButtonFallback(commands, event, ctx, stored, lookupKey);

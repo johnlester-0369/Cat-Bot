@@ -47,12 +47,12 @@ const COINS_PER_STREAK_DAY = 10;
 /** Streak bonus stops growing after this many consecutive days. */
 const MAX_STREAK_BONUS_DAYS = 6;
 
-const ACTION_ID = { check_balance: 'check_balance' } as const;
+const BUTTON_ID = { check_balance: 'check_balance' } as const;
 
 // Natural economy-loop UX: after claiming, the most common next question is
 // "how many coins do I have now?" — surface it as a single button click.
 export const button = {
-  [ACTION_ID.check_balance]: {
+  [BUTTON_ID.check_balance]: {
     label: '💰 My Balance',
     style: ButtonStyle.SECONDARY,
     onClick: async ({ chat, event, db }: AppCtx) => {
@@ -176,6 +176,6 @@ export const onCommand = async ({
       streakLine,
       '⏰ Come back in 24 hours to keep your streak going!',
     ].join('\n'),
-    ...(hasNativeButtons(native.platform) ? { button: [button.generateID({ id: ACTION_ID.check_balance })] } : {}),
+    ...(hasNativeButtons(native.platform) ? { button: [button.generateID({ id: BUTTON_ID.check_balance })] } : {}),
   });
 };

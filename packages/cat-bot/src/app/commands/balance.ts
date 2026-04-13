@@ -57,12 +57,12 @@ async function getCoins(db: AppCtx['db'], uid: string): Promise<number> {
   return val ?? 0;
 }
 
-const ACTION_ID = { daily_status: 'daily_status' } as const;
+const BUTTON_ID = { daily_status: 'daily_status' } as const;
 
 // Complement to /balance: shows when the daily claim resets so the user doesn't
 // need to switch commands to check — closes the balance → daily economy loop.
 export const button = {
-  [ACTION_ID.daily_status]: {
+  [BUTTON_ID.daily_status]: {
     label: '📅 Daily Status',
     style: ButtonStyle.SECONDARY,
     onClick: async ({ chat, event, db }: AppCtx) => {
@@ -155,6 +155,6 @@ export const onCommand = async ({
     style: MessageStyle.MARKDOWN,
     message: `💰 **Your balance:** ${coins.toLocaleString()} coins`,
     // Only inject on the self-balance path — button checks the sender's daily, which is correct here.
-    ...(hasNativeButtons(native.platform) ? { button: [button.generateID({ id: ACTION_ID.daily_status })] } : {}),
+    ...(hasNativeButtons(native.platform) ? { button: [button.generateID({ id: BUTTON_ID.daily_status })] } : {}),
   });
 };

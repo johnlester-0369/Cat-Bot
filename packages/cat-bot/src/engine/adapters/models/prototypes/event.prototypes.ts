@@ -221,7 +221,7 @@ export const PROTO_EVENT_BUTTON_ACTION = Object.freeze({
   senderID: '',
   /** ID of the message that contained the button. */
   messageID: '',
-  /** Fully-qualified action ID in "commandName:actionId" format. */
-  actionId: '',
+  /** Fully-qualified button ID in "commandName:buttonId" format. */
+  buttonId: '',
   timestamp: null as number | null,
 });

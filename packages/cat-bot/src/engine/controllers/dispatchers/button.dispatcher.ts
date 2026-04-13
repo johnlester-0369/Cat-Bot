@@ -1,6 +1,6 @@
 /**
  * Button Dispatch — routes interactive button clicks and text-menu fallbacks
- * to the owning command's button[actionId].onClick() handler.
+ * to the owning command's button[buttonId].onClick() handler.
  *
  * Two paths converge here:
  *   1. Native button clicks (Discord, Telegram, FB Page) → handleButtonAction()
@@ -97,7 +97,7 @@ export async function dispatchButtonFallback(
   }
 
   // Strip ~userId scope suffix before looking up the handler — FB Messenger button fallback
-  // stores the full scoped ID for routing, but menu keys are the base action IDs without scope.
+  // stores the full scoped ID for routing, but menu keys are the base button IDs without scope.
   const tildeIdx = matched.id.indexOf('~');
   const withoutScope = tildeIdx === -1 ? matched.id : matched.id.slice(0, tildeIdx);
   const hashIdx = withoutScope.indexOf('#');
@@ -111,7 +111,7 @@ export async function dispatchButtonFallback(
   const buttonEvent: Record<string, unknown> = {
     ...event,
     type: 'button_action',
-    actionId: `${stored.command}:${matched.id}`,
+    buttonId: `${stored.command}:${matched.id}`,
   };
 
   const { state } = createStateContext(stored.command, buttonEvent);
@@ -123,7 +123,7 @@ export async function dispatchButtonFallback(
   // messageID rather than the original command trigger — ctx.prefix is forwarded unchanged.
   const buttonCtx: AppCtx = {
     ...buildBaseCtx(ctx.api, buttonEvent, ctx.commands, ctx.native, ctx.prefix),
-    // Command-aware chat embeds "stored.command:actionId" so handleButtonAction can reverse-route
+    // Command-aware chat embeds "stored.command:buttonId" so handleButtonAction can reverse-route
     chat: createChatContext(
       ctx.api,
       buttonEvent,
@@ -154,11 +154,11 @@ export async function dispatchButtonFallback(
 
 /**
  * Entry point for interactive button actions (Discord button click, Telegram callback_query,
- * Facebook Page postback). Routes to the owning command's button[actionId].onClick() handler.
+ * Facebook Page postback). Routes to the owning command's button[buttonId].onClick() handler.
  *
- * Routing contract: the platform embeds callback data as "commandName:actionId"
+ * Routing contract: the platform embeds callback data as "commandName:buttonId"
  * (built by createChatContext.resolveButtons). This function splits on ':' to find
- * the command, then looks up the local action ID in that command's button export.
+ * the command, then looks up the local button ID in that command's button export.
  */
 export async function handleButtonAction(
   api: UnifiedApi,
@@ -166,12 +166,12 @@ export async function handleButtonAction(
   commands: CommandMap,
   native: NativeContext = { platform: 'unknown' },
 ): Promise<void> {
-  const actionId = String(event['actionId'] ?? '');
-  const colonIdx = actionId.indexOf(':');
+  const buttonIdStr = String(event['buttonId'] ?? '');
+  const colonIdx = buttonIdStr.indexOf(':');
   if (colonIdx === -1) return; // Malformed — all valid IDs carry the "commandName:" prefix
 
-  const commandName = actionId.slice(0, colonIdx);
-  const fullLocalId = actionId.slice(colonIdx + 1);
+  const commandName = buttonIdStr.slice(0, colonIdx);
+  const fullLocalId = buttonIdStr.slice(colonIdx + 1);
 
   const storedContext = buttonContextLib.get(`${commandName}:${fullLocalId}`) ?? {};
   const { state } = createStateContext(commandName, event);
@@ -179,14 +179,14 @@ export async function handleButtonAction(
 
   // Build the button-click context and run the onButtonClick middleware chain.
   // enforceButtonScope (registered in middleware/index.ts) handles tilde-scope parsing,
-  // ack() extraction, and per-user ownership enforcement, then populates ctx.baseActionId,
+  // ack() extraction, and per-user ownership enforcement, then populates ctx.baseButtonId,
   // ctx.scopeUserId, and ctx.ack before the final handler executes.
   const buttonClickCtx: OnButtonClickCtx = {
     ...buildBaseCtx(api, event, commands, native),
     commandName,
     // Placeholder values — enforceButtonScope overwrites these before calling next().
     // Same pattern as OnCommandCtx.options seeded as OptionsMap.empty() before validateCommandOptions.
-    baseActionId: '',
+    baseButtonId: '',
     scopeUserId: null,
     ack: undefined,
     session: { id: fullLocalId, context: storedContext },
@@ -196,8 +196,8 @@ export async function handleButtonAction(
     middlewareRegistry.getOnButtonClick(),
     buttonClickCtx,
     async () => {
-      // enforceButtonScope has run — baseActionId, scopeUserId, and ack are fully populated
-      const { baseActionId, ack } = buttonClickCtx;
+      // enforceButtonScope has run — baseButtonId, scopeUserId, and ack are fully populated
+      const { baseButtonId, ack } = buttonClickCtx;
 
       const mod = commands.get(commandName);
       if (!mod || typeof mod['button'] !== 'object' || !mod['button']) {
@@ -215,7 +215,7 @@ export async function handleButtonAction(
         string,
         { onClick?: (...args: unknown[]) => Promise<void> }
       >;
-      const handler = buttonDef[baseActionId];
+      const handler = buttonDef[baseButtonId];
       if (!handler || typeof handler.onClick !== 'function') {
         await ack?.().catch(() => {});
         return;
@@ -226,7 +226,7 @@ export async function handleButtonAction(
       // callback query is not answered. On Discord, deferUpdate() already cleared the spinner.
       await ack?.().catch(() => {});
       // Reuse the middleware ctx base but override chat with the command-aware variant so button
-      // callbacks embed "commandName:actionId" for routing without a global action ID registry.
+      // callbacks embed "commandName:buttonId" for routing without a global button ID registry.
       const ctx: AppCtx = {
         ...buttonClickCtx,
         chat: createChatContext(
@@ -245,7 +245,7 @@ export async function handleButtonAction(
       };
 
       await handler.onClick(ctx).catch((err: unknown) => {
-        console.error(`❌ Button action "${actionId}" failed`, err);
+        console.error(`❌ Button action "${buttonIdStr}" failed`, err);
       });
     },
   );

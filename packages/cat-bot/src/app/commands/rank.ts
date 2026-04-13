@@ -61,12 +61,12 @@ export const config = {
   ],
 };
 
-const ACTION_ID = { check_balance: 'check_balance' } as const;
+const BUTTON_ID = { check_balance: 'check_balance' } as const;
 
 // Closes the economy loop: after viewing rank (XP), the complementary metric
 // is coins (money collection) — surfacing it as a button avoids command-switching.
 export const button = {
-  [ACTION_ID.check_balance]: {
+  [BUTTON_ID.check_balance]: {
     label: '💰 My Balance',
     style: ButtonStyle.SECONDARY,
     onClick: async ({ chat, event, db }: AppCtx) => {
@@ -185,6 +185,6 @@ export const onCommand = async ({
       `⭐ Level: **${level}**`,
       `📊 EXP: ${currentExp}/${expNeeded}`,
     ].join('\n'),
-    ...(hasNativeButtons(native.platform) ? { button: [button.generateID({ id: ACTION_ID.check_balance })] } : {}),
+    ...(hasNativeButtons(native.platform) ? { button: [button.generateID({ id: BUTTON_ID.check_balance })] } : {}),
   });
 };

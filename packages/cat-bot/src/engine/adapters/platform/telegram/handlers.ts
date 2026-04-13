@@ -142,7 +142,7 @@ export function attachHandlers(
     const event = {
       type: EventType.BUTTON_ACTION,
       platform: Platforms.Telegram,
-      actionId: cbq.data ?? '',
+      buttonId: cbq.data ?? '',
       threadID: String(cbq.message?.chat?.id ?? ''),
       senderID: String(cbq.from.id),
       messageID: String(cbq.message?.message_id ?? ''),

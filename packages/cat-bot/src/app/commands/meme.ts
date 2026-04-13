@@ -135,10 +135,10 @@ async function fetchMeme() {
   throw new Error('Max attempts reached');
 }
 
-const ACTION_ID = { next: 'next' } as const;
+const BUTTON_ID = { next: 'next' } as const;
 
 export const button = {
-  [ACTION_ID.next]: {
+  [BUTTON_ID.next]: {
     label: '🔄 Next Meme',
     style: ButtonStyle.PRIMARY,
     // Re-invokes onCommand so the refresh replaces the current meme via editMessage, reducing chat clutter.
@@ -159,7 +159,7 @@ export const onCommand = async (ctx: AppCtx): Promise<void> => {
     const ext = extMatch ? extMatch[1] : 'jpg';
 
     // Reuse the active instance ID if triggered via button; generate a new one if fresh command
-    const buttonId = event['type'] === 'button_action' ? session.id : button.generateID({ id: ACTION_ID.next, public: true });
+    const buttonId = event['type'] === 'button_action' ? session.id : button.generateID({ id: BUTTON_ID.next, public: true });
 
     const payload = {
       style: MessageStyle.MARKDOWN,

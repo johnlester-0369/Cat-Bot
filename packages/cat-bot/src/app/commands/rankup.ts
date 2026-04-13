@@ -118,12 +118,12 @@ export const onChat = async ({ event, db, chat }: AppCtx): Promise<void> => {
   }
 };
 
-const ACTION_ID = { my_level: 'my_level' } as const;
+const BUTTON_ID = { my_level: 'my_level' } as const;
 
 // The rankup status view naturally prompts the question "what level am I at?" —
 // surfacing XP/level inline avoids an extra /rank command invocation.
 export const button = {
-  [ACTION_ID.my_level]: {
+  [BUTTON_ID.my_level]: {
     label: '📊 My Level',
     style: ButtonStyle.SECONDARY,
     onClick: async ({ chat, event, db }: AppCtx) => {
@@ -200,7 +200,7 @@ export const onCommand = async ({
         `Rankup notifications are currently ${current ? '✅ on' : '🔕 off'} for this thread.`,
         `Usage: ${prefix}rankup on | off`,
       ].join('\n'),
-      ...(hasNativeButtons(native.platform) ? { button: [button.generateID({ id: ACTION_ID.my_level })] } : {}),
+      ...(hasNativeButtons(native.platform) ? { button: [button.generateID({ id: BUTTON_ID.my_level })] } : {}),
     });
     return;
   }
