@@ -188,7 +188,7 @@ export function ConsoleTab({
                   <Ansi
                     key={i}
                     className={cn(
-                      'font-mono text-sm leading-relaxed bg-black break-all whitespace-pre-wrap',
+                      'font-mono text-xs sm:text-sm leading-relaxed bg-black break-all whitespace-pre-wrap',
                     )}
                   >
                     {line}
