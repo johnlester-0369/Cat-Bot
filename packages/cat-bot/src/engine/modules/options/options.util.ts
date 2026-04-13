@@ -7,10 +7,7 @@
  * without pulling in the runtime data structure.
  */
 
-import type {
-  OptionsMap,
-  OptionDef,
-} from '@/engine/modules/options/options-map.lib.js';
+import type { OptionDef } from '@/engine/modules/options/options-map.lib.js';
 
 /** Escapes all RegExp special chars in a literal string for safe interpolation. */
 function escapeRegex(s: string): string {
