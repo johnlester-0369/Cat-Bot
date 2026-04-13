@@ -42,6 +42,7 @@ const COOLDOWN_MS = 24 * 60 * 60 * 1000;
 const BASE_COINS = 200;
 
 /** Additional coins per streak day beyond the first, capped at MAX_STREAK_BONUS_DAYS. */
+const MAX_STREAK_BONUS_DAYS = 6;
 const COINS_PER_STREAK_DAY = 10;
 
 const BUTTON_ID = { check_balance: 'check_balance', back: 'back' } as const;

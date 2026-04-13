@@ -169,13 +169,9 @@ export interface ButtonContext {
     createContext(options: {
       id: string;
       context: Record<string, unknown>;
-      createContext(options: {
-        id: string;
-        context: Record<string, unknown>;
-      }): void;
-      getContext(id: string): Record<string, unknown> | null;
-      deleteContext(id: string): void;
     }): void;
+    getContext(id: string): Record<string, unknown> | null;
+    deleteContext(id: string): void;
     /**
      * Dynamically updates an existing button's properties.
      * If the base ID is provided, the change applies globally to all future uses of this button in the command.
@@ -185,7 +181,7 @@ export interface ButtonContext {
       id: string;
       label?: string;
       style?: string;
-      onClick?: (...args: any[]) => unknown;
+      onClick?: (...args: unknown[]) => unknown;
     }): void;
 
     /**
@@ -196,7 +192,7 @@ export interface ButtonContext {
       id: string;
       label: string;
       style?: string;
-      onClick: (...args: any[]) => unknown;
+      onClick: (...args: unknown[]) => unknown;
     }): void;
   };
 }

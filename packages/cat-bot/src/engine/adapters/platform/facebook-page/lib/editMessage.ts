@@ -30,9 +30,9 @@ export async function editMessage(
   // Fallback: Send as a new message to the thread. replyMessage handles FB button templates seamlessly.
   if (typeof options === 'object') {
     await replyMessage(pageApi, threadID, {
-      message: options.message,
-      button: options.button,
-      style: options.style,
+      ...(options.message !== undefined ? { message: options.message } : {}),
+      ...(options.button !== undefined ? { button: options.button } : {}),
+      ...(options.style !== undefined ? { style: options.style } : {}),
       // Forward stream and URL attachments so commands like /meme that pass attachment_url
       // on button_action events (editMessage path) still deliver their images. Without this
       // forward, the meme image is silently dropped and only the caption + button arrive.

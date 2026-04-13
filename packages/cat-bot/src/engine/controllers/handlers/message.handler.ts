@@ -11,7 +11,6 @@
  */
 
 import type {
-  BaseCtx,
   CommandMap,
   EventModuleMap,
   NativeContext,

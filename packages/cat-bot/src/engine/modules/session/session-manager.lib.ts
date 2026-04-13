@@ -8,8 +8,6 @@
  */
 
 import { EventEmitter } from 'node:events';
-import { isMainThread } from 'node:worker_threads';
-import { env } from '@/engine/config/env.config.js';
 
 export interface SessionLifecycle {
   start: () => Promise<void>;
@@ -33,17 +31,6 @@ class SessionManager extends EventEmitter {
    * Gracefully stop and start a specific listener.
    */
   async restart(key: string): Promise<void> {
-    // Diverts management triggers to the isolated worker executing the memory instance
-    if (env.ENABLE_WORKER && isMainThread) {
-      const platform = key.split(':')[1];
-      const { workerBridge } =
-        await import('@/engine/modules/ipc/worker-bridge.lib.js');
-      await workerBridge.sendToWorker(platform ?? '', 'CMD:SESSION_RESTART', {
-        key,
-      });
-      return;
-    }
-
     const session = this.#sessions.get(key);
     if (!session) {
       throw new Error(`SessionManager: Session ${key} not found.`);
@@ -60,16 +47,6 @@ class SessionManager extends EventEmitter {
    * Called by the management API on Stop — does NOT flip isRunning in the DB (service layer owns that).
    */
   async stop(key: string): Promise<void> {
-    if (env.ENABLE_WORKER && isMainThread) {
-      const platform = key.split(':')[1];
-      const { workerBridge } =
-        await import('@/engine/modules/ipc/worker-bridge.lib.js');
-      await workerBridge.sendToWorker(platform ?? '', 'CMD:SESSION_STOP', {
-        key,
-      });
-      return;
-    }
-
     const session = this.#sessions.get(key);
     if (!session) {
       throw new Error(`SessionManager: Session ${key} not found.`);
@@ -83,16 +60,6 @@ class SessionManager extends EventEmitter {
    * If the session was never registered (process restart), the caller must spawn fresh.
    */
   async start(key: string): Promise<void> {
-    if (env.ENABLE_WORKER && isMainThread) {
-      const platform = key.split(':')[1];
-      const { workerBridge } =
-        await import('@/engine/modules/ipc/worker-bridge.lib.js');
-      await workerBridge.sendToWorker(platform ?? '', 'CMD:SESSION_START', {
-        key,
-      });
-      return;
-    }
-
     const session = this.#sessions.get(key);
     if (!session) {
       throw new Error(`SessionManager: Session ${key} not found.`);

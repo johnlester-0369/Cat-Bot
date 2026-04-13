@@ -157,9 +157,7 @@ export function attachHandlers(
       // (show_alert=true renders a native modal popup visible only to the user who pressed the button)
       // or call with no arguments for a normal silent acknowledgement on authorized clicks.
       ack: (text?: string, showAlert?: boolean) =>
-        ctx.answerCbQuery(text, {
-          show_alert: showAlert,
-        }),
+        ctx.answerCbQuery(text, { ...(showAlert !== undefined ? { show_alert: showAlert } : {}) }),
     };
     emitter.emit(EventType.BUTTON_ACTION, { api, event, native, prefix });
   });

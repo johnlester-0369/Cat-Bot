@@ -21,8 +21,6 @@ import {
   createChatContext,
   createButtonContext,
 } from '@/engine/adapters/models/context.model.js';
-// OptionsMap needed to seed commandCtx.options before validateCommandOptions middleware
-import { OptionsMap } from '@/engine/modules/options/options-map.lib.js';
 import type { OnCommandCtx } from '@/engine/types/middleware.types.js';
 // Platform filter — enforces config.platform[] declared by each command module
 import { isPlatformAllowed } from '@/engine/modules/platform/platform-filter.util.js';
@@ -41,8 +39,8 @@ export async function dispatchCommand(
   parsed: ParsedCommand,
   ctx: OnCommandCtx,
   api: UnifiedApi,
-  threadID: string,
-  prefix: string,
+  _threadID: string,
+  _prefix: string,
 ): Promise<void> {
   const mod = ctx.mod;
   if (!mod || typeof mod['onCommand'] !== 'function') return;
@@ -64,7 +62,7 @@ export async function dispatchCommand(
       string,
       {
         label?: string;
-        style?: string;
+        style?: import('@/engine/constants/button-style.constants.js').ButtonStyleValue;
         onClick?: (...args: unknown[]) => unknown;
       }
     >) ?? null,

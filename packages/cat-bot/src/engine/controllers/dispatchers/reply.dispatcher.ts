@@ -55,7 +55,13 @@ export async function dispatchOnReply(
   // Button fallback path: routes numbered text replies to menu[buttonId].run() for platforms
   // without native button support (Facebook Messenger). State is never deleted here.
   if (stored.context['type'] === 'button_fallback') {
-    return dispatchButtonFallback(commands, event, ctx, stored, lookupKey);
+    return dispatchButtonFallback(
+      commands,
+      event,
+      ctx,
+      stored as { command: string; state: string; context: Record<string, unknown> },
+      lookupKey,
+    );
   }
 
   const mod = commands.get(stored.command);
@@ -68,7 +74,7 @@ export async function dispatchOnReply(
     string,
     (ctx: unknown) => Promise<void>
   >;
-  const handler = onReply[stored.state];
+  const handler = onReply[stored.state as string];
   if (typeof handler !== 'function') return false;
   const session = { id: lookupKey, ...stored };
   const { state } = createStateContext(stored.command, event);
@@ -88,9 +94,7 @@ export async function dispatchOnReply(
         state,
         button,
         args: [],
-        options: import('@/engine/modules/options/options-map.lib.js').then(
-          (m) => m.OptionsMap.empty(),
-        ) as any,
+        options: (await import('@/engine/modules/options/options-map.lib.js')).OptionsMap.empty(),
         parsed: { name: stored.command, args: [] },
         emoji: '',
         messageID: (event['messageID'] as string) || '',

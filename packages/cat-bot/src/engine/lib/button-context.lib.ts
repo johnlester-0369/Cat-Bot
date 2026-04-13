@@ -13,7 +13,7 @@ export const buttonContextStore = new Map<string, Record<string, unknown>>();
 export interface ButtonOverride {
   label?: string;
   style?: string;
-  onClick?: (...args: any[]) => unknown;
+  onClick?: (...args: unknown[]) => unknown;
 }
 
 export const buttonOverridesStore = new Map<string, ButtonOverride>();

@@ -57,19 +57,18 @@ function fmt(n: number | null | undefined): string {
  * Extracts a usable image URL from a Reddit post object.
  * Handles standard images and multi-image galleries while skipping videos.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function extractImageUrl(post: any): string | null {
+function extractImageUrl(post: Record<string, unknown>): string | null {
   // Skip unsupported formats
   if (post.is_video || post.is_self || post.over_18) return null;
 
   // Gallery — use the first image in the declared gallery order
   if (
-    post.is_gallery &&
-    post.media_metadata &&
-    post.gallery_data?.items?.length
+    post['is_gallery'] &&
+    post['media_metadata'] &&
+    (post['gallery_data'] as { items?: unknown[] })?.items?.length
   ) {
-    const firstItem = post.gallery_data.items[0];
-    const meta = post.media_metadata[firstItem.media_id];
+    const firstItem = (post['gallery_data'] as { items: { media_id: string }[] }).items[0];
+    const meta = (post['media_metadata'] as Record<string, { status: string; s?: { u?: string } }>)[firstItem!.media_id];
     if (meta?.status === 'valid' && meta.s?.u) {
       // Reddit HTML-encodes ampersands in preview URLs; decode them for direct access
       return meta.s.u.replace(/&amp;/g, '&');
@@ -77,7 +76,7 @@ function extractImageUrl(post: any): string | null {
   }
 
   // Direct image post
-  const url = post.url_overridden_by_dest || post.url || '';
+  const url = (post['url_overridden_by_dest'] as string) || (post['url'] as string) || '';
   if (url.match(/\.(jpg|jpeg|png|gif)(\?|$)/i)) return url;
 
   return null;
@@ -109,9 +108,9 @@ async function fetchMeme() {
       if (!res.data?.data?.children) continue;
 
       // Build a candidate pool from all posts that have extractable images
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const candidates = res.data.data.children
-        .map(({ data }: any) => ({ data, url: extractImageUrl(data) }))
+        .map(({ data }: { data: Record<string, unknown> }) => ({ data, url: extractImageUrl(data) }))
         .filter(({ url }: { url: string | null }) => !!url);
 
       if (!candidates.length) continue;
@@ -126,9 +125,9 @@ async function fetchMeme() {
         score: post.score as number,
         numComments: post.num_comments as number,
       };
-    } catch (err) {
+    } catch (_err) {
       if (attempts >= MAX_ATTEMPTS) {
-        throw new Error('Could not load meme from Reddit after max attempts');
+        throw new Error('Could not load meme from Reddit after max attempts', { cause: _err });
       }
     }
   }
@@ -183,7 +182,7 @@ export const onCommand = async (ctx: AppCtx): Promise<void> => {
     } else {
       await chat.replyMessage(payload);
     }
-  } catch (err) {
+  } catch {
     const errPayload = {
       style: MessageStyle.MARKDOWN,
       message: '❌ Failed to fetch a fresh meme. Please try again later!',

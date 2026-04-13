@@ -32,8 +32,6 @@ export const onCommand = async ({
   args,
   prefix = '',
 }: AppCtx): Promise<void> => {
-  let lang = 'en'; // Default TTS language
-  let text = '';
 
   const messageReply = event['messageReply'] as
     | Record<string, unknown>
@@ -48,6 +46,9 @@ export const onCommand = async ({
     ? rawInput.slice(0, pipeIndex).trim()
     : rawInput.trim();
   const afterPipe = hasPipe ? rawInput.slice(pipeIndex + 1).trim() : '';
+
+  let lang: string;
+  let text: string;
 
   if (messageReply) {
     const replyMsg = (messageReply['message'] as string) || '';
@@ -96,7 +97,7 @@ export const onCommand = async ({
       // We do not provide message string since we just want to send the audio
       attachment: [{ name: 'say.mp3', stream: response.data }],
     });
-  } catch (error) {
+  } catch {
     await chat.replyMessage({
       style: MessageStyle.MARKDOWN,
       message:

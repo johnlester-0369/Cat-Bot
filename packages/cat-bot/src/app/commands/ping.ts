@@ -34,7 +34,7 @@ export const button = {
       button,
     }: AppCtx) => {
       const scopedRefresh = session.id; // Reuse active instance ID
-      const sessionCount = session.context.count || 0; // avoid undefined value
+      const sessionCount = (session.context.count as number) || 0; // avoid undefined value
       const count = sessionCount + 1; //increment from the previous context count
       button.update({
         id: scopedRefresh,
