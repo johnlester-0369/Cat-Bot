@@ -23,8 +23,9 @@ export const auth = betterAuth({
     // transactions (disabled on Atlas M0 free tier which lacks replica-set support).
     // getMongoDb/mongoClient are typed `any` in the database barrel so the cast is needed
     // to satisfy strict-mode while keeping the dynamic adapter pattern.
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any
+     
     : isMongo
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ? mongodbAdapter((getMongoDb as unknown as () => any)(), { client: mongoClient })
     : // SQLite driver — matches the adapter-better-sqlite3 configured in packages/database/client.ts
       prismaAdapter(prisma, { provider: 'sqlite' }),
