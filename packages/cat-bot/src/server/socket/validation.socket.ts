@@ -19,6 +19,7 @@
  */
 
 import type { Server as SocketIOServer } from 'socket.io';
+import { env } from '@/engine/config/env.config.js';
 import { auth } from '@/server/lib/better-auth.lib.js';
 import { getSocketIO } from './socket.lib.js';
 import { getFbPageWebhookVerification } from '@/engine/repos/webhooks.repo.js';
@@ -260,8 +261,7 @@ export function registerValidationHandlers(io: SocketIOServer): void {
           expiresAt: Date.now() + OTP_TTL_MS,
         });
 
-        const baseUrl =
-          process.env['BETTER_AUTH_URL'] ?? 'http://localhost:3000';
+        const baseUrl = env.BETTER_AUTH_URL ?? 'http://localhost:3000';
 
         if (!isWebhookVerified) {
           // Scenario 1 — user has not yet registered our webhook with Meta.

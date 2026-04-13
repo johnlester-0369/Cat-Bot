@@ -8,6 +8,7 @@
  */
 
 import express, { type Application } from 'express';
+import { env } from '@/engine/config/env.config.js';
 import { toNodeHandler } from 'better-auth/node';
 import { auth } from '@/server/lib/better-auth.lib.js';
 import cors from 'cors';
@@ -45,7 +46,7 @@ export function createApp(): Application {
   app.use(
     cors({
       // In production, trust same-origin implicitly. In dev, trust VITE_URL.
-      origin: process.env['VITE_URL'] ? [process.env['VITE_URL']] : true,
+      origin: env.VITE_URL ? [env.VITE_URL] : true,
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
       allowedHeaders: ['Content-Type', 'Authorization'],

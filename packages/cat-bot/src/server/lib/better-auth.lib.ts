@@ -1,6 +1,5 @@
-// Load .env before betterAuth() reads process.env — same pattern as database/client.ts.
-// BETTER_AUTH_SECRET (min 32 chars) and BETTER_AUTH_URL must be set or better-auth will refuse to start.
-import 'dotenv/config';
+// Load env.config first — imports dotenv/config so betterAuth() can read BETTER_AUTH_SECRET
+import { env } from '@/engine/config/env.config.js';
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 // Import the shared singleton exported from the database workspace package — avoids TS6059
@@ -11,7 +10,7 @@ import { prisma } from 'database';
 // and bot tables coexist in a single file without cross-package coupling.
 import { jsonAdapter } from './better-auth-adapter.lib.js';
 
-const isJson = process.env['DATABASE_TYPE'] === 'json';
+const isJson = env.DATABASE_TYPE === 'json';
 
 export const auth = betterAuth({
   database: isJson
@@ -23,7 +22,7 @@ export const auth = betterAuth({
     enabled: true,
   },
   // Trust the dynamic dev server URL if provided. In production, same-origin is inherently trusted.
-  trustedOrigins: process.env['VITE_URL']
-    ? [process.env['VITE_URL']]
+  trustedOrigins: env.VITE_URL
+    ? [env.VITE_URL]
     : undefined,
 });
