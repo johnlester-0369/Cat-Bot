@@ -28,6 +28,7 @@
  *   3. Deploy with the new ENCRYPTION_KEY after the migration completes.
  */
 
+import { env } from '@/engine/config/env.config.js';
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -45,13 +46,7 @@ const ENCRYPTED_PREFIX = 'enc:v1:';
  * silently storing plaintext credentials in the database.
  */
 function getKey(): Buffer {
-  const keyHex = process.env['ENCRYPTION_KEY'];
-  if (!keyHex) {
-    throw new Error(
-      '[crypto] ENCRYPTION_KEY environment variable is required for credential encryption. ' +
-        'Generate a secure key with: openssl rand -hex 32',
-    );
-  }
+  const keyHex = env.ENCRYPTION_KEY;
   // Reject keys that are clearly wrong length before attempting the Buffer decode
   if (keyHex.length !== KEY_LENGTH * 2) {
     throw new Error(
