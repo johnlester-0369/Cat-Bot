@@ -22,6 +22,7 @@
  * message strings — identical to Winston's `defaultMeta` behaviour.
  */
 
+import { env } from '@/engine/config/env.config.js';
 import { Chalk } from 'chalk';
 import { logRelay } from './log-relay.lib.js'; // Correct relative path for sibling
 
@@ -100,7 +101,7 @@ export class SessionLogger {
   ): void {
     // Mirrors Winston's `silent: env.isTest` — suppress relay emission during test runs
     // so unit tests don't accumulate phantom entries in the log history sliding window.
-    if (process.env['NODE_ENV'] === 'test') return;
+    if (env.isTest) return;
     const line = this.#format(level, message, extra);
     // Global emission keeps any system-wide log view intact (all sessions visible).
     logRelay.emit('log', line);
