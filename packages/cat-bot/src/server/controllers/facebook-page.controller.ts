@@ -39,16 +39,6 @@ export async function handleVerification(
   const challenge = req.query['hub.challenge'];
   const verifyToken = req.query['hub.verify_token'];
 
-  // Allow verification when a registered session exists OR credential validation is pending.
-  // During Scenario 1 (bot not yet created), no session exists but validation needs the handshake.
-  if (!findAnySessionForUserId(userId) && !isPendingFbPageValidation(userId)) {
-    logger.warn(
-      `GET /api/v1/facebook-page/${userId} — no registered session found for this webhook`,
-    );
-    res.sendStatus(403);
-    return;
-  }
-
   const expectedToken = generateVerifyToken(userId);
 
   if (verifyToken !== expectedToken) {
