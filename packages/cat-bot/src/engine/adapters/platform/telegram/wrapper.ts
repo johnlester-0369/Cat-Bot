@@ -207,7 +207,7 @@ class TelegramApi extends UnifiedApi {
     const from = this.#ctx.from;
     if (from && String(from.id) === userID) {
       // Construct display name from first_name + optional last_name (Bot API convention)
-      const lastName = (from as Record<string, unknown>)['last_name'] as
+      const lastName = (from as unknown as Record<string, unknown>)['last_name'] as
         | string
         | undefined;
       const parts = [from.first_name, lastName].filter(Boolean);
@@ -233,13 +233,13 @@ class TelegramApi extends UnifiedApi {
     if ('title' in chat && chat.title) return Promise.resolve(chat.title);
     // Private DMs: first_name is always present; last_name and username are optional
     if ('first_name' in chat) {
-      const lastName = (chat as Record<string, unknown>)['last_name'] as
+      const lastName = (chat as unknown as Record<string, unknown>)['last_name'] as
         | string
         | undefined;
       const parts = [chat.first_name, lastName].filter(Boolean);
       const name = parts.length
         ? parts.join(' ')
-        : ((chat as Record<string, unknown>)['username'] as string | undefined);
+        : ((chat as unknown as Record<string, unknown>)['username'] as string | undefined);
       if (name) return Promise.resolve(name);
     }
     return dbGetThreadName(_threadID);

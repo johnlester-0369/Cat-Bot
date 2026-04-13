@@ -90,7 +90,7 @@ export async function editMessage(
       // Buffer the incoming stream so Input.fromBuffer() can wrap it for multipart upload
       const buf = Buffer.isBuffer(first.stream)
         ? first.stream
-        : await streamToBuffer(first.stream as NodeJS.ReadableStream);
+        : await streamToBuffer(first.stream as import('stream').Readable);
       const ext = first.name.split('.').pop()?.toLowerCase() ?? '';
       inputMedia = {
         type: getMediaType(ext),
