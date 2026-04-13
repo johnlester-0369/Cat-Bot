@@ -2,6 +2,19 @@
   "name": "cat-bot-monorepo",
   "version": "1.0.0",
   "private": true,
+  "scripts": {
+    "dev": "npm run dev -w packages/cat-bot",
+    "dev:web": "npm run dev -w packages/web",
+    "build:db": "npm run build -w packages/database",
+    "build": "npm run build -w packages/cat-bot",
+    "build:web": "npm run build -w packages/web",
+    "start": "npm run start -w packages/cat-bot",
+    "preview": "npm run preview -w packages/web",
+    "lint": "npm run lint --workspaces --if-present",
+    "format": "npm run format --workspaces --if-present",
+    "test": "npm run test -w packages/cat-bot",
+    "test:watch": "npm run test:watch -w packages/cat-bot"
+  },
   "workspaces": [
     "packages/cat-bot",
     "packages/database",
