@@ -183,7 +183,7 @@ export const onCommand = async (ctx: AppCtx): Promise<void> => {
     } else {
       await chat.replyMessage(payload);
     }
-  } catch (err) {
+  } catch {
     const errPayload = {
       style: MessageStyle.MARKDOWN,
       message: '❌ Failed to fetch a fresh meme. Please try again later!',

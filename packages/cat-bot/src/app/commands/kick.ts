@@ -107,7 +107,7 @@ export const onCommand = async ({
       style: MessageStyle.MARKDOWN,
       message: `✅ **${userName}** has been removed from the group.`,
     });
-  } catch (err: unknown) {
+  } catch {
     // Fails smoothly if the bot lacks native admin privileges on the platform
     await chat.replyMessage({
       style: MessageStyle.MARKDOWN,

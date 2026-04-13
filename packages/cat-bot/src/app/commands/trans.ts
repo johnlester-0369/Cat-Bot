@@ -31,8 +31,6 @@ export const onCommand = async ({
   args,
   prefix = '',
 }: AppCtx): Promise<void> => {
-  let lang = 'en'; // Default target language
-  let text = '';
 
   const messageReply = event['messageReply'] as
     | Record<string, unknown>
@@ -47,6 +45,9 @@ export const onCommand = async ({
     ? rawInput.slice(0, pipeIndex).trim()
     : rawInput.trim();
   const afterPipe = hasPipe ? rawInput.slice(pipeIndex + 1).trim() : '';
+
+  let lang: string;
+  let text: string;
 
   if (messageReply) {
     const replyMsg = (messageReply['message'] as string) || '';
@@ -88,7 +89,7 @@ export const onCommand = async ({
       style: MessageStyle.MARKDOWN,
       message: `**Translation:** ${translatedText}\n_Translated from ${sourceLang} to ${lang}_`,
     });
-  } catch (error) {
+  } catch {
     await chat.replyMessage({
       style: MessageStyle.MARKDOWN,
       message:
