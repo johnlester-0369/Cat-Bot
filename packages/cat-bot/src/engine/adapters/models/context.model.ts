@@ -189,7 +189,7 @@ export function createThreadContext(
  * Creates the `chat` context injected as `ctx.chat` in every command.
  *
  * @param commandName - Lowercased command name; when set, button IDs are prefixed
- *                      "commandName:actionId" so handleButtonAction can reverse-route.
+ *                      "commandName:buttonId" so handleButtonAction can reverse-route.
  * @param buttonDef   - The command's exported button object; used to resolve label and style for each button.
  */
 export function createChatContext(
@@ -236,7 +236,7 @@ export function createChatContext(
   }
 
   /**
-   * Strips the optional ~userId scope suffix from a raw action ID.
+   * Strips the optional ~userId scope suffix from a raw button ID.
    * Scoped IDs embed the original requester's platform user ID so handleButtonAction
    * can gate button presses — the suffix is routing metadata, not part of the menu key.
    * Example: 'refresh~123456789' → 'refresh'; 'refresh' → 'refresh' (no-op).
@@ -249,7 +249,7 @@ export function createChatContext(
   }
 
   /**
-   * Resolves raw action ID strings (from command code) to ButtonItem objects
+   * Resolves raw button ID strings (from command code) to ButtonItem objects
    * that platform replyMessage implementations consume. Centralising resolution
    * here avoids duplicating label/style lookups in every platform lib.
    */
@@ -259,7 +259,7 @@ export function createChatContext(
     });
     if (!buttonIds.length) return [];
     return buttonIds.map((id) => ({
-      // Prefix with commandName so the platform embeds "commandName:actionId" as callback data.
+      // Prefix with commandName so the platform embeds "commandName:buttonId" as callback data.
       // handleButtonAction splits on ':' to find the owning command without a global ID registry.
       id: commandName ? `${commandName}:${id}` : id,
       label: buttonDef?.[baseKey(id)]?.label ?? id,

@@ -62,10 +62,10 @@ export interface UserInfo {
 /**
  * Resolved button definition passed to platform replyMessage implementations.
  * Produced by createChatContext.resolveButtons() from the command's menu export —
- * callers never construct this directly; they pass bare action ID strings to chat.reply().
+ * callers never construct this directly; they pass bare button ID strings to chat.reply().
  */
 export interface ButtonItem {
-  /** Fully-qualified callback ID: "commandName:actionId". */
+  /** Fully-qualified callback ID: "commandName:buttonId". */
   id: string;
   /** Display label shown on the button face. */
   label: string;

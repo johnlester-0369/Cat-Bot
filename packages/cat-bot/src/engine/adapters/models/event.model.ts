@@ -144,7 +144,7 @@ interface EventButtonAction {
   threadID: string;
   senderID: string;
   messageID: string;
-  actionId: string;
+  buttonId: string;
   timestamp: number | null;
 }
 
@@ -353,7 +353,7 @@ export function formatEvent(event: Record<string, unknown>): UnifiedEvent {
         threadID: (event['threadID'] as string) ?? '',
         senderID: (event['senderID'] as string) ?? '',
         messageID: (event['messageID'] as string) ?? '',
-        actionId: (event['actionId'] as string) ?? '',
+        buttonId: (event['buttonId'] as string) ?? '',
         timestamp: (event['timestamp'] as number | null) ?? null,
       };
 
