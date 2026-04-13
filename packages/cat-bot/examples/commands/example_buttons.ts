@@ -9,11 +9,11 @@
  *   Bot:  🏓 Pong! The button system works.
  *
  * How it works:
- *   1. onCommand calls chat.reply({ button: [ACTION_ID.ping, ...] }) with bare action IDs.
+ *   1. onCommand calls chat.reply({ button: [BUTTON_ID.ping, ...] }) with bare button IDs.
  *   2. createChatContext.resolveButtons() prefixes each ID: "buttons:ping", "buttons:platform" etc.
  *   3. The platform sends those prefixed IDs as callback data (Discord: customId, Telegram:
  *      Facebook Page (postback payload).
- *   4. When clicked, the platform emits 'button_action' with event.actionId = "buttons:ping".
+ *   4. When clicked, the platform emits 'button_action' with event.buttonId = "buttons:ping" (buttonId is the interface key name).
  *   5. handleButtonAction in controllers/index.js splits on ':' → command "example_buttons", local "ping".
  *   6. button["ping"].onClick(ctx) is called with the full context object.
  *
@@ -48,10 +48,10 @@ export const config = {
   hasPrefix: true,
 };
 
-// ACTION_IDs are the local keys used in the button object.
+// BUTTON_IDs are the local keys used in the button object.
 // createChatContext.resolveButtons() prefixes them with the command name at dispatch time —
 // command code never needs to know its own name or construct full callback IDs.
-const ACTION_ID = {
+const BUTTON_ID = {
   ping: 'ping',
   platform: 'platform',
   help: 'help',
@@ -59,10 +59,10 @@ const ACTION_ID = {
 
 /**
  * Button definitions exported as `button`.
- * Keys match ACTION_ID values. `onClick` receives the same ctx shape as `onCommand`.
+ * Keys match BUTTON_ID values. `onClick` receives the same ctx shape as `onCommand`.
  */
 export const button = {
-  [ACTION_ID.ping]: {
+  [BUTTON_ID.ping]: {
     label: '🏓 Ping',
     style: ButtonStyle.PRIMARY,
     onClick: async ({ chat, event }: AppCtx) => {
@@ -74,7 +74,7 @@ export const button = {
     },
   },
 
-  [ACTION_ID.platform]: {
+  [BUTTON_ID.platform]: {
     label: '🌐 Platform',
     style: ButtonStyle.SECONDARY,
     onClick: async ({ chat, event }: AppCtx) => {
@@ -88,7 +88,7 @@ export const button = {
     },
   },
 
-  [ACTION_ID.help]: {
+  [BUTTON_ID.help]: {
     label: '❓ Help',
     style: ButtonStyle.SUCCESS,
     onClick: async ({ chat, event }: AppCtx) => {
@@ -112,9 +112,9 @@ export const onCommand = async ({ chat, button }: AppCtx) => {
     style: MessageStyle.MARKDOWN,
     message: '🎛️ **Choose an action:**',
     button: [
-      button.generateID({ id: ACTION_ID.ping, public: true }),
-      button.generateID({ id: ACTION_ID.platform, public: true }),
-      button.generateID({ id: ACTION_ID.help, public: true }),
+      button.generateID({ id: BUTTON_ID.ping, public: true }),
+      button.generateID({ id: BUTTON_ID.platform, public: true }),
+      button.generateID({ id: BUTTON_ID.help, public: true }),
     ],
   });
 };
