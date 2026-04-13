@@ -169,8 +169,34 @@ export interface ButtonContext {
     createContext(options: {
       id: string;
       context: Record<string, unknown>;
+      createContext(options: {
+        id: string;
+        context: Record<string, unknown>;
+      }): void;
+      getContext(id: string): Record<string, unknown> | null;
+      deleteContext(id: string): void;
     }): void;
-    getContext(id: string): Record<string, unknown> | null;
-    deleteContext(id: string): void;
+    /**
+     * Dynamically updates an existing button's properties.
+     * If the base ID is provided, the change applies globally to all future uses of this button in the command.
+     * If a generated ID (from generateID) is provided, the change applies only to that specific button instance.
+     */
+    update(options: {
+      id: string;
+      label?: string;
+      style?: string;
+      onClick?: (...args: any[]) => unknown;
+    }): void;
+
+    /**
+     * Dynamically creates a new button.
+     * Same scoping rules as update() apply.
+     */
+    create(options: {
+      id: string;
+      label: string;
+      style?: string;
+      onClick: (...args: any[]) => unknown;
+    }): void;
   };
 }

@@ -57,7 +57,7 @@ async function getCoins(db: AppCtx['db'], uid: string): Promise<number> {
   return val ?? 0;
 }
 
-const BUTTON_ID = { daily_status: 'daily_status' } as const;
+const BUTTON_ID = { daily_status: 'daily_status', back: 'back' } as const;
 
 // Complement to /balance: shows when the daily claim resets so the user doesn't
 // need to switch commands to check — closes the balance → daily economy loop.
@@ -65,13 +65,16 @@ export const button = {
   [BUTTON_ID.daily_status]: {
     label: '📅 Daily Status',
     style: ButtonStyle.SECONDARY,
-    onClick: async ({ chat, event, db }: AppCtx) => {
+    onClick: async ({ chat, event, db, native, button }: AppCtx) => {
       const senderID = event['senderID'] as string | undefined;
+      // Back button stays visible after showing daily status so the user can return to balance
+      const backId = button.generateID({ id: BUTTON_ID.back });
       if (!senderID) {
         await chat.editMessage({
           style: MessageStyle.MARKDOWN,
           message_id_to_edit: event['messageID'] as string,
           message: '❌ Could not identify your user ID on this platform.',
+          ...(hasNativeButtons(native.platform) ? { button: [backId] } : {}),
         });
         return;
       }
@@ -82,6 +85,7 @@ export const button = {
           message_id_to_edit: event['messageID'] as string,
           message:
             "📅 You haven't claimed `/daily` yet — your first reward is waiting!",
+          ...(hasNativeButtons(native.platform) ? { button: [backId] } : {}),
         });
         return;
       }
@@ -93,6 +97,7 @@ export const button = {
           style: MessageStyle.MARKDOWN,
           message_id_to_edit: event['messageID'] as string,
           message: '📅 Your daily reward is **ready**! Use `/daily` to claim.',
+          ...(hasNativeButtons(native.platform) ? { button: [backId] } : {}),
         });
       } else {
         const remaining = COOLDOWN_MS - (Date.now() - lastClaim);
@@ -104,9 +109,16 @@ export const button = {
           style: MessageStyle.MARKDOWN,
           message_id_to_edit: event['messageID'] as string,
           message: `⏰ Next daily claim in: **${hours}h ${minutes}m**`,
+          ...(hasNativeButtons(native.platform) ? { button: [backId] } : {}),
         });
       }
     },
+  },
+  // Returns to the coin balance view — closes the daily_status → balance navigation loop
+  [BUTTON_ID.back]: {
+    label: '⬅ Back',
+    style: ButtonStyle.SECONDARY,
+    onClick: async (ctx: AppCtx) => onCommand(ctx),
   },
 };
 
@@ -151,12 +163,21 @@ export const onCommand = async ({
   }
 
   const coins = await getCoins(db, senderID);
-  await chat.replyMessage({
+  // Edit when navigating back via the ⬅ Back button; reply for fresh /balance invocations
+  const payload = {
     style: MessageStyle.MARKDOWN,
     message: `💰 **Your balance:** ${coins.toLocaleString()} coins`,
     // Only inject on the self-balance path — button checks the sender's daily, which is correct here.
     ...(hasNativeButtons(native.platform)
       ? { button: [button.generateID({ id: BUTTON_ID.daily_status })] }
       : {}),
-  });
+  };
+  if (event['type'] === 'button_action') {
+    await chat.editMessage({
+      ...payload,
+      message_id_to_edit: event['messageID'] as string,
+    });
+  } else {
+    await chat.replyMessage(payload);
+  }
 };

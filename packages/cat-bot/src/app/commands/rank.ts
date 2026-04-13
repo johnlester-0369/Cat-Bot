@@ -61,7 +61,7 @@ export const config = {
   ],
 };
 
-const BUTTON_ID = { check_balance: 'check_balance' } as const;
+const BUTTON_ID = { check_balance: 'check_balance', back: 'back' } as const;
 
 // Closes the economy loop: after viewing rank (XP), the complementary metric
 // is coins (money collection) — surfacing it as a button avoids command-switching.
@@ -69,13 +69,16 @@ export const button = {
   [BUTTON_ID.check_balance]: {
     label: '💰 My Balance',
     style: ButtonStyle.SECONDARY,
-    onClick: async ({ chat, event, db }: AppCtx) => {
+    onClick: async ({ chat, event, db, native, button }: AppCtx) => {
       const senderID = event['senderID'] as string | undefined;
+      // Back button lets the user return to their rank card without retyping the command
+      const backId = button.generateID({ id: BUTTON_ID.back });
       if (!senderID) {
         await chat.editMessage({
           style: MessageStyle.MARKDOWN,
           message_id_to_edit: event['messageID'] as string,
           message: '❌ Could not identify your user ID on this platform.',
+          ...(hasNativeButtons(native.platform) ? { button: [backId] } : {}),
         });
         return;
       }
@@ -85,6 +88,7 @@ export const button = {
           style: MessageStyle.MARKDOWN,
           message_id_to_edit: event['messageID'] as string,
           message: '💰 **Your balance:** 0 coins',
+          ...(hasNativeButtons(native.platform) ? { button: [backId] } : {}),
         });
         return;
       }
@@ -94,8 +98,15 @@ export const button = {
         style: MessageStyle.MARKDOWN,
         message_id_to_edit: event['messageID'] as string,
         message: `💰 **Your balance:** ${coins.toLocaleString()} coins`,
+        ...(hasNativeButtons(native.platform) ? { button: [backId] } : {}),
       });
     },
+  },
+  // Returns to the rank card view — closes the balance → rank navigation loop
+  [BUTTON_ID.back]: {
+    label: '⬅ Back',
+    style: ButtonStyle.SECONDARY,
+    onClick: async (ctx: AppCtx) => onCommand(ctx),
   },
 };
 
@@ -105,6 +116,7 @@ export const onCommand = async ({
   db,
   native,
   button,
+  user,
 }: AppCtx): Promise<void> => {
   const mentions = event['mentions'] as Record<string, string> | undefined;
   const mentionIDs = Object.keys(mentions ?? {});
@@ -172,11 +184,14 @@ export const onCommand = async ({
     }
   }
 
-  const displayName = mentionIDs.length > 0;
-  native.platform === Platforms.Telegram ||
-    native.platform === Platforms.FacebookPage;
+  // Resolve display name: use the clean mention string if available, otherwise fetch the platform profile name
+  const displayName =
+    mentionIDs.length > 0 && mentions?.[targetID]
+      ? mentions[targetID].replace(/^@/, '')
+      : await user.getName(targetID);
 
-  await chat.replyMessage({
+  // Edit when navigating back via the ⬅ Back button; reply for fresh /rank invocations
+  const payload = {
     style: MessageStyle.MARKDOWN,
     message: [
       `👤 **${displayName}**`,
@@ -187,5 +202,13 @@ export const onCommand = async ({
     ...(hasNativeButtons(native.platform)
       ? { button: [button.generateID({ id: BUTTON_ID.check_balance })] }
       : {}),
-  });
+  };
+  if (event['type'] === 'button_action') {
+    await chat.editMessage({
+      ...payload,
+      message_id_to_edit: event['messageID'] as string,
+    });
+  } else {
+    await chat.replyMessage(payload);
+  }
 };

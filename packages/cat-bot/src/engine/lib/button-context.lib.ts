@@ -10,6 +10,14 @@
 
 export const buttonContextStore = new Map<string, Record<string, unknown>>();
 
+export interface ButtonOverride {
+  label?: string;
+  style?: string;
+  onClick?: (...args: any[]) => unknown;
+}
+
+export const buttonOverridesStore = new Map<string, ButtonOverride>();
+
 export const buttonContextLib = {
   create(key: string, context: Record<string, unknown>): void {
     buttonContextStore.set(key, context);
@@ -21,5 +29,17 @@ export const buttonContextLib = {
 
   delete(key: string): void {
     buttonContextStore.delete(key);
+  },
+
+  setOverride(key: string, def: ButtonOverride): void {
+    buttonOverridesStore.set(key, def);
+  },
+
+  getOverride(key: string): ButtonOverride | null {
+    return buttonOverridesStore.get(key) ?? null;
+  },
+
+  deleteOverride(key: string): void {
+    buttonOverridesStore.delete(key);
   },
 };

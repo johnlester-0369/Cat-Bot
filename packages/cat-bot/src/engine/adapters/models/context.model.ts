@@ -258,15 +258,27 @@ export function createChatContext(
       count: buttonIds.length,
     });
     if (!buttonIds.length) return [];
-    return buttonIds.map((id) => ({
-      // Prefix with commandName so the platform embeds "commandName:buttonId" as callback data.
-      // handleButtonAction splits on ':' to find the owning command without a global ID registry.
-      id: commandName ? `${commandName}:${id}` : id,
-      label: buttonDef?.[baseKey(id)]?.label ?? id,
-      // Optional style defaults to Neutral/Secondary to ensure cross-platform safety
-      // where applicable, and provides a default visual baseline for Discord.
-      style: buttonDef?.[baseKey(id)]?.style ?? ButtonStyle.SECONDARY,
-    }));
+    return buttonIds.map((id) => {
+      const bKey = baseKey(id);
+      // Overlay check — allows dynamic buttons to override static defaults cleanly per-instance or globally
+      const overrideFull = buttonContextLib.getOverride(`${commandName}:${id}`);
+      const overrideBase = buttonContextLib.getOverride(
+        `${commandName}:${bKey}`,
+      );
+
+      return {
+        id: commandName ? `${commandName}:${id}` : id,
+        label:
+          overrideFull?.label ??
+          overrideBase?.label ??
+          buttonDef?.[bKey]?.label ??
+          id,
+        style: (overrideFull?.style ??
+          overrideBase?.style ??
+          buttonDef?.[bKey]?.style ??
+          ButtonStyle.SECONDARY) as ButtonStyleValue,
+      };
+    });
   }
 
   /**
@@ -276,9 +288,19 @@ export function createChatContext(
    */
   function buildButtonFallbackText(msg: string, buttonIds: string[]): string {
     logger.debug('[context.model] buildButtonFallbackText called');
-    const lines = buttonIds.map(
-      (id, idx) => `${idx + 1}. ${buttonDef?.[baseKey(id)]?.label ?? id}`,
-    );
+    const lines = buttonIds.map((id, idx) => {
+      const bKey = baseKey(id);
+      const overrideFull = buttonContextLib.getOverride(`${commandName}:${id}`);
+      const overrideBase = buttonContextLib.getOverride(
+        `${commandName}:${bKey}`,
+      );
+      const label =
+        overrideFull?.label ??
+        overrideBase?.label ??
+        buttonDef?.[bKey]?.label ??
+        id;
+      return `${idx + 1}. ${label}`;
+    });
     const footer = 'Reply with a number to choose an option.';
     return msg
       ? `${msg}\n\n${lines.join('\n')}\n\n${footer}`
@@ -305,11 +327,25 @@ export function createChatContext(
       state: 'button_fallback',
       context: {
         type: 'button_fallback',
-        buttons: buttonIds.map((id, idx) => ({
-          number: idx + 1,
-          id,
-          label: buttonDef?.[baseKey(id)]?.label ?? id,
-        })),
+        buttons: buttonIds.map((id, idx) => {
+          const bKey = baseKey(id);
+          const overrideFull = buttonContextLib.getOverride(
+            `${commandName}:${id}`,
+          );
+          const overrideBase = buttonContextLib.getOverride(
+            `${commandName}:${bKey}`,
+          );
+          const label =
+            overrideFull?.label ??
+            overrideBase?.label ??
+            buttonDef?.[bKey]?.label ??
+            id;
+          return {
+            number: idx + 1,
+            id,
+            label,
+          };
+        }),
       },
     });
   }
@@ -620,6 +656,26 @@ export function createButtonContext(
       deleteContext(id) {
         logger.debug('[context.model] button.deleteContext called', { id });
         buttonContextLib.delete(`${commandName}:${id}`);
+      },
+      update(options) {
+        logger.debug('[context.model] button.update called', {
+          id: options.id,
+        });
+        const key = `${commandName}:${options.id}`;
+        const existing = buttonContextLib.getOverride(key) || {};
+        // Destructure id out so we don't store redundant fields on the override payload
+        const { id: _id, ...payload } = options;
+        buttonContextLib.setOverride(key, { ...existing, ...payload });
+      },
+      create(options) {
+        logger.debug('[context.model] button.create called', {
+          id: options.id,
+        });
+        const key = `${commandName}:${options.id}`;
+        const existing = buttonContextLib.getOverride(key) || {};
+        // Both update and create route to setOverride. The create interface just forces type safety.
+        const { id: _id, ...payload } = options;
+        buttonContextLib.setOverride(key, { ...existing, ...payload });
       },
     },
   };

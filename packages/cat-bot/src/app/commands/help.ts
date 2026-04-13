@@ -44,6 +44,9 @@ import { findSessionCommands } from '@/engine/modules/session/bot-session-comman
 import { isPlatformAllowed } from '@/engine/modules/platform/platform-filter.util.js';
 import { OptionType } from '@/engine/modules/command/command-option.constants.js';
 import { MessageStyle } from '@/engine/constants/message-style.constants.js';
+import { ButtonStyle } from '@/engine/constants/button-style.constants.js';
+import { hasNativeButtons } from '@/engine/utils/ui-capabilities.util.js';
+import { Platforms } from '@/engine/modules/platform/platform.constants.js';
 
 export const config = {
   name: 'help',
@@ -68,7 +71,7 @@ export const config = {
 };
 
 /** Commands shown per page — kept small enough to fit a typical mobile chat window. */
-const COMMANDS_PER_PAGE = 20;
+const COMMANDS_PER_PAGE = 10;
 
 /**
  * Human-readable label for each numeric role level.
@@ -134,12 +137,36 @@ function crop(text: string, max: number): string {
   return `${text.slice(0, max - 3)}...`;
 }
 
+const BUTTON_ID = { prev: 'prev', next: 'next' } as const;
+
+// Exported button map routes standard interactive clicks back to this module
+export const button = {
+  [BUTTON_ID.prev]: {
+    label: '◀ Prev',
+    style: ButtonStyle.SECONDARY,
+    onClick: async (ctx: AppCtx) => {
+      ctx.args = [String(ctx.session.context['page'] || 1)];
+      await onCommand(ctx);
+    },
+  },
+  [BUTTON_ID.next]: {
+    label: 'Next ▶',
+    style: ButtonStyle.SECONDARY,
+    onClick: async (ctx: AppCtx) => {
+      ctx.args = [String(ctx.session.context['page'] || 2)];
+      await onCommand(ctx);
+    },
+  },
+};
+
 export const onCommand = async ({
   chat,
   args,
   commands,
   prefix = '',
   native,
+  event,
+  button,
 }: AppCtx): Promise<void> => {
   // noUncheckedIndexedAccess — args[0] is string | undefined
   const arg = args[0]?.toLowerCase() ?? '';
@@ -270,7 +297,20 @@ export const onCommand = async ({
     return `${padNum}. \`${prefix}${name}\` — ${crop(desc, 38)}`;
   });
 
-  await chat.replyMessage({
+  // Setup dynamic interactive buttons for navigating backward and forward through command lists
+  const activeButtons: string[] = [];
+  if (page > 1) {
+    const prevId = button.generateID({ id: BUTTON_ID.prev });
+    button.createContext({ id: prevId, context: { page: page - 1 } });
+    activeButtons.push(prevId);
+  }
+  if (page < totalPages) {
+    const nextId = button.generateID({ id: BUTTON_ID.next });
+    button.createContext({ id: nextId, context: { page: page + 1 } });
+    activeButtons.push(nextId);
+  }
+
+  const payload = {
     style: MessageStyle.MARKDOWN,
     message: [
       `Commands`,
@@ -282,5 +322,20 @@ export const onCommand = async ({
       `» ${prefix}help <page> to navigate pages`,
       `» ${prefix}help <command> to view command details`,
     ].join('\n'),
-  });
+    ...(hasNativeButtons(native.platform) &&
+    native.platform != Platforms.FacebookPage &&
+    activeButtons.length > 0
+      ? { button: activeButtons }
+      : {}),
+  };
+
+  // Automatically update the original message instance if invoked from a button action
+  if (event['type'] === 'button_action') {
+    await chat.editMessage({
+      ...payload,
+      message_id_to_edit: event['messageID'] as string,
+    });
+  } else {
+    await chat.replyMessage(payload);
+  }
 };

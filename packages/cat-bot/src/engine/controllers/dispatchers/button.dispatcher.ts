@@ -109,8 +109,20 @@ export async function dispatchButtonFallback(
   const baseFallbackId =
     hashIdx === -1 ? withoutScope : withoutScope.slice(0, hashIdx);
 
-  const handler = buttonDef[baseFallbackId];
-  if (!handler || typeof handler.onClick !== 'function') return false;
+  // Merge dynamic overrides with static command definition before validating handler.
+  const overrideBase = buttonContextLib.getOverride(
+    `${stored.command}:${baseFallbackId}`,
+  );
+  const overrideFull = buttonContextLib.getOverride(
+    `${stored.command}:${fullLocalId}`,
+  );
+  const handler = {
+    ...(buttonDef[baseFallbackId] || {}),
+    ...(overrideBase || {}),
+    ...(overrideFull || {}),
+  };
+
+  if (typeof handler.onClick !== 'function') return false;
 
   // Synthesise a button_action event so onClick() receives the same shape as a native button
   // click on Discord, Telegram, or Facebook Page — no platform branching inside onClick() needed.
@@ -223,8 +235,20 @@ export async function handleButtonAction(
         string,
         { onClick?: (...args: unknown[]) => Promise<void> }
       >;
-      const handler = buttonDef[baseButtonId];
-      if (!handler || typeof handler.onClick !== 'function') {
+      // Merge dynamic overrides with static command definition before validating handler.
+      const overrideBase = buttonContextLib.getOverride(
+        `${commandName}:${baseButtonId}`,
+      );
+      const overrideFull = buttonContextLib.getOverride(
+        `${commandName}:${fullLocalId}`,
+      );
+      const handler = {
+        ...(buttonDef[baseButtonId] || {}),
+        ...(overrideBase || {}),
+        ...(overrideFull || {}),
+      };
+
+      if (typeof handler.onClick !== 'function') {
         await ack?.().catch(() => {});
         return;
       }

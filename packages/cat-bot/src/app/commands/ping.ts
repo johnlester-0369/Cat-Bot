@@ -25,10 +25,31 @@ export const button = {
   [BUTTON_ID.refresh]: {
     label: '🔄 Refresh',
     style: ButtonStyle.SECONDARY,
-    onClick: async ({ chat, startTime, event, native, session }: AppCtx) => {
+    onClick: async ({
+      chat,
+      startTime,
+      event,
+      native,
+      session,
+      button,
+    }: AppCtx) => {
       const scopedRefresh = session.id; // Reuse active instance ID
+      const sessionCount = session.context.count || 0; // avoid undefined value
+      const count = sessionCount + 1; //increment from the previous context count
+      button.update({
+        id: scopedRefresh,
+        label: `🔄 Refresh (${count})`,
+      });
+
+      button.createContext({
+        id: scopedRefresh,
+        context: {
+          count: count,
+        },
+      });
+
       // FB Messenger has no native button components — it renders a numbered text-menu
-      // fallback which clutters a simple one-liner response. Skip buttons there.
+      // fallback which clutters a simple one-liner response. Skip buttons there
       await chat.editMessage({
         style: MessageStyle.MARKDOWN,
         message_id_to_edit: event.messageID as string,
@@ -50,6 +71,18 @@ export const onCommand = async ({
   // Scope the Refresh button's button ID to the sender so only the user who issued
   // /ping can click it — prevents other users from hijacking another person's flow.
   const scopedRefresh = button.generateID({ id: BUTTON_ID.refresh });
+  const count = 1;
+  button.update({
+    id: scopedRefresh,
+    label: `🔄 Refresh (${count})`,
+  });
+
+  button.createContext({
+    id: scopedRefresh,
+    context: {
+      count: count,
+    },
+  });
   // FB Messenger has no native button components — it renders a numbered text-menu
   // fallback which clutters a simple one-liner response. Skip buttons there.
   await chat.replyMessage({

@@ -118,7 +118,7 @@ export const onChat = async ({ event, db, chat }: AppCtx): Promise<void> => {
   }
 };
 
-const BUTTON_ID = { my_level: 'my_level' } as const;
+const BUTTON_ID = { my_level: 'my_level', back: 'back' } as const;
 
 // The rankup status view naturally prompts the question "what level am I at?" —
 // surfacing XP/level inline avoids an extra /rank command invocation.
@@ -126,13 +126,16 @@ export const button = {
   [BUTTON_ID.my_level]: {
     label: '📊 My Level',
     style: ButtonStyle.SECONDARY,
-    onClick: async ({ chat, event, db }: AppCtx) => {
+    onClick: async ({ chat, event, db, native, button }: AppCtx) => {
       const senderID = event['senderID'] as string | undefined;
+      // Back button lets the user return to the rankup status without retyping the command
+      const backId = button.generateID({ id: BUTTON_ID.back });
       if (!senderID) {
         await chat.editMessage({
           style: MessageStyle.MARKDOWN,
           message_id_to_edit: event['messageID'] as string,
           message: '❌ Could not identify your user ID on this platform.',
+          ...(hasNativeButtons(native.platform) ? { button: [backId] } : {}),
         });
         return;
       }
@@ -149,8 +152,15 @@ export const button = {
         style: MessageStyle.MARKDOWN,
         message_id_to_edit: event['messageID'] as string,
         message: `⭐ **Level ${level}** — ${exp} total EXP`,
+        ...(hasNativeButtons(native.platform) ? { button: [backId] } : {}),
       });
     },
+  },
+  // Returns to the rankup status view — closes the my_level → rankup navigation loop
+  [BUTTON_ID.back]: {
+    label: '⬅ Back',
+    style: ButtonStyle.SECONDARY,
+    onClick: async (ctx: AppCtx) => onCommand(ctx),
   },
 };
 
@@ -194,7 +204,8 @@ export const onCommand = async ({
       /* fail-open */
     }
 
-    await chat.replyMessage({
+    // Edit when navigating back via the ⬅ Back button; reply for fresh /rankup invocations
+    const payload = {
       style: MessageStyle.MARKDOWN,
       message: [
         `Rankup notifications are currently ${current ? '✅ on' : '🔕 off'} for this thread.`,
@@ -203,7 +214,15 @@ export const onCommand = async ({
       ...(hasNativeButtons(native.platform)
         ? { button: [button.generateID({ id: BUTTON_ID.my_level })] }
         : {}),
-    });
+    };
+    if (event['type'] === 'button_action') {
+      await chat.editMessage({
+        ...payload,
+        message_id_to_edit: event['messageID'] as string,
+      });
+    } else {
+      await chat.replyMessage(payload);
+    }
     return;
   }
 

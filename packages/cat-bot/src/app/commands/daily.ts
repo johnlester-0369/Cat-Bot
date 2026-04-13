@@ -44,10 +44,7 @@ const BASE_COINS = 200;
 /** Additional coins per streak day beyond the first, capped at MAX_STREAK_BONUS_DAYS. */
 const COINS_PER_STREAK_DAY = 10;
 
-/** Streak bonus stops growing after this many consecutive days. */
-const MAX_STREAK_BONUS_DAYS = 6;
-
-const BUTTON_ID = { check_balance: 'check_balance' } as const;
+const BUTTON_ID = { check_balance: 'check_balance', back: 'back' } as const;
 
 // Natural economy-loop UX: after claiming, the most common next question is
 // "how many coins do I have now?" — surface it as a single button click.
@@ -55,13 +52,16 @@ export const button = {
   [BUTTON_ID.check_balance]: {
     label: '💰 My Balance',
     style: ButtonStyle.SECONDARY,
-    onClick: async ({ chat, event, db }: AppCtx) => {
+    onClick: async ({ chat, event, db, native, button }: AppCtx) => {
       const senderID = event['senderID'] as string | undefined;
+      // Back button lets the user return to the daily claim status without retyping the command
+      const backId = button.generateID({ id: BUTTON_ID.back });
       if (!senderID) {
         await chat.editMessage({
           style: MessageStyle.MARKDOWN,
           message_id_to_edit: event['messageID'] as string,
           message: '❌ Could not identify your user ID on this platform.',
+          ...(hasNativeButtons(native.platform) ? { button: [backId] } : {}),
         });
         return;
       }
@@ -71,6 +71,7 @@ export const button = {
           style: MessageStyle.MARKDOWN,
           message_id_to_edit: event['messageID'] as string,
           message: '💰 **Your balance:** 0 coins',
+          ...(hasNativeButtons(native.platform) ? { button: [backId] } : {}),
         });
         return;
       }
@@ -80,7 +81,69 @@ export const button = {
         style: MessageStyle.MARKDOWN,
         message_id_to_edit: event['messageID'] as string,
         message: `💰 **Your balance:** ${coins.toLocaleString()} coins`,
+        ...(hasNativeButtons(native.platform) ? { button: [backId] } : {}),
       });
+    },
+  },
+  // Returns to the daily claim status view — creates a balance ↔ daily-status toggle loop
+  [BUTTON_ID.back]: {
+    label: '⬅ Back',
+    style: ButtonStyle.SECONDARY,
+    onClick: async ({ chat, event, db, native, button }: AppCtx) => {
+      const senderID = event['senderID'] as string | undefined;
+      // Regenerate check_balance so the user can toggle back to balance from this view
+      const balId = button.generateID({ id: BUTTON_ID.check_balance });
+      if (!senderID) {
+        await chat.editMessage({
+          style: MessageStyle.MARKDOWN,
+          message_id_to_edit: event['messageID'] as string,
+          message: '❌ Could not identify your user ID on this platform.',
+          ...(hasNativeButtons(native.platform) ? { button: [balId] } : {}),
+        });
+        return;
+      }
+      const userColl = db.users.collection(senderID);
+      if (!(await userColl.isCollectionExist('money'))) {
+        await chat.editMessage({
+          style: MessageStyle.MARKDOWN,
+          message_id_to_edit: event['messageID'] as string,
+          message:
+            "📅 You haven't claimed `/daily` yet — your first reward is waiting!",
+          ...(hasNativeButtons(native.platform) ? { button: [balId] } : {}),
+        });
+        return;
+      }
+      const money = await userColl.getCollection('money');
+      const lastClaim = (await money.get('lastClaim')) as number | undefined;
+      // streak is stored in the same money collection written by onCommand
+      const streak = ((await money.get('streak')) as number | undefined) ?? 0;
+      const COOLDOWN_MS = 24 * 60 * 60 * 1000;
+      if (!lastClaim || Date.now() - lastClaim >= COOLDOWN_MS) {
+        await chat.editMessage({
+          style: MessageStyle.MARKDOWN,
+          message_id_to_edit: event['messageID'] as string,
+          message: [
+            '📅 Your daily reward is **ready**! Use `/daily` to claim.',
+            `🔥 Streak: **${streak} day(s)**`,
+          ].join('\n'),
+          ...(hasNativeButtons(native.platform) ? { button: [balId] } : {}),
+        });
+      } else {
+        const remaining = COOLDOWN_MS - (Date.now() - lastClaim);
+        const hours = Math.floor(remaining / (1000 * 60 * 60));
+        const minutes = Math.floor(
+          (remaining % (1000 * 60 * 60)) / (1000 * 60),
+        );
+        await chat.editMessage({
+          style: MessageStyle.MARKDOWN,
+          message_id_to_edit: event['messageID'] as string,
+          message: [
+            `⏰ Next daily claim in: **${hours}h ${minutes}m**`,
+            `🔥 Streak: **${streak} day(s)**`,
+          ].join('\n'),
+          ...(hasNativeButtons(native.platform) ? { button: [balId] } : {}),
+        });
+      }
     },
   },
 };
