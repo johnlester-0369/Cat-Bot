@@ -35,6 +35,17 @@ interface EnvConfig {
   // Telegram transport — bare HTTPS domain routes webhook mode; absent = long-polling fallback
   readonly TELEGRAM_WEBHOOK_DOMAIN?: string | undefined;
 
+  // Database
+  readonly DATABASE_TYPE?: string | undefined;
+
+  // Bot Management API / Web
+  readonly BETTER_AUTH_SECRET: string;
+  readonly BETTER_AUTH_URL?: string | undefined;
+  readonly VITE_URL?: string | undefined;
+
+  // Security
+  readonly ENCRYPTION_KEY: string;
+
   // Derived boolean helpers
   readonly isDevelopment: boolean;
   readonly isProduction: boolean;
@@ -171,6 +182,17 @@ export const env: EnvConfig = {
   ERROR_LOG_FILE_PATH: getOptionalEnv('ERROR_LOG_FILE_PATH'),
   // Consumed by telegram/listener.ts — centralised here so dotenv is guaranteed to have run first
   TELEGRAM_WEBHOOK_DOMAIN: getOptionalEnv('TELEGRAM_WEBHOOK_DOMAIN'),
+
+  // Database
+  DATABASE_TYPE: getOptionalEnv('DATABASE_TYPE'),
+
+  // Bot Management API / Web
+  BETTER_AUTH_SECRET: getRequiredEnv('BETTER_AUTH_SECRET'),
+  BETTER_AUTH_URL: getOptionalEnv('BETTER_AUTH_URL'),
+  VITE_URL: getOptionalEnv('VITE_URL'),
+
+  // Security
+  ENCRYPTION_KEY: getRequiredEnv('ENCRYPTION_KEY'),
 
   // Derived boolean helpers for convenience
   isDevelopment: nodeEnv === 'development',
