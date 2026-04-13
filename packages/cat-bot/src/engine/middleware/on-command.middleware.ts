@@ -27,7 +27,7 @@ import type {
 import { OptionsMap } from '@/engine/modules/options/options-map.lib.js';
 import type { OptionDef } from '@/engine/modules/options/options-map.lib.js';
 import { parseTextOptions } from '@/engine/modules/options/options.util.js';
-// Cooldown state delegated to lib/ — mirrors reply-state.lib.ts pattern;
+// Cooldown state delegated to lib/ — mirrors state.lib.ts pattern;
 // this middleware file stays free of mutable Map declarations.
 import { cooldownStore } from '@/engine/lib/cooldown.lib.js';
 // Repo functions for role checking — imported here so this middleware stays

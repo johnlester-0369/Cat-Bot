@@ -17,8 +17,8 @@
  *      Backward-compat for states registered before composite keys were introduced.
  */
 
-import { stateStore } from '@/engine/lib/reply-state.lib.js';
-import type { StateEntry } from '@/engine/lib/reply-state.lib.js';
+import { stateStore } from '@/engine/lib/state.lib.js';
+import type { StateEntry } from '@/engine/lib/state.lib.js';
 
 export interface StateResolution {
   /** The matched state entry — guaranteed non-null when StateResolution is returned. */

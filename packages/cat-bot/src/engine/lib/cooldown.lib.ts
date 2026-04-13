@@ -2,7 +2,7 @@
  * CooldownStore — In-Memory Per-User Command Rate-Limit Tracker
  *
  * Extracted from on-command.middleware.ts to follow the lib/ pattern established
- * by reply-state.lib.ts and options-map.lib.ts: lib/ owns mutable state;
+ * by state.lib.ts and options-map.lib.ts: lib/ owns mutable state;
  * middleware/ owns dispatch logic only.
  *
  * Dependency direction: lib/cooldown.lib.ts → (none)
