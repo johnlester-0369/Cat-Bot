@@ -211,7 +211,20 @@ export async function removeBotAdmin(
 ): Promise<void> {
   await _removeBotAdmin(userId, platform, sessionId, adminId);
   lruCache.set(adminCheckKey(userId, platform, sessionId, adminId), false);
-  lruCache.del(adminListKey(userId, platform, sessionId));
+  // Write-through: filter the removed admin from the cached list rather than evicting.
+  // Root cause of the "remove admin still shows 2" bug: evicting adminListKey forced a
+  // correct DB re-fetch via listBotAdmins, but bot.repo.ts caches the full admin array
+  // inside bot:detail:{userId}:{sessionId} and bot:list:{userId} under separate keys that
+  // were never cleared here, so dashboard calls to botRepo.getById kept returning stale
+  // 2-admin payloads until those entries expired by TTL.
+  const listKey = adminListKey(userId, platform, sessionId);
+  const cachedList = lruCache.get<string[]>(listKey);
+  if (cachedList !== undefined) {
+    lruCache.set(listKey, cachedList.filter((id) => id !== adminId));
+  }
+  // Clear bot detail and list caches so the dashboard immediately reflects the removal.
+  lruCache.del(`bot:detail:${userId}:${sessionId}`);
+  lruCache.del(`bot:list:${userId}`);
 }
 
 export async function listBotAdmins(
