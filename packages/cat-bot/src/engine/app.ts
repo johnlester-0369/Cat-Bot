@@ -67,6 +67,8 @@ import type { SessionConfigs } from '@/engine/modules/session/session-loader.uti
 import { isPlatformAllowed } from '@/engine/modules/platform/platform-filter.util.js';
 import { startServer } from '@/server/server.js';
 import { createThreadCollectionManager } from '@/engine/lib/db-collection.lib.js';
+// dbReady is the NeonDB schema-init promise; undefined for json/mongodb/prisma-sqlite adapters.
+import { dbReady } from 'database';
 
 // ============================================================================
 // __dirname equivalent — needed for dynamic module path resolution in ESM
@@ -301,6 +303,14 @@ async function syncCommandsAndEvents(
 async function main(): Promise<void> {
   logger.info('Cat-Bot - loading modules...');
   logger.info(`Environment: ${env.NODE_ENV}`);
+
+  // Ensure NeonDB schema DDL has completed before any session/credential queries land.
+  // For json/mongodb/prisma-sqlite adapters, dbReady is undefined — await on undefined
+  // resolves immediately, so this guard is a zero-cost no-op for non-neondb adapters.
+  if (dbReady !== undefined) {
+    await dbReady;
+  }
+
 
   // Load once — all platform listeners share the same Maps
   const [commands, eventModules] = await Promise.all([
