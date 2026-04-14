@@ -36,18 +36,18 @@ const userNameKey = (userId: string): string =>
 
 const userSessionExistsKey = (
   userId: string, platform: string, sessionId: string, botUserId: string,
-): string => `user:sessionExists:${userId}:${platform}:${sessionId}:${botUserId}`;
+): string => `${userId}:${platform}:${sessionId}:user:sessionExists:${botUserId}`;
 
 const userSessionDataKey = (
   userId: string, platform: string, sessionId: string, botUserId: string,
-): string => `user:sessionData:${userId}:${platform}:${sessionId}:${botUserId}`;
+): string => `${userId}:${platform}:${sessionId}:user:sessionData:${botUserId}`;
 
 const userSessionAllKey = (userId: string, platform: string, sessionId: string): string =>
-  `user:sessionAll:${userId}:${platform}:${sessionId}`;
+  `${userId}:${platform}:${sessionId}:user:sessionAll`;
 
 const userSessionUpdatedAtKey = (
   userId: string, platform: string, sessionId: string, botUserId: string,
-): string => `user:sessionUpdatedAt:${userId}:${platform}:${sessionId}:${botUserId}`;
+): string => `${userId}:${platform}:${sessionId}:user:sessionUpdatedAt:${botUserId}`;
 
 // ── Wrappers ──────────────────────────────────────────────────────────────────
 
