@@ -26,14 +26,14 @@ const userBanKey = (
   platform: string,
   sessionId: string,
   botUserId: string,
-): string => `banned:user:${userId}:${platform}:${sessionId}:${botUserId}`;
+): string => `${userId}:${platform}:${sessionId}:banned:user:${botUserId}`;
 
 const threadBanKey = (
   userId: string,
   platform: string,
   sessionId: string,
   botThreadId: string,
-): string => `banned:thread:${userId}:${platform}:${sessionId}:${botThreadId}`;
+): string => `${userId}:${platform}:${sessionId}:banned:thread:${botThreadId}`;
 
 // ── User Bans ─────────────────────────────────────────────────────────────────
 
