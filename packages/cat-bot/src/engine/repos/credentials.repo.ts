@@ -252,4 +252,8 @@ export async function updateBotSessionPrefix(
   // The all-sessions list embeds the prefix field — clear it so session-loader
   // picks up the new prefix on next boot or session reload.
   lruCache.del(SESSIONS_ALL_KEY);
+  // Detail and list endpoints embed the prefix; clear them so the web dashboard
+  // immediately reflects the prefix change executed from chat.
+  lruCache.del(`bot:detail:${userId}:${sessionId}`);
+  lruCache.del(`bot:list:${userId}`);
 }
