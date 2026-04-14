@@ -132,9 +132,24 @@ export async function setUserSessionData(
   // Replace the individual data entry with the fresh value so immediate reads
   // skip the DB. Shallow copy prevents caller mutation of the cached reference.
   lruCache.set(userSessionDataKey(userId, platform, sessionId, botUserId), { ...data });
-  // Evict the aggregated all-session cache — it includes this user's data blob and
-  // is now stale. The next getAllUserSessionData call will re-fetch the full set.
-  lruCache.del(userSessionAllKey(userId, platform, sessionId));
+  // Write-through: patch the matching slot in the aggregate cache rather than evicting
+  // the whole list — rank leaderboard reads (getAllUserSessionData) on the next tick see
+  // the fresh balance/XP without a full DB re-fetch of every user in the session.
+  const allKey = userSessionAllKey(userId, platform, sessionId);
+  const cachedAll =
+    lruCache.get<Array<{ botUserId: string; data: Record<string, unknown> }>>(allKey);
+  if (cachedAll !== undefined) {
+    const idx = cachedAll.findIndex((e) => e.botUserId === botUserId);
+    if (idx !== -1) {
+      const updated = [...cachedAll];
+      updated[idx] = { botUserId, data: { ...data } };
+      lruCache.set(allKey, updated);
+    } else {
+      // User has no entry in the aggregate yet — evict so the next getAllUserSessionData
+      // re-fetches the complete set and includes this newly written entry.
+      lruCache.del(allKey);
+    }
+  }
 }
 
 export async function getAllUserSessionData(
