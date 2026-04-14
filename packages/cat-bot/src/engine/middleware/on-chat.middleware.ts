@@ -81,9 +81,16 @@ export const chatPassthrough: MiddlewareFn<OnChatCtx> = async function (
       // Null means the thread has never been synced; a timestamp older than SYNC_INTERVAL_MS means the
       // cached metadata (name, member count, admin list) may have drifted from the platform's state.
       const threadStale =
-        threadUpdatedAt === null ||
-        Date.now() - threadUpdatedAt.getTime() > SYNC_INTERVAL_MS;
+          threadUpdatedAt === null ||
+          Date.now() - threadUpdatedAt.getTime() > SYNC_INTERVAL_MS;
       if (threadStale) {
+        // Log new vs update before the optimistic stamp so the event is always
+        // recorded even if the subsequent upsertThreadSession call is skipped.
+        if (threadUpdatedAt === null) {
+          logger.info(`[database] New thread: ${threadID}`);
+        } else {
+          logger.info(`[database] Update thread: ${threadID}`);
+        }
         // Optimistic timestamp: stamp lastUpdatedAt immediately when the session row already
         // exists so concurrent messages racing the background API fetch don't each detect
         // staleness and each fire redundant syncs. Only safe when the row exists (non-null)
@@ -117,6 +124,12 @@ export const chatPassthrough: MiddlewareFn<OnChatCtx> = async function (
           senderUpdatedAt === null ||
           Date.now() - senderUpdatedAt.getTime() > SYNC_INTERVAL_MS;
         if (senderStale) {
+          // Log new vs update before the optimistic stamp — same rationale as the thread block above.
+          if (senderUpdatedAt === null) {
+            logger.info(`[database] New user: ${senderID}`);
+          } else {
+            logger.info(`[database] Update user: ${senderID}`);
+          }
           // Same optimistic stamp pattern as thread: only when the row exists to avoid a
           // FK violation on the very first time this user is seen in this session.
           if (senderUpdatedAt !== null) {
