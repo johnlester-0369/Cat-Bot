@@ -56,6 +56,11 @@ export const botRepo = {
     lruCache.del(botListKey(userId));
     lruCache.del(botPlatformIdKey(userId, sessionId));
     lruCache.del(SESSIONS_ALL_KEY);
+    // Wipe the entire session cache in the bot engine layer using the standardized prefix.
+    // This guarantees that any changes made via the web dashboard (e.g. updating admins or prefix)
+    // immediately flush the stale `/admin list` caches and force the engine to read fresh DB state.
+    const normalizedPlatform = dto.credentials.platform.replace('_', '-');
+    lruCache.delByPrefix(`${userId}:${normalizedPlatform}:${sessionId}:`);
   },
 
   async list(userId: string): Promise<GetBotListResponseDto> {
