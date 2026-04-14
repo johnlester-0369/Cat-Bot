@@ -36,7 +36,7 @@ const threadExistsKey = (threadId: string): string =>
 
 const threadSessionExistsKey = (
   userId: string, platform: string, sessionId: string, threadId: string,
-): string => `thread:sessionExists:${userId}:${platform}:${sessionId}:${threadId}`;
+): string => `${userId}:${platform}:${sessionId}:thread:sessionExists:${threadId}`;
 
 const threadAdminKey = (threadId: string, userId: string): string =>
   `thread:admin:${threadId}:${userId}`;
@@ -46,14 +46,14 @@ const threadNameKey = (threadId: string): string =>
 
 const threadSessionDataKey = (
   userId: string, platform: string, sessionId: string, threadId: string,
-): string => `thread:sessionData:${userId}:${platform}:${sessionId}:${threadId}`;
+): string => `${userId}:${platform}:${sessionId}:thread:sessionData:${threadId}`;
 
 const threadGroupsKey = (userId: string, platform: string, sessionId: string): string =>
-  `thread:groups:${userId}:${platform}:${sessionId}`;
+  `${userId}:${platform}:${sessionId}:thread:groups`;
 
 const threadSessionUpdatedAtKey = (
   userId: string, platform: string, sessionId: string, threadId: string,
-): string => `thread:sessionUpdatedAt:${userId}:${platform}:${sessionId}:${threadId}`;
+): string => `${userId}:${platform}:${sessionId}:thread:sessionUpdatedAt:${threadId}`;
 
 // ── Wrappers ──────────────────────────────────────────────────────────────────
 
