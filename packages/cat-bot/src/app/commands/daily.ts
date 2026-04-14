@@ -90,7 +90,7 @@ export const button = {
   [BUTTON_ID.back]: {
     label: '⬅ Back',
     style: ButtonStyle.SECONDARY,
-    onClick: async ({ chat, event, db, native, button }: AppCtx) => {
+    onClick: async ({ chat, event, db, native, button, prefix = '' }: AppCtx) => {
       const senderID = event['senderID'] as string | undefined;
       // Regenerate check_balance so the user can toggle back to balance from this view
       const balId = button.generateID({ id: BUTTON_ID.check_balance });
@@ -108,8 +108,7 @@ export const button = {
         await chat.editMessage({
           style: MessageStyle.MARKDOWN,
           message_id_to_edit: event['messageID'] as string,
-          message:
-            "📅 You haven't claimed `/daily` yet — your first reward is waiting!",
+          message: `📅 You haven't claimed \`${prefix}daily\` yet — your first reward is waiting!`,
           ...(hasNativeButtons(native.platform) ? { button: [balId] } : {}),
         });
         return;
@@ -124,7 +123,7 @@ export const button = {
           style: MessageStyle.MARKDOWN,
           message_id_to_edit: event['messageID'] as string,
           message: [
-            '📅 Your daily reward is **ready**! Use `/daily` to claim.',
+            `📅 Your daily reward is **ready**! Use \`${prefix}daily\` to claim.`,
             `🔥 Streak: **${streak} day(s)**`,
           ].join('\n'),
           ...(hasNativeButtons(native.platform) ? { button: [balId] } : {}),
