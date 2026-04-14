@@ -65,7 +65,7 @@ export const button = {
   [BUTTON_ID.daily_status]: {
     label: '📅 Daily Status',
     style: ButtonStyle.SECONDARY,
-    onClick: async ({ chat, event, db, native, button }: AppCtx) => {
+    onClick: async ({ chat, event, db, native, button, prefix = '' }: AppCtx) => {
       const senderID = event['senderID'] as string | undefined;
       // Back button stays visible after showing daily status so the user can return to balance
       const backId = button.generateID({ id: BUTTON_ID.back });
@@ -83,8 +83,7 @@ export const button = {
         await chat.editMessage({
           style: MessageStyle.MARKDOWN,
           message_id_to_edit: event['messageID'] as string,
-          message:
-            "📅 You haven't claimed `/daily` yet — your first reward is waiting!",
+          message: `📅 You haven't claimed \`${prefix}daily\` yet — your first reward is waiting!`,
           ...(hasNativeButtons(native.platform) ? { button: [backId] } : {}),
         });
         return;
@@ -96,7 +95,7 @@ export const button = {
         await chat.editMessage({
           style: MessageStyle.MARKDOWN,
           message_id_to_edit: event['messageID'] as string,
-          message: '📅 Your daily reward is **ready**! Use `/daily` to claim.',
+          message: `📅 Your daily reward is **ready**! Use \`${prefix}daily\` to claim.`,
           ...(hasNativeButtons(native.platform) ? { button: [backId] } : {}),
         });
       } else {
