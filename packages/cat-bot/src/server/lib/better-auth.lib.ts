@@ -7,7 +7,7 @@ import { mongodbAdapter } from 'better-auth/adapters/mongodb';
 // Import the shared singleton exported from the database workspace package — avoids TS6059
 // rootDir errors while keeping the Prisma client lifecycle owned in one place.
 // mongoClient and getMongoDb are undefined at runtime when DATABASE_TYPE !== 'mongodb'.
-import { prisma, mongoClient, getMongoDb } from 'database';
+import { prisma, mongoClient, getMongoDb, pool as neonPool } from 'database';
 // JSON file adapter — used when DATABASE_TYPE=json for zero-dependency local development.
 // Shares the same data.json store as the rest of the JSON adapter layer so auth tables
 // and bot tables coexist in a single file without cross-package coupling.
@@ -15,10 +15,18 @@ import { jsonAdapter } from './better-auth-adapter.lib.js';
 
 const isJson  = env.DATABASE_TYPE === 'json';
 const isMongo = env.DATABASE_TYPE === 'mongodb';
+// NeonDB: better-auth natively accepts a pg.Pool via Kysely's PostgresDialect —
+// no custom adapter is needed; the pool is passed directly as the database option.
+const isNeon  = env.DATABASE_TYPE === 'neondb';
 
 export const auth = betterAuth({
   database: isJson
     ? jsonAdapter()
+    // NeonDB — neonPool is a pg.Pool; better-auth uses KyselyDialect(PostgresDialect) under the hood.
+    // Neon is officially supported: https://better-auth.com/ (listed under Community databases).
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    : isNeon
+    ? (neonPool as unknown as any)
     // MongoDB driver — mongodbAdapter() receives a Db instance; mongoClient is optional for
     // transactions (disabled on Atlas M0 free tier which lacks replica-set support).
     // getMongoDb/mongoClient are typed `any` in the database barrel so the cast is needed

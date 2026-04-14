@@ -7,11 +7,11 @@ import 'dotenv/config';
 // No `import type` from either barrel — any compile-time type reference to prisma-sqlite.ts
 // would force tsc to chase into the generated Prisma files, crashing when they don't exist.
 const dbType = process.env['DATABASE_TYPE'];
-console.log
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 const m = (await (
   dbType === 'json'    ? import('./json.js')    :
   dbType === 'mongodb' ? import('./mongodb.js') :
+  dbType === 'neondb'  ? import('./neondb.js')  :
                          import('./prisma-sqlite.js')
 )) as any;
 
@@ -151,3 +151,18 @@ export const isThreadBanned = m.isThreadBanned;
 export const mongoClient = m.mongoClient;
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 export const getMongoDb  = m.getMongoDb;
+
+// --- NEONDB POOL ---
+// pool is undefined at runtime when DATABASE_TYPE!='neondb' — only used by
+// better-auth.lib.ts which guards with its own isNeon check before accessing it.
+// initDb is the schema initialiser; call once at boot when DATABASE_TYPE=neondb.
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+export const pool    = m.pool;
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+export const initDb  = m.initDb;
+
+// dbReady resolves when the NeonDB schema DDL has completed; undefined for all other adapters.
+// Consumers await it before issuing the first query when DATABASE_TYPE=neondb.
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+export const dbReady = m.dbReady as Promise<void> | undefined;
