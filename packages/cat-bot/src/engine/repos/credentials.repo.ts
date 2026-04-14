@@ -188,9 +188,19 @@ export async function addBotAdmin(
   // Write true to the check cache so immediately-following permission checks don't
   // go to DB before the TTL window expires on the old false value.
   lruCache.set(adminCheckKey(userId, platform, sessionId, adminId), true);
-  // The list cache is keyed by session — clear it so the next listBotAdmins reflects
-  // the new member without waiting for TTL expiry.
-  lruCache.del(adminListKey(userId, platform, sessionId));
+  // Write-through: append to the cached list rather than evicting it — avoids a cold
+  // DB hit on the listBotAdmins call that immediately follows from the dashboard.
+  // Only mutate if already populated; an absent cache entry is left for lazy hydration.
+  const listKey = adminListKey(userId, platform, sessionId);
+  const cachedList = lruCache.get<string[]>(listKey);
+  if (cachedList !== undefined) {
+    lruCache.set(listKey, [...cachedList, adminId]);
+  }
+  // bot.repo.ts caches admin data inside bot:detail and bot:list responses using its
+  // own separate keys — clear both so the dashboard reflects the new member immediately
+  // rather than waiting for those TTLs to expire independently.
+  lruCache.del(`bot:detail:${userId}:${sessionId}`);
+  lruCache.del(`bot:list:${userId}`);
 }
 
 export async function removeBotAdmin(
