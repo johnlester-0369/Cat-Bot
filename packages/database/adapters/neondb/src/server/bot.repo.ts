@@ -271,6 +271,40 @@ export class BotRepo {
     );
     return res.rows[0]?.platform_id ?? null;
   }
+
+  /**
+   * Permanently removes every DB record tied to this bot session.
+   * All deletes run inside a single transaction so a crash mid-way leaves no orphan rows.
+   * Table names match the NeonDB schema in client.ts initDb().
+   */
+  async deleteById(userId: string, sessionId: string): Promise<void> {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      // Child rows with no FK dependency on bot_session — delete first.
+      await client.query(`DELETE FROM bot_session_commands WHERE user_id = $1 AND session_id = $2`, [userId, sessionId]);
+      await client.query(`DELETE FROM bot_session_events WHERE user_id = $1 AND session_id = $2`, [userId, sessionId]);
+      await client.query(`DELETE FROM bot_users_session_banned WHERE user_id = $1 AND session_id = $2`, [userId, sessionId]);
+      await client.query(`DELETE FROM bot_threads_session_banned WHERE user_id = $1 AND session_id = $2`, [userId, sessionId]);
+      // Session tracking join tables — FK is to bot_users/bot_threads, not bot_session.
+      await client.query(`DELETE FROM bot_users_session WHERE user_id = $1 AND session_id = $2`, [userId, sessionId]);
+      await client.query(`DELETE FROM bot_threads_session WHERE user_id = $1 AND session_id = $2`, [userId, sessionId]);
+      // Identity and credential rows.
+      await client.query(`DELETE FROM bot_admin WHERE user_id = $1 AND session_id = $2`, [userId, sessionId]);
+      await client.query(`DELETE FROM bot_credential_discord WHERE user_id = $1 AND session_id = $2`, [userId, sessionId]);
+      await client.query(`DELETE FROM bot_credential_telegram WHERE user_id = $1 AND session_id = $2`, [userId, sessionId]);
+      await client.query(`DELETE FROM bot_credential_facebook_page WHERE user_id = $1 AND session_id = $2`, [userId, sessionId]);
+      await client.query(`DELETE FROM bot_credential_facebook_messenger WHERE user_id = $1 AND session_id = $2`, [userId, sessionId]);
+      // Parent session row last.
+      await client.query(`DELETE FROM bot_session WHERE user_id = $1 AND session_id = $2`, [userId, sessionId]);
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
 }
 
 export const botRepo = new BotRepo();

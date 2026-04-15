@@ -102,6 +102,28 @@ export class BotRepo {
     const session = db.botSession.find((s: any) => s.userId === userId && s.sessionId === sessionId);
     return session?.platformId ?? null;
   }
+
+  /**
+   * Removes all rows for this bot session from every JSON store array then persists once.
+   * A single saveDb() at the end keeps I/O minimal — intermediate state stays in-memory only.
+   */
+  async deleteById(userId: string, sessionId: string): Promise<void> {
+    const db = await getDb();
+    const match = (r: any) => r.userId === userId && r.sessionId === sessionId;
+    db.botSessionCommand          = db.botSessionCommand.filter((r: any) => !match(r));
+    db.botSessionEvent            = db.botSessionEvent.filter((r: any) => !match(r));
+    db.botUserBanned              = db.botUserBanned.filter((r: any) => !match(r));
+    db.botThreadBanned            = db.botThreadBanned.filter((r: any) => !match(r));
+    db.botUserSession             = db.botUserSession.filter((r: any) => !match(r));
+    db.botThreadSession           = db.botThreadSession.filter((r: any) => !match(r));
+    db.botAdmin                   = db.botAdmin.filter((r: any) => !match(r));
+    db.botCredentialDiscord       = db.botCredentialDiscord.filter((r: any) => !match(r));
+    db.botCredentialTelegram      = db.botCredentialTelegram.filter((r: any) => !match(r));
+    db.botCredentialFacebookPage  = db.botCredentialFacebookPage.filter((r: any) => !match(r));
+    db.botCredentialFacebookMessenger = db.botCredentialFacebookMessenger.filter((r: any) => !match(r));
+    db.botSession                 = db.botSession.filter((r: any) => !match(r));
+    await saveDb();
+  }
 }
 
 export const botRepo = new BotRepo();

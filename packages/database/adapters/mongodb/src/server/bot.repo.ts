@@ -208,6 +208,28 @@ export class BotRepo {
       .findOne({ userId, sessionId }, { projection: { platformId: 1, _id: 0 } });
     return rec?.platformId ?? null;
   }
+
+  /**
+   * Permanently removes every document tied to this bot session across all collections.
+   * MongoDB Atlas free tier does not support multi-document transactions, so this is a
+   * sequential deleteMany series — matches the json adapter's non-transactional pattern.
+   * Collection names mirror those used by the other MongoDB repos in this adapter.
+   */
+  async deleteById(userId: string, sessionId: string): Promise<void> {
+    const db = getMongoDb();
+    await db.collection('botSessionCommand').deleteMany({ userId, sessionId });
+    await db.collection('botSessionEvent').deleteMany({ userId, sessionId });
+    await db.collection('botUserBanned').deleteMany({ userId, sessionId });
+    await db.collection('botThreadBanned').deleteMany({ userId, sessionId });
+    await db.collection('botUserSession').deleteMany({ userId, sessionId });
+    await db.collection('botThreadSession').deleteMany({ userId, sessionId });
+    await db.collection('botAdmins').deleteMany({ userId, sessionId });
+    await db.collection('botCredentialDiscord').deleteMany({ userId, sessionId });
+    await db.collection('botCredentialTelegram').deleteMany({ userId, sessionId });
+    await db.collection('botCredentialFacebookPage').deleteMany({ userId, sessionId });
+    await db.collection('botCredentialFacebookMessenger').deleteMany({ userId, sessionId });
+    await db.collection('botSessions').deleteMany({ userId, sessionId });
+  }
 }
 
 export const botRepo = new BotRepo();
