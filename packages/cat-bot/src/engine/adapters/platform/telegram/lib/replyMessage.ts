@@ -145,28 +145,59 @@ export async function replyMessage(
     ['jpg', 'jpeg', 'png', 'webp', 'bmp'].includes(extOf(s)),
   );
   const gifs = allAttachments.filter((s) => extOf(s) === 'gif');
-  const audios = allAttachments.filter((s) =>
-    ['mp3', 'ogg', 'wav', 'aac', 'opus', 'm4a'].includes(extOf(s)),
+  const audios = allAttachments.filter((s) =>['mp3', 'ogg', 'wav', 'aac', 'opus', 'm4a'].includes(extOf(s)),
+  );
+  const videos = allAttachments.filter((s) =>
+['mp4', 'mov', 'avi', 'mkv', 'webm'].includes(extOf(s)),
   );
   const others = allAttachments.filter(
-    (s) => !photos.includes(s) && !gifs.includes(s) && !audios.includes(s),
+    (s) => !photos.includes(s) && !gifs.includes(s) && !audios.includes(s) && !videos.includes(s),
   );
 
-  // Single photo + buttons: sendPhoto supports reply_markup natively; sendMediaGroup never
-  // does — the Bot API simply ignores the field, causing the fallback block below to fire
-  // and produce a SECOND message containing only the buttons. Routing the single-photo+button
-  // case through sendPhoto collapses both into one message.
-  if (photos.length === 1 && replyMarkup) {
-    const sp = photos[0]!;
-    const sent = await ctx.telegram.sendPhoto(
-      chatId,
-      Input.fromBuffer(await streamToBuffer(sp), sp.path || 'photo.jpg'),
-      {
-        ...(text ? { caption: text } : {}),
-        ...captionExtra,
-        reply_markup: replyMarkup,
-      },
-    );
+  // Single attachment + buttons: send methods natively support reply_markup. sendMediaGroup never
+  // does — the Bot API simply ignores the field. Routing single-attachment+button cases
+  // through their dedicated methods collapses both the attachment and buttons into one message.
+  if (allAttachments.length === 1 && replyMarkup) {
+    const att = allAttachments[0]!;
+    let sent;
+    const commonExtra = {
+      ...(text ? { caption: text } : {}),
+      ...captionExtra,
+      reply_markup: replyMarkup,
+    };
+
+    if (photos.length === 1) {
+      sent = await ctx.telegram.sendPhoto(
+        chatId,
+        Input.fromBuffer(await streamToBuffer(att), att.path || 'photo.jpg'),
+        commonExtra,
+      );
+    } else if (videos.length === 1) {
+      sent = await ctx.telegram.sendVideo(
+        chatId,
+        Input.fromBuffer(await streamToBuffer(att), att.path || 'video.mp4'),
+        commonExtra,
+      );
+    } else if (gifs.length === 1) {
+      sent = await ctx.telegram.sendAnimation(
+        chatId,
+        Input.fromBuffer(await streamToBuffer(att), att.path || 'animation.gif'),
+        commonExtra,
+      );
+    } else if (audios.length === 1) {
+      // Use sendAudio instead of sendVoice: Telegram's editMessageMedia cannot mutate Voice messages.
+      sent = await ctx.telegram.sendAudio(
+        chatId,
+        Input.fromBuffer(await streamToBuffer(att), att.path || 'audio.mp3'),
+        commonExtra,
+      );
+    } else {
+      sent = await ctx.telegram.sendDocument(
+        chatId,
+        Input.fromBuffer(await streamToBuffer(att), att.path || 'document.bin'),
+        commonExtra,
+      );
+    }
     return String(sent.message_id);
   }
   // Batch multiple photos into one album — caption on first item only
@@ -197,18 +228,29 @@ export async function replyMessage(
     );
   }
 
+  for (const video of videos) {
+    await ctx.telegram.sendVideo(
+      chatId,
+      Input.fromBuffer(await streamToBuffer(video), video.path || 'video.mp4'),
+      videos.indexOf(video) === 0 && photos.length === 0 && text
+        ? { caption: text, ...captionExtra }
+        : captionExtra,
+    );
+  }
+
   for (const gif of gifs) {
     await ctx.telegram.sendAnimation(
       chatId,
       Input.fromBuffer(await streamToBuffer(gif), gif.path || 'animation.gif'),
-      gifs.indexOf(gif) === 0 && photos.length === 0 && text
+      gifs.indexOf(gif) === 0 && photos.length === 0 && videos.length === 0 && text
         ? { caption: text, ...captionExtra }
         : captionExtra,
     );
   }
 
   for (const audio of audios) {
-    await ctx.telegram.sendVoice(
+    // Use sendAudio instead of sendVoice: Telegram's editMessageMedia cannot mutate Voice messages.
+    await ctx.telegram.sendAudio(
       chatId,
       Input.fromBuffer(await streamToBuffer(audio), audio.path || 'audio.mp3'),
       captionExtra,
