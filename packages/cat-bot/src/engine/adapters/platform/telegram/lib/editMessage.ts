@@ -10,14 +10,14 @@ import { Input } from 'telegraf';
 import type { InputMedia } from 'telegraf/types';
 import type { EditMessageOptions } from '@/engine/adapters/models/api.model.js';
 import { sanitizeMarkdownV2 } from '../utils/markdownv2.util.js';
-import { streamToBuffer } from '@/engine/utils/streams.util.js';
+import { streamToBuffer, urlToStream } from '@/engine/utils/streams.util.js';
 
 /** Maps a file extension to a Telegram InputMedia `type` discriminant — used when replacing message media via editMessageMedia. */
 function getMediaType(ext: string): InputMedia['type'] {
   if (['jpg', 'jpeg', 'png', 'webp', 'bmp'].includes(ext)) return 'photo';
   if (ext === 'gif') return 'animation';
   if (['mp3', 'ogg', 'wav', 'aac', 'opus', 'm4a'].includes(ext)) return 'audio';
-  if (['mp4', 'mov', 'avi', 'mkv'].includes(ext)) return 'video';
+  if (['mp4', 'mov', 'avi', 'mkv', 'webm'].includes(ext)) return 'video';
   return 'document';
 }
 
@@ -99,11 +99,15 @@ export async function editMessage(
         ...(parseMode ? { parse_mode: parseMode } : {}),
       } as InputMedia;
     } else if (firstUrl) {
-      // URL media: Telegram fetches it server-side — no local download needed
+      // URL media: Download locally first to match replyMessage.ts behavior.
+      // Telegram server-side URL fetching sometimes converts mp4s to animations (GIFs) 
+      // or misidentifies media types. Multipart upload with explicit filename prevents this.
+      const stream = await urlToStream(firstUrl.url, firstUrl.name);
+      const buf = await streamToBuffer(stream as import('stream').Readable);
       const urlExt = firstUrl.name.split('.').pop()?.toLowerCase() ?? '';
       inputMedia = {
         type: getMediaType(urlExt),
-        media: firstUrl.url,
+        media: Input.fromBuffer(buf, firstUrl.name || 'file.bin'),
         ...(text ? { caption: text } : {}),
         ...(parseMode ? { parse_mode: parseMode } : {}),
       } as InputMedia;
