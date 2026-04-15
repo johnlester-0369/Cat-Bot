@@ -553,7 +553,7 @@ export function BotSettingsTab({
           <div className="flex justify-end">
             <Dialog.Root>
               <Dialog.Trigger asChild>
-                <Button size="sm" className="bg-[rgb(var(--light-color-error))] text-[rgb(var(--light-color-surface))] w-full sm:w-auto">
+                <Button size="sm" className="!bg-[rgb(var(--light-color-error))] !text-[rgb(var(--light-color-surface))] w-full sm:w-auto">
                 Delete Bot
               </Button>
             </Dialog.Trigger>
@@ -576,7 +576,7 @@ export function BotSettingsTab({
                   </Dialog.CloseTrigger>
                   {/* No Dialog.CloseTrigger wrapper — success navigates away; failure keeps dialog open to show error */}
                   <Button
-                    className="bg-[rgb(var(--light-color-error))] text-[rgb(var(--light-color-surface))]"
+                    className="!bg-[rgb(var(--light-color-error))] !text-[rgb(var(--light-color-surface))]"
                     isLoading={isDeleting}
                     disabled={isDeleting}
                     onClick={() => void handleDelete()}

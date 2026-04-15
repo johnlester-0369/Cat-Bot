@@ -156,7 +156,7 @@ export function ConsoleTab({
           <Button
             onClick={() => { clearLogs?.(); onStop() }}
             disabled={!isActive}
-            className="bg-[rgb(var(--light-color-error))] text-[rgb(var(--light-color-surface))] w-full justify-center"
+            className="!bg-[rgb(var(--light-color-error))] !text-[rgb(var(--light-color-surface))] w-full justify-center"
           >
             Stop
           </Button>
