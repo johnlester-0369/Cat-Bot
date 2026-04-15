@@ -97,3 +97,20 @@ export async function updateBotSessionPrefix(
     await saveDb();
   }
 }
+
+/**
+ * Reads the bot's configured display name from the in-memory botSession array.
+ * Returns null when no row matches or nickname was never set.
+ */
+export async function getBotNickname(
+  userId: string,
+  platform: string,
+  sessionId: string,
+): Promise<string | null> {
+  const db = await getDb();
+  const platformId = toPlatformNumericId(platform);
+  const rec = db.botSession.find(
+    (s: any) => s.userId === userId && s.platformId === platformId && s.sessionId === sessionId,
+  );
+  return (rec?.nickname as string | undefined) ?? null;
+}

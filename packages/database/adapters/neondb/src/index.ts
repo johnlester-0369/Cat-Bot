@@ -32,6 +32,7 @@ export {
   removeBotAdmin,
   listBotAdmins,
   updateBotSessionPrefix,
+  getBotNickname,
 } from './cat-bot/credentials.repo.js';
 
 export {

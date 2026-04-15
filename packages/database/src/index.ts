@@ -64,6 +64,8 @@ export const removeBotAdmin                      = m.removeBotAdmin;
 export const listBotAdmins                       = m.listBotAdmins;
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 export const updateBotSessionPrefix              = m.updateBotSessionPrefix;
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+export const getBotNickname                      = m.getBotNickname;
 
 // --- THREADS ---
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment

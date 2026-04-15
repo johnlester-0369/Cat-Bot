@@ -94,3 +94,21 @@ export async function updateBotSessionPrefix(
     data: { prefix },
   });
 }
+
+/**
+ * Reads the bot's configured display name from bot_session.
+ * Returns null when the session row is absent or nickname was never set.
+ * Callers fall back to a generic identity (e.g., 'bot') when null is returned.
+ */
+export async function getBotNickname(
+  userId: string,
+  platform: string,
+  sessionId: string,
+): Promise<string | null> {
+  const platformId = toPlatformNumericId(platform);
+  const row = await prisma.botSession.findFirst({
+    where: { userId, platformId, sessionId },
+    select: { nickname: true },
+  });
+  return row?.nickname ?? null;
+}

@@ -217,3 +217,21 @@ export async function updateBotSessionPrefix(
     [userId, platformId, sessionId, prefix],
   );
 }
+
+/**
+ * Reads the bot's configured display name from bot_session.
+ * Returns null when the session row is absent or nickname was never set.
+ */
+export async function getBotNickname(
+  userId: string,
+  platform: string,
+  sessionId: string,
+): Promise<string | null> {
+  const platformId = toPlatformNumericId(platform);
+  const res = await pool.query<{ nickname: string | null }>(
+    `SELECT nickname FROM bot_session
+     WHERE user_id = $1 AND platform_id = $2 AND session_id = $3 LIMIT 1`,
+    [userId, platformId, sessionId],
+  );
+  return res.rows[0]?.nickname ?? null;
+}

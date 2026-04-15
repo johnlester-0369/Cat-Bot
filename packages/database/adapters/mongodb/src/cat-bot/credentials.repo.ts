@@ -180,3 +180,20 @@ export async function updateBotSessionPrefix(
     { $set: { prefix } },
   );
 }
+
+/**
+ * Reads the bot's configured display name from the botSessions collection.
+ * Returns null when no document matches or nickname field is absent.
+ */
+export async function getBotNickname(
+  userId: string,
+  platform: string,
+  sessionId: string,
+): Promise<string | null> {
+  const db = getMongoDb();
+  const platformId = toPlatformNumericId(platform);
+  const rec = await db
+    .collection<{ nickname?: string }>('botSessions')
+    .findOne({ userId, platformId, sessionId }, { projection: { nickname: 1, _id: 0 } });
+  return rec?.nickname ?? null;
+}
