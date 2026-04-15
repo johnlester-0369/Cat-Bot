@@ -551,13 +551,13 @@ export function BotSettingsTab({
             message="Once you delete a bot, there is no going back. Please be certain."
           />
           <div className="flex justify-end">
-            <Dialog.Root>
+            <Dialog.Root >
               <Dialog.Trigger asChild>
                 <Button size="sm" className="!bg-[rgb(var(--light-color-error))] !text-[rgb(var(--light-color-surface))] w-full sm:w-auto">
                 Delete Bot
               </Button>
             </Dialog.Trigger>
-            <Dialog.Positioner>
+            <Dialog.Positioner position="center">
               <Dialog.Backdrop />
               <Dialog.Content size="sm">
                 <Dialog.Header>
