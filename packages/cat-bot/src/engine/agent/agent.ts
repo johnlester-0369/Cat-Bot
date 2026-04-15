@@ -546,7 +546,7 @@ export async function runAgent(userInput: string, ctx: AppCtx, nickname?: string
     { role: 'user', content: userInput },
   ];
 
-  let turns = 10; // Safety limit — prevents runaway tool-call loops on misbehaving LLM responses
+  let turns = 20; // Safety limit — prevents runaway tool-call loops on misbehaving LLM responses
 
   while (turns-- > 0) {
     const response = await groq.chat.completions.create({
