@@ -275,7 +275,8 @@ const Snackbar: React.FC<SnackbarProps> = ({
     <div
       className={cn(
         // Base styles
-        'flex items-center gap-3 px-4 py-3 rounded-lg shadow-elevation-3 min-w-[288px] max-w-[568px]',
+        // w-full on mobile spans the container, reverts to fixed min/max widths on tablet+
+        'flex items-center gap-3 px-4 py-3 rounded-lg shadow-elevation-3 w-full sm:w-auto sm:min-w-[288px] max-w-full sm:max-w-[568px]',
         // Typography
         'text-body-md',
         // Variant styles
@@ -347,12 +348,13 @@ export interface SnackbarContainerProps {
  * Position to Tailwind class mapping
  */
 const positionClasses: Record<SnackbarPosition, string> = {
-  'top-left': 'top-4 left-4 items-start',
-  'top-center': 'top-4 left-1/2 -translate-x-1/2 items-center',
-  'top-right': 'top-4 right-4 items-end',
-  'bottom-left': 'bottom-4 left-4 items-start',
-  'bottom-center': 'bottom-4 left-1/2 -translate-x-1/2 items-center',
-  'bottom-right': 'bottom-4 right-4 items-end',
+  // Mobile uses left-4 right-4 to span full width, sm+ reverts to corner or centered positioning
+  'top-left': 'top-4 left-4 right-4 sm:right-auto items-center sm:items-start',
+  'top-center': 'top-4 left-4 right-4 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 items-center',
+  'top-right': 'top-4 left-4 right-4 sm:left-auto items-center sm:items-end',
+  'bottom-left': 'bottom-4 left-4 right-4 sm:right-auto items-center sm:items-start',
+  'bottom-center': 'bottom-4 left-4 right-4 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 items-center',
+  'bottom-right': 'bottom-4 left-4 right-4 sm:left-auto items-center sm:items-end',
 }
 
 /**
@@ -386,7 +388,8 @@ export const SnackbarContainer: React.FC<SnackbarContainerProps> = ({
       )}
       aria-label="Notification"
     >
-      <div className="pointer-events-auto">
+      {/* Ensure inner container takes full width on mobile so the Snackbar component can stretch */}
+      <div className="pointer-events-auto w-full sm:w-auto">
         <Snackbar {...snackbar} onDismiss={onDismiss} />
       </div>
     </div>

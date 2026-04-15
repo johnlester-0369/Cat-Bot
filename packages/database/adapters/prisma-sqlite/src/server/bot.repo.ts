@@ -86,6 +86,33 @@ export class BotRepo {
     const botSessionInfo = await prisma.botSession.findFirst({ where: { userId, sessionId }, select: { platformId: true } });
     return botSessionInfo?.platformId ?? null;
   }
+
+  /**
+   * Permanently removes every DB record tied to this bot session.
+   * Prisma has no cascade from bot_session to the command/event/ban/credential tables
+   * (those FKs point to `user`, not `bot_session`), so we delete each table explicitly
+   * in a single transaction so a mid-run crash never leaves orphan rows.
+   */
+  async deleteById(userId: string, sessionId: string): Promise<void> {
+    await prisma.$transaction(async (tx) => {
+      // Child rows first — no FK from these to bot_session so order within this group is free.
+      await tx.botSessionCommand.deleteMany({ where: { userId, sessionId } });
+      await tx.botSessionEvent.deleteMany({ where: { userId, sessionId } });
+      await tx.botUserBanned.deleteMany({ where: { userId, sessionId } });
+      await tx.botThreadBanned.deleteMany({ where: { userId, sessionId } });
+      // Session tracking join tables reference bot_users/bot_threads (not bot_session), so safe to delete here.
+      await tx.botUserSession.deleteMany({ where: { userId, sessionId } });
+      await tx.botThreadSession.deleteMany({ where: { userId, sessionId } });
+      // Identity / credential tables
+      await tx.botAdmin.deleteMany({ where: { userId, sessionId } });
+      await tx.botCredentialDiscord.deleteMany({ where: { userId, sessionId } });
+      await tx.botCredentialTelegram.deleteMany({ where: { userId, sessionId } });
+      await tx.botCredentialFacebookPage.deleteMany({ where: { userId, sessionId } });
+      await tx.botCredentialFacebookMessenger.deleteMany({ where: { userId, sessionId } });
+      // Parent session row last — everything that logically "belongs" to it is already gone.
+      await tx.botSession.deleteMany({ where: { userId, sessionId } });
+    });
+  }
 }
 
 export const botRepo = new BotRepo();

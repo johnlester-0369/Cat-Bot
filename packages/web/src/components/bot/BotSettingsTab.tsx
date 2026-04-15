@@ -1,10 +1,13 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Plus, Trash2, Lock } from 'lucide-react'
 import Card from '@/components/ui/data-display/Card'
 import Button from '@/components/ui/buttons/Button'
 import { Field } from '@/components/ui/forms/Field'
 import Input from '@/components/ui/forms/Input'
 import Divider from '@/components/ui/layout/Divider'
+import Dialog from '@/components/ui/overlay/Dialog'
+import Alert from '@/components/ui/feedback/Alert'
 import { useBotUpdate } from '@/hooks/useBotUpdate'
 import { useBotValidation } from '@/hooks/useBotValidation'
 import type {
@@ -45,6 +48,10 @@ export function BotSettingsTab({
   const [savePhase, setSavePhase] = useState<'idle' | 'clearing' | 'saving'>(
     'idle',
   )
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  // Post-delete navigation — bot no longer exists so send user back to the bot list
+  const navigate = useNavigate()
   const {
     status: verificationStatus,
     validate,
@@ -326,6 +333,28 @@ export function BotSettingsTab({
     }
   }
 
+  // ── Delete ─────────────────────────────────────────────────────────────────
+
+  const handleDelete = async () => {
+    setIsDeleting(true)
+    setDeleteError(null)
+    try {
+      await botService.deleteBot(bot.sessionId)
+      setPosition('bottom-right')
+      snackbar({
+        message: `"${bot.nickname}" has been permanently deleted.`,
+        color: 'success',
+        duration: 4000,
+      })
+      // Navigate to the bot list — the deleted session no longer has a valid detail page
+      navigate('/dashboard')
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Failed to delete bot')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
@@ -499,6 +528,68 @@ export function BotSettingsTab({
             : 'Save Changes'}
         </Button>
       </div>
+
+      <Divider spacing="lg" />
+
+      {/* ── Danger Zone ────────────────────────────────────────────────────── */}
+      {/* Provide a visual boundary for destructive actions separate from standard settings */}
+      <Card.Root variant="elevated" shadowElevation={1} padding="md" className="border-error/30 bg-error/5">
+        <Card.Header>
+          <div>
+            <Card.Title as="h3" className="text-error">Danger Zone</Card.Title>
+            <Card.Description>
+              Permanently delete this bot and all its associated data.
+            </Card.Description>
+          </div>
+        </Card.Header>
+        <div className="flex flex-col gap-4 mt-2">
+          {/* Explicitly call out the irreversible nature of this action using the design system's Alert component */}
+          <Alert
+            variant="tonal"
+            color="error"
+            title="Proceed with caution"
+            message="Once you delete a bot, there is no going back. Please be certain."
+          />
+          <div className="flex justify-end">
+            <Dialog.Root>
+              <Dialog.Trigger asChild>
+                <Button size="sm" className="bg-[rgb(var(--light-color-error))] text-[rgb(var(--light-color-surface))] w-full sm:w-auto">
+                Delete Bot
+              </Button>
+            </Dialog.Trigger>
+            <Dialog.Positioner>
+              <Dialog.Backdrop />
+              <Dialog.Content size="sm">
+                <Dialog.Header>
+                  <Dialog.Title>Delete Bot</Dialog.Title>
+                  <Dialog.CloseTrigger />
+                </Dialog.Header>
+                <Dialog.Body>
+                  <p>Are you sure you want to permanently delete <strong>{bot.nickname}</strong>? This action cannot be undone.</p>
+                  {deleteError && (
+                    <p className="mt-2 text-body-sm text-error">{deleteError}</p>
+                  )}
+                </Dialog.Body>
+                <Dialog.Footer>
+                  <Dialog.CloseTrigger asChild>
+                    <Button variant="text" color="neutral">Cancel</Button>
+                  </Dialog.CloseTrigger>
+                  {/* No Dialog.CloseTrigger wrapper — success navigates away; failure keeps dialog open to show error */}
+                  <Button
+                    className="bg-[rgb(var(--light-color-error))] text-[rgb(var(--light-color-surface))]"
+                    isLoading={isDeleting}
+                    disabled={isDeleting}
+                    onClick={() => void handleDelete()}
+                  >
+                    Yes, Delete Bot
+                  </Button>
+                </Dialog.Footer>
+              </Dialog.Content>
+            </Dialog.Positioner>
+          </Dialog.Root>
+          </div>
+        </div>
+      </Card.Root>
     </div>
   )
 }

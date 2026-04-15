@@ -93,6 +93,11 @@ export class BotService {
   async restartBot(id: string): Promise<void> {
     await apiClient.post(`/api/v1/bots/${id}/restart`)
   }
+
+  // Permanently deletes the bot session and all its associated data server-side.
+  async deleteBot(id: string): Promise<void> {
+    await apiClient.delete(`/api/v1/bots/${id}`)
+  }
 }
 
 export const botService = new BotService()

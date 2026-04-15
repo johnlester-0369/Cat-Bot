@@ -41,6 +41,11 @@ botRouter.post('/:id/restart', (req, res) => {
   void botController.restart(req, res);
 });
 
+// DELETE /api/v1/bots/:id — permanently delete the bot session and all associated data
+botRouter.delete('/:id', (req, res) => {
+  void botController.delete(req, res);
+});
+
 // GET /api/v1/bots/:id/commands — lists all registered commands with their enabled status.
 // Returns whatever bot_session_commands contains; synced at bot startup.
 botRouter.get('/:id/commands', (req, res) => {
