@@ -74,6 +74,7 @@ export async function inspectCommandConstraints(
   sessionUserId: string,
   platform: string,
   sessionId: string,
+  consumeCooldown: boolean = true,
 ): Promise<CommandGuardResult> {
   const cfg = mod['config'] as Record<string, unknown> | undefined;
 
@@ -198,7 +199,10 @@ export async function inspectCommandConstraints(
 
       // Register the cooldown window at check time — not after handler completion —
       // so concurrent agent invocations of the same command are correctly throttled.
-      cooldownStore.record(key, now, cooldownSec * 1000);
+      // Bypassed during test_command previews so AI evaluations don't exhaust the user's limit
+      if (consumeCooldown) {
+        cooldownStore.record(key, now, cooldownSec * 1000);
+      }
     }
   }
 
