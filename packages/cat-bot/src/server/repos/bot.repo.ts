@@ -114,4 +114,21 @@ export const botRepo = {
     lruCache.set(key, result);
     return result as number | null;
   },
+
+  async deleteById(userId: string, sessionId: string): Promise<void> {
+    // Resolve the platform now so we can invalidate the credential prefix cache
+    // key (userId:platform:sessionId:*) that the adapter layer may have populated.
+    const detail = await _botRepo.getById(userId, sessionId);
+    await _botRepo.deleteById(userId, sessionId);
+
+    // Bust every cache key that references this session — reads after deletion must
+    // never return stale data from the LRU store.
+    lruCache.del(botDetailKey(userId, sessionId));
+    lruCache.del(botListKey(userId));
+    lruCache.del(botPlatformIdKey(userId, sessionId));
+    lruCache.del(SESSIONS_ALL_KEY);
+    if (detail) {
+      lruCache.delByPrefix(`${userId}:${detail.platform}:${sessionId}:`);
+    }
+  },
 };

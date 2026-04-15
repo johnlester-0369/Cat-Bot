@@ -226,6 +226,35 @@ export class BotController {
       res.status(500).json({ error: 'Failed to restart bot' });
     }
   }
+
+  // DELETE /api/v1/bots/:id — permanently removes the bot session and all its data.
+  async delete(req: Request, res: Response): Promise<void> {
+    const headers = new Headers();
+    for (const [key, val] of Object.entries(req.headers)) {
+      if (val === undefined) continue;
+      headers.set(key, Array.isArray(val) ? val.join(', ') : val);
+    }
+
+    const sessionData = await auth.api.getSession({ headers });
+    if (!sessionData) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const sessionId = String(req.params['id']);
+    if (!sessionId) {
+      res.status(400).json({ error: 'Missing session ID' });
+      return;
+    }
+
+    try {
+      await botService.deleteBot(sessionData.user.id, sessionId);
+      res.status(200).json({ status: 'deleted' });
+    } catch (error) {
+      console.error('[BotController.delete]', error);
+      res.status(500).json({ error: 'Failed to delete bot' });
+    }
+  }
 }
 
 export const botController = new BotController();

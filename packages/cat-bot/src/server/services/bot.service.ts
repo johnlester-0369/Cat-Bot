@@ -338,6 +338,35 @@ export class BotService {
     sessionManager.unregister(key);
     await this.startBot(userId, sessionId);
   }
+
+  /**
+   * Permanently destroys a bot session:
+   *   1. Stop the live transport (if running) so no more events are dispatched.
+   *   2. Unregister the session closure so the dead key never appears in getActiveKeys().
+   *   3. Wipe every DB row that references this (userId, sessionId) pair.
+   *
+   * This is intentionally more aggressive than stopBot — there is no "undo" path.
+   */
+  async deleteBot(userId: string, sessionId: string): Promise<void> {
+    const botDetail = await botRepo.getById(userId, sessionId);
+    if (!botDetail) throw new Error(`Bot session ${sessionId} not found`);
+
+    const key = `${userId}:${botDetail.platform}:${sessionId}`;
+
+    // Gracefully drain the transport before touching the DB so in-flight messages
+    // don't crash against missing credential rows.
+    if (sessionManager.isActive(key)) {
+      try {
+        await sessionManager.stop(key);
+      } catch (e) {
+        logger.warn(`[bot.service] deleteBot: failed to stop ${key}`, { error: e });
+      }
+    }
+    sessionManager.unregister(key);
+
+    await botRepo.deleteById(userId, sessionId);
+    logger.info(`[bot.service] Deleted bot session ${key}`);
+  }
 }
 
 export const botService = new BotService();
