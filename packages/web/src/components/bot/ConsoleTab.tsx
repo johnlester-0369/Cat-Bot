@@ -154,11 +154,9 @@ export function ConsoleTab({
             Restart
           </Button>
           <Button
-            variant="filled"
-            color="error"
             onClick={() => { clearLogs?.(); onStop() }}
             disabled={!isActive}
-            className="w-full justify-center"
+            className="bg-[rgb(var(--light-color-error))] text-[rgb(var(--light-color-surface))] w-full justify-center"
           >
             Stop
           </Button>
