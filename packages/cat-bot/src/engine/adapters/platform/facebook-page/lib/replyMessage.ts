@@ -57,7 +57,8 @@ export async function replyMessage(
   // are present; any attachments follow as sequential Graph API calls.
   // API reference: developers.facebook.com/docs/messenger-platform/send-messages/template/button
   if (button.length > 0) {
-    const fbButtons = button.slice(0, 3).map((btn) => ({
+    // Flatten 2D array of rows into a 1D array to extract ButtonItem properties
+    const fbButtons = button.flat().slice(0, 3).map((btn) => ({
       type: 'postback',
       // Facebook limits button titles to 20 characters — silently truncate to avoid API errors
       title: btn.label.slice(0, 20),
