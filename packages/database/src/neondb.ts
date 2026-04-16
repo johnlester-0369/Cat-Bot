@@ -43,6 +43,10 @@ export {
   listBotAdmins,
   updateBotSessionPrefix,
   getBotNickname,
+  isBotPremium,
+  addBotPremium,
+  removeBotPremium,
+  listBotPremiums,
 } from '../adapters/neondb/src/cat-bot/credentials.repo.js';
 
 // --- THREADS ---

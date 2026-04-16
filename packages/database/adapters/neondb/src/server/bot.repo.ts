@@ -37,6 +37,13 @@ export class BotRepo {
           [userId, platformId, sessionId, adminId],
         );
       }
+      // Premium rows are optional on input; ?? [] guards callers that omit the field.
+      for (const premiumId of (dto.botPremiums ?? [])) {
+        await client.query(
+          `INSERT INTO bot_premium (user_id, platform_id, session_id, premium_id) VALUES ($1, $2, $3, $4)`,
+          [userId, platformId, sessionId, premiumId],
+        );
+      }
 
       const { credentials } = dto;
       if (credentials.platform === Platforms.Discord) {
@@ -97,6 +104,10 @@ export class BotRepo {
       `SELECT admin_id FROM bot_admin WHERE user_id = $1 AND session_id = $2 ORDER BY admin_id`,
       [userId, sessionId],
     );
+    const premiumsRes = await pool.query<{ premium_id: string }>(
+      `SELECT premium_id FROM bot_premium WHERE user_id = $1 AND session_id = $2 ORDER BY premium_id`,
+      [userId, sessionId],
+    );
 
     let credentials: GetBotDetailResponseDto['credentials'];
 
@@ -149,6 +160,7 @@ export class BotRepo {
       nickname: sess.nickname ?? '',
       prefix: sess.prefix ?? '',
       admins: adminsRes.rows.map((r) => r.admin_id),
+      premiums: premiumsRes.rows.map((r) => r.premium_id),
       credentials,
     };
   }
@@ -190,6 +202,18 @@ export class BotRepo {
         await client.query(
           `INSERT INTO bot_admin (user_id, platform_id, session_id, admin_id) VALUES ($1, $2, $3, $4)`,
           [userId, platformId, sessionId, adminId],
+        );
+      }
+
+      // Full premium list replacement — delete all then re-insert mirrors the admin pattern.
+      await client.query(
+        `DELETE FROM bot_premium WHERE user_id = $1 AND platform_id = $2 AND session_id = $3`,
+        [userId, platformId, sessionId],
+      );
+      for (const premiumId of (dto.botPremiums ?? [])) {
+        await client.query(
+          `INSERT INTO bot_premium (user_id, platform_id, session_id, premium_id) VALUES ($1, $2, $3, $4)`,
+          [userId, platformId, sessionId, premiumId],
         );
       }
 
@@ -291,6 +315,7 @@ export class BotRepo {
       await client.query(`DELETE FROM bot_threads_session WHERE user_id = $1 AND session_id = $2`, [userId, sessionId]);
       // Identity and credential rows.
       await client.query(`DELETE FROM bot_admin WHERE user_id = $1 AND session_id = $2`, [userId, sessionId]);
+      await client.query(`DELETE FROM bot_premium WHERE user_id = $1 AND session_id = $2`, [userId, sessionId]);
       await client.query(`DELETE FROM bot_credential_discord WHERE user_id = $1 AND session_id = $2`, [userId, sessionId]);
       await client.query(`DELETE FROM bot_credential_telegram WHERE user_id = $1 AND session_id = $2`, [userId, sessionId]);
       await client.query(`DELETE FROM bot_credential_facebook_page WHERE user_id = $1 AND session_id = $2`, [userId, sessionId]);

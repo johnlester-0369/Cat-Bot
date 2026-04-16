@@ -14,6 +14,7 @@ export class BotRepo {
     // includes this session in runningKeys on first boot without requiring an explicit API start call.
     db.botSession.push({ userId, platformId, sessionId, nickname: dto.botNickname, prefix: dto.botPrefix, isRunning: true });
     for (const adminId of dto.botAdmins) db.botAdmin.push({ userId, platformId, sessionId, adminId });
+    for (const premiumId of (dto.botPremiums ?? [])) db.botPremium.push({ userId, platformId, sessionId, premiumId });
 
     const creds = dto.credentials;
     if (creds.platform === Platforms.Discord) db.botCredentialDiscord.push({ userId, platformId, sessionId, discordToken: encrypt(creds.discordToken), discordClientId: creds.discordClientId, isCommandRegister: false, commandHash: null });
@@ -34,6 +35,7 @@ export class BotRepo {
     if (!platform) return null;
 
     const admins = db.botAdmin.filter((a: any) => a.userId === userId && a.sessionId === sessionId).map((a: any) => a.adminId);
+    const premiums = db.botPremium.filter((p: any) => p.userId === userId && p.sessionId === sessionId).map((p: any) => p.premiumId);
     let credentials: GetBotDetailResponseDto['credentials'];
 
     if (platform === Platforms.Discord) {
@@ -50,7 +52,7 @@ export class BotRepo {
       credentials = { platform: Platforms.FacebookMessenger, appstate: decrypt(c.appstate as string) };
     }
 
-    return { sessionId, userId, platformId: session.platformId, platform, nickname: session.nickname ?? '', prefix: session.prefix ?? '', admins, credentials };
+    return { sessionId, userId, platformId: session.platformId, platform, nickname: session.nickname ?? '', prefix: session.prefix ?? '', admins, premiums, credentials };
   }
 
   async update(userId: string, sessionId: string, dto: UpdateBotRequestDto, isCredentialsModified: boolean = false): Promise<void> {
@@ -67,6 +69,9 @@ export class BotRepo {
 
     db.botAdmin = db.botAdmin.filter((a: any) => !(a.userId === userId && a.platformId === platformId && a.sessionId === sessionId));
     for (const adminId of dto.botAdmins) db.botAdmin.push({ userId, platformId, sessionId, adminId });
+    // Full premium list replacement — mirrors the admin pattern; delete all then re-insert from dto.
+    db.botPremium = db.botPremium.filter((p: any) => !(p.userId === userId && p.platformId === platformId && p.sessionId === sessionId));
+    for (const premiumId of (dto.botPremiums ?? [])) db.botPremium.push({ userId, platformId, sessionId, premiumId });
 
     const creds = dto.credentials;
     if (creds.platform === Platforms.Discord) {
@@ -117,6 +122,7 @@ export class BotRepo {
     db.botUserSession             = db.botUserSession.filter((r: any) => !match(r));
     db.botThreadSession           = db.botThreadSession.filter((r: any) => !match(r));
     db.botAdmin                   = db.botAdmin.filter((r: any) => !match(r));
+    db.botPremium                 = db.botPremium.filter((r: any) => !match(r));
     db.botCredentialDiscord       = db.botCredentialDiscord.filter((r: any) => !match(r));
     db.botCredentialTelegram      = db.botCredentialTelegram.filter((r: any) => !match(r));
     db.botCredentialFacebookPage  = db.botCredentialFacebookPage.filter((r: any) => !match(r));

@@ -112,3 +112,60 @@ export async function getBotNickname(
   });
   return row?.nickname ?? null;
 }
+
+// ── Bot Premium ───────────────────────────────────────────────────────────────
+
+export async function isBotPremium(
+  userId: string,
+  platform: string,
+  sessionId: string,
+  premiumId: string,
+): Promise<boolean> {
+  const row = await prisma.botPremium.findUnique({
+    where: { userId_platformId_sessionId_premiumId: { userId, platformId: toPlatformNumericId(platform), sessionId, premiumId } },
+    select: { premiumId: true },
+  });
+  return row !== null;
+}
+
+export async function addBotPremium(
+  userId: string,
+  platform: string,
+  sessionId: string,
+  premiumId: string,
+): Promise<void> {
+  const platformId = toPlatformNumericId(platform);
+  // upsert — idempotent; avoids unique-constraint violation if dashboard and chat race.
+  await prisma.botPremium.upsert({
+    where: { userId_platformId_sessionId_premiumId: { userId, platformId, sessionId, premiumId } },
+    create: { userId, platformId, sessionId, premiumId },
+    update: {},
+  });
+}
+
+export async function removeBotPremium(
+  userId: string,
+  platform: string,
+  sessionId: string,
+  premiumId: string,
+): Promise<void> {
+  const platformId = toPlatformNumericId(platform);
+  // deleteMany avoids P2025 "record not found" when uid was never a premium user.
+  await prisma.botPremium.deleteMany({
+    where: { userId, platformId, sessionId, premiumId },
+  });
+}
+
+export async function listBotPremiums(
+  userId: string,
+  platform: string,
+  sessionId: string,
+): Promise<string[]> {
+  const platformId = toPlatformNumericId(platform);
+  const rows = await prisma.botPremium.findMany({
+    where: { userId, platformId, sessionId },
+    select: { premiumId: true },
+    orderBy: { premiumId: 'asc' },
+  });
+  return rows.map((r) => r.premiumId);
+}

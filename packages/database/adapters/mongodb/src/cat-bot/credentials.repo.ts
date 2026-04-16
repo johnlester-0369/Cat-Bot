@@ -197,3 +197,62 @@ export async function getBotNickname(
     .findOne({ userId, platformId, sessionId }, { projection: { nickname: 1, _id: 0 } });
   return rec?.nickname ?? null;
 }
+
+// ── Bot Premium ───────────────────────────────────────────────────────────────
+
+export async function isBotPremium(
+  userId: string,
+  platform: string,
+  sessionId: string,
+  premiumId: string,
+): Promise<boolean> {
+  const db = getMongoDb();
+  const platformId = toPlatformNumericId(platform);
+  const rec = await db
+    .collection('botPremiums')
+    .findOne({ userId, platformId, sessionId, premiumId }, { projection: { _id: 1 } });
+  return rec !== null;
+}
+
+export async function addBotPremium(
+  userId: string,
+  platform: string,
+  sessionId: string,
+  premiumId: string,
+): Promise<void> {
+  const db = getMongoDb();
+  const platformId = toPlatformNumericId(platform);
+  // $setOnInsert is idempotent — a duplicate premiumId upsert silently no-ops.
+  await db.collection('botPremiums').updateOne(
+    { userId, platformId, sessionId, premiumId },
+    { $setOnInsert: { userId, platformId, sessionId, premiumId } },
+    { upsert: true },
+  );
+}
+
+export async function removeBotPremium(
+  userId: string,
+  platform: string,
+  sessionId: string,
+  premiumId: string,
+): Promise<void> {
+  const db = getMongoDb();
+  const platformId = toPlatformNumericId(platform);
+  // deleteOne no-ops when absent — mirrors Prisma deleteMany fail-open contract.
+  await db.collection('botPremiums').deleteOne({ userId, platformId, sessionId, premiumId });
+}
+
+export async function listBotPremiums(
+  userId: string,
+  platform: string,
+  sessionId: string,
+): Promise<string[]> {
+  const db = getMongoDb();
+  const platformId = toPlatformNumericId(platform);
+  const rows = await db
+    .collection<{ premiumId: string }>('botPremiums')
+    .find({ userId, platformId, sessionId }, { projection: { premiumId: 1, _id: 0 } })
+    .sort({ premiumId: 1 })
+    .toArray();
+  return rows.map((r) => r.premiumId);
+}
