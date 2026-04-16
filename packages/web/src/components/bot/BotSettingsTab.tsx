@@ -334,6 +334,8 @@ export function BotSettingsTab({
         credentials,
       })
 
+      // Propagate updated bot details to parent to refresh the UI and clear dirty states
+      onUpdateSuccess(updated)
 
       // Auto-reload the active bot session if credentials were modified
       if (isCredentialsModified && isActive) {
