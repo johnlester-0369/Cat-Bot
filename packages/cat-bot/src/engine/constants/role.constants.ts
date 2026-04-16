@@ -14,6 +14,7 @@
  *   0  ANYONE       — any user can invoke the command (default)
  *   1  THREAD_ADMIN — only platform thread admins can invoke
  *   2  BOT_ADMIN    — only bot admins provisioned via the web dashboard can invoke
+ *   3  PREMIUM      — only premium users (BotPremium table) can invoke; inherits ANYONE + THREAD_ADMIN
  */
 
 export const Role = {
@@ -23,7 +24,10 @@ export const Role = {
   THREAD_ADMIN: 1,
   /** Only bot admins (BotAdmin table for this owner session) can invoke. */
   BOT_ADMIN: 2,
+  /** Only premium users (BotPremium table for this owner session) can invoke.
+   *  Premium users inherit ANYONE and THREAD_ADMIN access but NOT BOT_ADMIN. */
+  PREMIUM: 3,
 } as const;
 
-/** Union of all valid role level values: 0 | 1 | 2 */
+/** Union of all valid role level values: 0 | 1 | 2 | 3 */
 export type RoleLevel = (typeof Role)[keyof typeof Role];
