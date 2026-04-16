@@ -253,36 +253,51 @@ export function createChatContext(
   }
 
   /**
-   * Resolves raw button ID strings (from command code) to ButtonItem objects
-   * that platform replyMessage implementations consume. Centralising resolution
-   * here avoids duplicating label/style lookups in every platform lib.
+   * Normalises a flat or 2-D button ID layout to an array of rows.
+   * A flat string[] is treated as a single row so callers don't need to wrap it.
+   * Guards the [0] access explicitly for noUncheckedIndexedAccess compliance.
    */
-  function resolveButtons(buttonIds: string[] = []): ButtonItem[] {
+  function normalizeRows(buttonIds: string[] | string[][]): string[][] {
+    if (buttonIds.length === 0) return [];
+    const first = buttonIds[0];
+    if (first === undefined) return [];
+    return Array.isArray(first)
+      ? (buttonIds as string[][])
+      : [buttonIds as string[]];
+  }
+
+  /**
+   * Resolves raw button ID strings to ButtonItem rows that platform
+   * replyMessage/editMessage implementations consume.
+   * Accepts a flat array (single row) or a 2-D array (multiple rows / grid).
+   */
+  function resolveButtons(buttonIds: string[] | string[][]): ButtonItem[][] {
     logger.debug('[context.model] resolveButtons called', {
       count: buttonIds.length,
     });
     if (!buttonIds.length) return [];
-    return buttonIds.map((id) => {
-      const bKey = baseKey(id);
-      // Overlay check — allows dynamic buttons to override static defaults cleanly per-instance or globally
-      const overrideFull = buttonContextLib.getOverride(`${commandName}:${id}`);
-      const overrideBase = buttonContextLib.getOverride(
-        `${commandName}:${bKey}`,
-      );
-
-      return {
-        id: commandName ? `${commandName}:${id}` : id,
-        label:
-          overrideFull?.label ??
-          overrideBase?.label ??
-          buttonDef?.[bKey]?.label ??
-          id,
-        style: (overrideFull?.style ??
-          overrideBase?.style ??
-          buttonDef?.[bKey]?.style ??
-          ButtonStyle.SECONDARY) as ButtonStyleValue,
-      };
-    });
+    return normalizeRows(buttonIds).map((row) =>
+      row.map((id) => {
+        const bKey = baseKey(id);
+        // Overlay check — allows dynamic buttons to override static defaults cleanly per-instance or globally
+        const overrideFull = buttonContextLib.getOverride(`${commandName}:${id}`);
+        const overrideBase = buttonContextLib.getOverride(
+          `${commandName}:${bKey}`,
+        );
+        return {
+          id: commandName ? `${commandName}:${id}` : id,
+          label:
+            overrideFull?.label ??
+            overrideBase?.label ??
+            buttonDef?.[bKey]?.label ??
+            id,
+          style: (overrideFull?.style ??
+            overrideBase?.style ??
+            buttonDef?.[bKey]?.style ??
+            ButtonStyle.SECONDARY) as ButtonStyleValue,
+        };
+      })
+    );
   }
 
   /**
@@ -290,9 +305,25 @@ export function createChatContext(
    * Facebook Messenger (fca-unofficial MQTT) has no interactive button component —
    * we simulate the button UX as a text menu the user replies to with their selection number.
    */
-  function buildButtonFallbackText(msg: string, buttonIds: string[]): string {
+
+  /**
+   * Flattens a flat or 2-D button ID layout to a single ordered list.
+   * Grid rows are concatenated left-to-right, top-to-bottom so FB Messenger's
+   * numbered text-menu assigns sequential option numbers independent of row grouping.
+   */
+  function flattenButtonIds(buttonIds: string[] | string[][]): string[] {
+    if (buttonIds.length === 0) return [];
+    const first = buttonIds[0];
+    if (first === undefined) return [];
+    return Array.isArray(first)
+      ? (buttonIds as string[][]).flat()
+      : (buttonIds as string[]);
+  }
+
+  function buildButtonFallbackText(msg: string, buttonIds: string[] | string[][]): string {
     logger.debug('[context.model] buildButtonFallbackText called');
-    const lines = buttonIds.map((id, idx) => {
+    const flat = flattenButtonIds(buttonIds);
+    const lines = flat.map((id, idx) => {
       const bKey = baseKey(id);
       const overrideFull = buttonContextLib.getOverride(`${commandName}:${id}`);
       const overrideBase = buttonContextLib.getOverride(
@@ -319,11 +350,12 @@ export function createChatContext(
    */
   function registerButtonFallbackState(
     msgId: string,
-    buttonIds: string[],
+    buttonIds: string[] | string[][],
   ): void {
     logger.debug('[context.model] registerButtonFallbackState called', {
       msgId,
     });
+    const flat = flattenButtonIds(buttonIds);
     // Private key (msgId:senderID) so only the user who ran the command can select from this menu
     const key = `${msgId}:${event['senderID'] as string}`;
     stateStore.create(key, {
@@ -331,7 +363,7 @@ export function createChatContext(
       state: 'button_fallback',
       context: {
         type: 'button_fallback',
-        buttons: buttonIds.map((id, idx) => {
+        buttons: flat.map((id, idx) => {
           const bKey = baseKey(id);
           const overrideFull = buttonContextLib.getOverride(
             `${commandName}:${id}`,

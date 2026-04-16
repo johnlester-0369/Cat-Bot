@@ -101,12 +101,13 @@ export async function replyMessage(
   const replyMarkup =
     button.length > 0
       ? {
-          inline_keyboard: [
-            button.map((btn) => ({
+          // Outer array = rows, inner array = buttons per row — matches Telegram Bot API InlineKeyboardButton[][]
+          inline_keyboard: button.map((row) =>
+            row.map((btn) => ({
               text: btn.label,
               callback_data: btn.id.slice(0, 64),
-            })),
-          ],
+            }))
+          ),
         }
       : undefined;
 

@@ -89,9 +89,11 @@ export async function editMessage(
         success: ButtonStyle.Success,
         danger: ButtonStyle.Danger,
       };
-      for (let i = 0; i < button.length; i += 5) {
+      // Each inner array is one ActionRow — matches the 2-D ButtonItem[][] contract from EditMessageOptions.
+      // Preserves the caller's explicit row grouping so grids and mixed layouts survive edits unchanged.
+      for (const rowItems of button) {
         const row = new ActionRowBuilder<ButtonBuilder>();
-        for (const btn of button.slice(i, i + 5)) {
+        for (const btn of rowItems) {
           row.addComponents(
             new ButtonBuilder()
               .setCustomId(btn.id)

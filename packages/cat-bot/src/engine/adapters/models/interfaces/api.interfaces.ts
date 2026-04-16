@@ -104,7 +104,11 @@ export interface EditMessageOptions {
   message?: string | SendPayload;
   message_id_to_edit?: string;
   style?: MessageStyleValue;
-  button?: ButtonItem[];
+  /**
+   * Each inner array is one keyboard row — maps directly to Telegram InlineKeyboardButton[][].
+   * Flat arrays are normalised to a single row by createChatContext.resolveButtons().
+   */
+  button?: ButtonItem[][];
   /** Stream-based file attachments added to the edited message — uploaded by the platform wrapper (mirroring replyMessage attachment handling). */
   attachment?: NamedStreamAttachment[];
   /** URL-based file attachments — downloaded by the platform wrapper before upload; used to replace or augment message media. */
@@ -122,8 +126,11 @@ export interface ReplyMessageOptions {
   attachment_url?: NamedUrlAttachment[];
   /** ID of the message to thread this reply under. */
   reply_to_message_id?: string;
-  /** Resolved button definitions built by createChatContext. */
-  button?: ButtonItem[];
+  /**
+   * Resolved button rows built by createChatContext.resolveButtons().
+   * Each inner array is one keyboard row — maps directly to Telegram InlineKeyboardButton[][].
+   */
+  button?: ButtonItem[][];
   mentions?: MentionEntry[];
   /**
    * Controls how the message text is rendered.

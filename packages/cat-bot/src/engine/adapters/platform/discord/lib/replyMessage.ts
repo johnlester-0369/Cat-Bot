@@ -28,7 +28,7 @@ interface ReplyOptions {
   attachment?: Array<{ name: string; stream: NodeJS.ReadableStream | Buffer }>;
   attachment_url?: Array<{ name: string; url: string }>;
   reply_to_message_id?: string;
-  button?: ButtonItem[];
+  button?: ButtonItem[][];
   style?: MessageStyleValue;
 }
 
@@ -76,8 +76,6 @@ export async function replyMessage(
   }
 
   // Map unified ButtonItem style strings to Discord ButtonStyle enum values.
-  // Discord supports up to 5 buttons per ActionRow and 5 rows per message (25 total).
-  // We batch into rows of 5 — the common case is ≤5 buttons in a single row.
   const STYLE_MAP: Record<string, ButtonStyle> = {
     primary: ButtonStyle.Primary,
     secondary: ButtonStyle.Secondary,
@@ -85,10 +83,13 @@ export async function replyMessage(
     danger: ButtonStyle.Danger,
   };
   const components: ActionRowBuilder<ButtonBuilder>[] = [];
+  // Each inner array is one Discord ActionRow — the caller controls layout via the 2-D structure.
+  // [btn1, btn2]        → single row; [[btn1],[btn2]] → two rows (vertical);
+  // [[btn1,btn2],[btn3]] → mixed rows. Discord allows max 5 buttons per row, 5 rows per message.
   if (button.length > 0) {
-    for (let i = 0; i < button.length; i += 5) {
+    for (const rowItems of button) {
       const row = new ActionRowBuilder<ButtonBuilder>();
-      for (const btn of button.slice(i, i + 5)) {
+      for (const btn of rowItems) {
         row.addComponents(
           new ButtonBuilder()
             .setCustomId(btn.id)
