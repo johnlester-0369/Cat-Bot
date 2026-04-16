@@ -7,6 +7,7 @@ import {
   isBotAdmin,
 } from '@/engine/repos/credentials.repo.js';
 import { OptionType } from '@/engine/modules/command/command-option.constants.js';
+import { Platforms } from '@/engine/modules/platform/platform.constants.js';
 import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 
 export const config = {
@@ -21,6 +22,12 @@ export const config = {
   usage: '<add|list|delete> [uid]',
   cooldown: 5,
   hasPrefix: true,
+  // Exclude Facebook Page since facebook page use PSID (Page-Scoped ID)
+  platform: [
+    Platforms.Discord,
+    Platforms.Telegram,
+    Platforms.FacebookMessenger,
+  ],
   options: [
     {
       type: OptionType.string,
