@@ -11,6 +11,7 @@ export class BotRepo {
     await prisma.$transaction(async (tx) => {
       await tx.botSession.create({ data: { userId, platformId, sessionId, nickname: dto.botNickname, prefix: dto.botPrefix } });
       for (const adminId of dto.botAdmins) await tx.botAdmin.create({ data: { userId, platformId, sessionId, adminId } });
+      for (const premiumId of (dto.botPremiums ?? [])) await tx.botPremium.create({ data: { userId, platformId, sessionId, premiumId } });
 
       const { credentials } = dto;
       if (credentials.platform === Platforms.Discord) await tx.botCredentialDiscord.create({ data: { userId, platformId, sessionId, discordToken: encrypt(credentials.discordToken), discordClientId: credentials.discordClientId } });
@@ -29,6 +30,7 @@ export class BotRepo {
     if (!platform) return null;
 
     const admins = await prisma.botAdmin.findMany({ where: { userId, sessionId } });
+    const premiums = await prisma.botPremium.findMany({ where: { userId, sessionId } });
     let credentials: GetBotDetailResponseDto['credentials'];
 
     if (platform === Platforms.Discord) {
@@ -49,7 +51,7 @@ export class BotRepo {
       credentials = { platform: Platforms.FacebookMessenger, appstate: decrypt(cred.appstate) };
     }
 
-    return { sessionId, userId, platformId: botSessionInfo.platformId, platform, nickname: botSessionInfo.nickname ?? '', prefix: botSessionInfo.prefix ?? '', admins: admins.map((a) => a.adminId), credentials };
+    return { sessionId, userId, platformId: botSessionInfo.platformId, platform, nickname: botSessionInfo.nickname ?? '', prefix: botSessionInfo.prefix ?? '', admins: admins.map((a) => a.adminId), premiums: premiums.map((p) => p.premiumId), credentials };
   }
 
   async update(userId: string, sessionId: string, dto: UpdateBotRequestDto, isCredentialsModified: boolean = false): Promise<void> {
@@ -62,6 +64,9 @@ export class BotRepo {
       await tx.botSession.update({ where: { userId_platformId_sessionId: { userId, platformId, sessionId } }, data: { nickname: dto.botNickname, prefix: dto.botPrefix } });
       await tx.botAdmin.deleteMany({ where: { userId, platformId, sessionId } });
       for (const adminId of dto.botAdmins) await tx.botAdmin.create({ data: { userId, platformId, sessionId, adminId } });
+      // Full premium list replacement inside the same transaction — maintains referential atomicity.
+      await tx.botPremium.deleteMany({ where: { userId, platformId, sessionId } });
+      for (const premiumId of (dto.botPremiums ?? [])) await tx.botPremium.create({ data: { userId, platformId, sessionId, premiumId } });
 
       const { credentials } = dto;
       if (credentials.platform === Platforms.Discord) await tx.botCredentialDiscord.update({ where: { userId_platformId_sessionId: { userId, platformId, sessionId } }, data: { discordToken: encrypt(credentials.discordToken), discordClientId: credentials.discordClientId, ...(isCredentialsModified ? { isCommandRegister: false, commandHash: null } : {}) } });
@@ -105,6 +110,7 @@ export class BotRepo {
       await tx.botThreadSession.deleteMany({ where: { userId, sessionId } });
       // Identity / credential tables
       await tx.botAdmin.deleteMany({ where: { userId, sessionId } });
+      await tx.botPremium.deleteMany({ where: { userId, sessionId } });
       await tx.botCredentialDiscord.deleteMany({ where: { userId, sessionId } });
       await tx.botCredentialTelegram.deleteMany({ where: { userId, sessionId } });
       await tx.botCredentialFacebookPage.deleteMany({ where: { userId, sessionId } });

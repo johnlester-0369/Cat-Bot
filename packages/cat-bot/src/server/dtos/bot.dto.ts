@@ -9,9 +9,10 @@ export type PlatformCredentials =
 export interface CreateBotRequestDto {
   botNickname: string;
   botPrefix: string;
-  // Array of platform-native user IDs — each maps to a separate bot_admin row so
-  // multiple admins are granted without comma-delimited strings that are hard to parse.
+  // Platform-native user IDs granted admin privileges — one row per ID in bot_admin.
   botAdmins: string[];
+  // Optional so existing callers (e.g. create-new-bot wizard) are unaffected; defaults to [] in adapters.
+  botPremiums?: string[];
   credentials: PlatformCredentials;
 }
 
@@ -44,6 +45,7 @@ export interface GetBotDetailResponseDto {
   nickname: string;
   prefix: string;
   admins: string[];
+  premiums: string[];
   credentials: PlatformCredentials;
 }
 

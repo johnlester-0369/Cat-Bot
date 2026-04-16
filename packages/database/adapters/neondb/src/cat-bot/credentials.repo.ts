@@ -235,3 +235,67 @@ export async function getBotNickname(
   );
   return res.rows[0]?.nickname ?? null;
 }
+
+// ── Bot Premium ───────────────────────────────────────────────────────────────
+
+export async function isBotPremium(
+  userId: string,
+  platform: string,
+  sessionId: string,
+  premiumId: string,
+): Promise<boolean> {
+  const platformId = toPlatformNumericId(platform);
+  const res = await pool.query(
+    `SELECT 1 FROM bot_premium
+     WHERE user_id = $1 AND platform_id = $2 AND session_id = $3 AND premium_id = $4`,
+    [userId, platformId, sessionId, premiumId],
+  );
+  return (res.rowCount ?? 0) > 0;
+}
+
+export async function addBotPremium(
+  userId: string,
+  platform: string,
+  sessionId: string,
+  premiumId: string,
+): Promise<void> {
+  const platformId = toPlatformNumericId(platform);
+  // ON CONFLICT DO NOTHING mirrors prisma-sqlite's upsert({ update: {} }) — idempotent
+  // when the same premiumId is added twice; no error on duplicate insert.
+  await pool.query(
+    `INSERT INTO bot_premium (user_id, platform_id, session_id, premium_id)
+     VALUES ($1, $2, $3, $4)
+     ON CONFLICT (user_id, platform_id, session_id, premium_id) DO NOTHING`,
+    [userId, platformId, sessionId, premiumId],
+  );
+}
+
+export async function removeBotPremium(
+  userId: string,
+  platform: string,
+  sessionId: string,
+  premiumId: string,
+): Promise<void> {
+  const platformId = toPlatformNumericId(platform);
+  // DELETE with no matching row is a silent no-op — same fail-open contract as admin.
+  await pool.query(
+    `DELETE FROM bot_premium
+     WHERE user_id = $1 AND platform_id = $2 AND session_id = $3 AND premium_id = $4`,
+    [userId, platformId, sessionId, premiumId],
+  );
+}
+
+export async function listBotPremiums(
+  userId: string,
+  platform: string,
+  sessionId: string,
+): Promise<string[]> {
+  const platformId = toPlatformNumericId(platform);
+  const res = await pool.query<{ premium_id: string }>(
+    `SELECT premium_id FROM bot_premium
+     WHERE user_id = $1 AND platform_id = $2 AND session_id = $3
+     ORDER BY premium_id`,
+    [userId, platformId, sessionId],
+  );
+  return res.rows.map((r) => r.premium_id);
+}

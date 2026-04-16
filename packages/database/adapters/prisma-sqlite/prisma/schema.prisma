@@ -119,6 +119,7 @@ model user {
   botAdmins                  BotAdmin[]                       @relation("BotAdminUser")
   botCredentialsDiscord      BotCredentialDiscord[]           @relation("BotCredentialDiscordUser")
   botCredentialsTelegram     BotCredentialTelegram[]          @relation("BotCredentialTelegramUser")
+  botPremiums                BotPremium[]                     @relation("BotPremiumUser")
   botCredentialsFacebookPage BotCredentialFacebookPage[]      @relation("BotCredentialFacebookPageUser")
   botCredentialsFbMessenger  BotCredentialFacebookMessenger[] @relation("BotCredentialFacebookMessengerUser")
   botFbPageWebhook           FbPageWebhook?                   @relation("FbPageWebhookUser")
@@ -209,6 +210,23 @@ model BotAdmin {
   @@id([userId, platformId, sessionId, adminId])
   @@map("bot_admin")
 }
+
+// ── Bot Premium — tracks which platform-native users are granted premium privileges ─
+// premiumId is the platform-native user ID of the elevated user (NOT a better-auth ID).
+// Including premiumId in the composite PK allows multiple premium users per session.
+// Premium users inherit ANYONE + THREAD_ADMIN + PREMIUM command access but NOT BOT_ADMIN.
+model BotPremium {
+  userId     String
+  platformId Int
+  sessionId  String
+  premiumId  String
+
+  user user @relation("BotPremiumUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, platformId, sessionId, premiumId])
+  @@map("bot_premium")
+}
+
 
 // ── Bot Credential: Discord ───────────────────────────────────────────────────
 // discordToken and discordClientId are stored per-session so one owner can run

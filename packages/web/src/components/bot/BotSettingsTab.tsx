@@ -25,6 +25,7 @@ interface FormState {
   botNickname: string
   botPrefix: string
   botAdmins: string[]
+  botPremiums: string[]
   platform: string
   platformFields: PlatformFields
 }
@@ -65,7 +66,9 @@ export function BotSettingsTab({
   const [form, setForm] = useState<FormState>({
     botNickname: bot.nickname,
     botPrefix: bot.prefix,
-    botAdmins: bot.admins.length > 0 ? bot.admins : [''],
+    // Defensive optional chaining prevents crashes if backend adapter returns legacy/incomplete DTO shape
+    botAdmins: bot.admins?.length > 0 ? bot.admins : [''],
+    botPremiums: bot.premiums?.length > 0 ? bot.premiums : [''],
     platform: bot.credentials.platform,
     platformFields: {
       discordToken:
@@ -98,7 +101,7 @@ export function BotSettingsTab({
   // ── Field handlers ────────────────────────────────────────────────────────
 
   const handleTopField = (
-    key: keyof Omit<FormState, 'botAdmins' | 'platform' | 'platformFields'>,
+    key: keyof Omit<FormState, 'botAdmins' | 'botPremiums' | 'platform' | 'platformFields'>,
     value: string,
   ) => {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -125,6 +128,29 @@ export function BotSettingsTab({
           : prev.botAdmins,
     }))
   }
+
+  const handlePremiumChange = (index: number, value: string) => {
+    setForm((prev) => {
+      const premiums = [...prev.botPremiums]
+      premiums[index] = value
+      return { ...prev, botPremiums: premiums }
+    })
+  }
+
+  const handleAddPremium = () => {
+    setForm((prev) => ({ ...prev, botPremiums: [...prev.botPremiums, ''] }))
+  }
+
+  const handleRemovePremium = (index: number) => {
+    setForm((prev) => ({
+      ...prev,
+      botPremiums:
+        prev.botPremiums.length > 1
+          ? prev.botPremiums.filter((_, i) => i !== index)
+          : prev.botPremiums,
+    }))
+  }
+
 
   const handlePlatformField = (key: keyof PlatformFields, value: string) => {
     // Any credential change invalidates the previous verification result
@@ -292,6 +318,7 @@ export function BotSettingsTab({
           botNickname: bot.nickname,
           botPrefix: '-',
           botAdmins: bot.admins,
+          botPremiums: bot.premiums,
           credentials: bot.credentials,
         })
         // Wait 2 seconds to ensure the backend's async slash sync hits the platform API
@@ -303,9 +330,10 @@ export function BotSettingsTab({
         botNickname: form.botNickname,
         botPrefix: form.botPrefix,
         botAdmins: form.botAdmins.filter((a) => a.trim() !== ''),
+        botPremiums: form.botPremiums.filter((p) => p.trim() !== ''),
         credentials,
       })
-      onUpdateSuccess(updated)
+
 
       // Auto-reload the active bot session if credentials were modified
       if (isCredentialsModified && isActive) {
@@ -435,6 +463,57 @@ export function BotSettingsTab({
                     iconOnly
                     onClick={() => handleRemoveAdmin(index)}
                     aria-label={`Remove admin ${index + 1}`}
+                    leftIcon={<Trash2 className="h-4 w-4" />}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <Divider spacing="md" />
+
+        {/* Premium list — Users granted elevated command access above ANYONE but below BOT_ADMIN */}
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-label-md font-medium text-on-surface">
+                Bot Premiums
+              </p>
+              <p className="text-label-sm text-on-surface-variant mt-0.5">
+                User IDs with premium command privileges
+              </p>
+            </div>
+            <Button
+              variant="text"
+              color="primary"
+              size="sm"
+              leftIcon={<Plus className="h-3.5 w-3.5" />}
+              onClick={handleAddPremium}
+              aria-label="Add another premium user ID"
+            >
+              Add
+            </Button>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            {form.botPremiums.map((premiumId, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <div className="flex-1">
+                  <Input
+                    placeholder={`Premium user ID ${index + 1}`}
+                    value={premiumId}
+                    onChange={(e) => handlePremiumChange(index, e.target.value)}
+                    aria-label={`Premium user ID ${index + 1}`}
+                  />
+                </div>
+                {form.botPremiums.length > 1 && (
+                  <Button
+                    variant="text"
+                    color="error"
+                    iconOnly
+                    onClick={() => handleRemovePremium(index)}
+                    aria-label={`Remove premium ${index + 1}`}
                     leftIcon={<Trash2 className="h-4 w-4" />}
                   />
                 )}

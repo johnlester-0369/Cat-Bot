@@ -35,6 +35,13 @@ export class BotRepo {
       );
     }
 
+    // Insert premium privileges if present
+    if ((dto.botPremiums ?? []).length > 0) {
+      await db.collection('botPremiums').insertMany(
+        dto.botPremiums!.map((premiumId) => ({ userId, platformId, sessionId, premiumId })),
+      );
+    }
+
     const creds = dto.credentials;
     if (creds.platform === Platforms.Discord) {
       await db.collection('botCredentialDiscord').insertOne({
@@ -81,6 +88,12 @@ export class BotRepo {
       .toArray();
     const admins = adminDocs.map((a) => a.adminId);
 
+    // Fetch premium privileges to satisfy GetBotDetailResponseDto
+    const premiumDocs = await db.collection<{ premiumId: string }>('botPremiums')
+      .find({ userId, sessionId }, { projection: { premiumId: 1, _id: 0 } })
+      .toArray();
+    const premiums = premiumDocs.map((p) => p.premiumId);
+
     let credentials: GetBotDetailResponseDto['credentials'];
 
     if (platform === Platforms.Discord) {
@@ -113,6 +126,7 @@ export class BotRepo {
       nickname: (session.nickname as string | undefined) ?? '',
       prefix:   (session.prefix   as string | undefined) ?? '',
       admins,
+      premiums,
       credentials,
     };
   }
@@ -143,6 +157,14 @@ export class BotRepo {
     if (dto.botAdmins.length > 0) {
       await db.collection('botAdmins').insertMany(
         dto.botAdmins.map((adminId) => ({ userId, platformId, sessionId, adminId })),
+      );
+    }
+
+    // Replace all premiums atomically by deleting then re-inserting
+    await db.collection('botPremiums').deleteMany({ userId, platformId, sessionId });
+    if ((dto.botPremiums ?? []).length > 0) {
+      await db.collection('botPremiums').insertMany(
+        dto.botPremiums!.map((premiumId) => ({ userId, platformId, sessionId, premiumId })),
       );
     }
 
@@ -224,6 +246,7 @@ export class BotRepo {
     await db.collection('botUserSession').deleteMany({ userId, sessionId });
     await db.collection('botThreadSession').deleteMany({ userId, sessionId });
     await db.collection('botAdmins').deleteMany({ userId, sessionId });
+    await db.collection('botPremiums').deleteMany({ userId, sessionId });
     await db.collection('botCredentialDiscord').deleteMany({ userId, sessionId });
     await db.collection('botCredentialTelegram').deleteMany({ userId, sessionId });
     await db.collection('botCredentialFacebookPage').deleteMany({ userId, sessionId });

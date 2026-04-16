@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 const DEFAULT_DB = {
   botSessionCommand: [], botSessionEvent: [], botCredentialDiscord: [],
   botCredentialTelegram: [], botCredentialFacebookPage: [],
-  botCredentialFacebookMessenger: [], botSession: [], botAdmin: [],
+  botCredentialFacebookMessenger: [], botSession: [], botAdmin: [], botPremium: [],
   botThread: [], botUser: [], fbPageWebhook: [],
   botThreadSession: [], botUserSession: [],
   botUserBanned: [], botThreadBanned: [],

@@ -42,6 +42,10 @@ export {
   listBotAdmins,
   updateBotSessionPrefix,
   getBotNickname,
+  isBotPremium,
+  addBotPremium,
+  removeBotPremium,
+  listBotPremiums,
 } from '../adapters/json/src/cat-bot/credentials.repo.js';
 
 // --- THREADS ---

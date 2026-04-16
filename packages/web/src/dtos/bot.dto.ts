@@ -14,6 +14,8 @@ export type PlatformCredentials =
 export interface CreateBotRequestDto {
   botNickname: string
   botPrefix: string
+  // Optional so the create wizard (unseen file) is unaffected; adapters default to [].
+  botPremiums?: string[]
   botAdmins: string[]
   credentials: PlatformCredentials
 }
@@ -44,6 +46,7 @@ export interface GetBotDetailResponseDto {
   nickname: string
   prefix: string
   admins: string[]
+  premiums: string[]
   credentials: PlatformCredentials
 }
 

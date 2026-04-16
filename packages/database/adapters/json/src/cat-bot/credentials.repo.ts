@@ -114,3 +114,62 @@ export async function getBotNickname(
   );
   return (rec?.nickname as string | undefined) ?? null;
 }
+
+// ── Bot Premium ───────────────────────────────────────────────────────────────
+
+export async function isBotPremium(
+  userId: string,
+  platform: string,
+  sessionId: string,
+  premiumId: string,
+): Promise<boolean> {
+  const db = await getDb();
+  const platformId = toPlatformNumericId(platform);
+  return db.botPremium.some(
+    (p: any) => p.userId === userId && p.platformId === platformId && p.sessionId === sessionId && p.premiumId === premiumId,
+  );
+}
+
+export async function addBotPremium(
+  userId: string,
+  platform: string,
+  sessionId: string,
+  premiumId: string,
+): Promise<void> {
+  const db = await getDb();
+  const platformId = toPlatformNumericId(platform);
+  // Guard prevents duplicates — mirrors Prisma upsert idempotent contract.
+  const exists = db.botPremium.some(
+    (p: any) => p.userId === userId && p.platformId === platformId && p.sessionId === sessionId && p.premiumId === premiumId,
+  );
+  if (!exists) db.botPremium.push({ userId, platformId, sessionId, premiumId });
+  await saveDb();
+}
+
+export async function removeBotPremium(
+  userId: string,
+  platform: string,
+  sessionId: string,
+  premiumId: string,
+): Promise<void> {
+  const db = await getDb();
+  const platformId = toPlatformNumericId(platform);
+  // filter replaces array in-place — silent no-op when record is absent.
+  db.botPremium = db.botPremium.filter(
+    (p: any) => !(p.userId === userId && p.platformId === platformId && p.sessionId === sessionId && p.premiumId === premiumId),
+  );
+  await saveDb();
+}
+
+export async function listBotPremiums(
+  userId: string,
+  platform: string,
+  sessionId: string,
+): Promise<string[]> {
+  const db = await getDb();
+  const platformId = toPlatformNumericId(platform);
+  return db.botPremium
+    .filter((p: any) => p.userId === userId && p.platformId === platformId && p.sessionId === sessionId)
+    .map((p: any) => p.premiumId as string)
+    .sort();
+}

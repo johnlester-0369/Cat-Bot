@@ -33,7 +33,7 @@ import { cooldownStore } from '@/engine/lib/cooldown.lib.js';
 // Repo functions for role checking — imported here so this middleware stays
 // independently mockable in unit tests without spinning up a real DB connection.
 import { isThreadAdmin } from '@/engine/repos/threads.repo.js';
-import { isBotAdmin } from '@/engine/repos/credentials.repo.js';
+import { isBotAdmin, isBotPremium } from '@/engine/repos/credentials.repo.js';
 import { Role } from '@/engine/constants/role.constants.js';
 import { isUserBanned, isThreadBanned } from '@/engine/repos/banned.repo.js';
 
@@ -192,7 +192,8 @@ export const enforcePermission: MiddlewareFn<OnCommandCtx> = async function (
     // any command dispatcher runs, so bot_threads should contain the admins list.
     let allowed = await isThreadAdmin(threadID, senderID);
 
-    // Bot admins implicitly inherit thread admin privileges across all threads
+    // Bot admins and premium users both inherit thread-admin privileges —
+    // premium grants a superset (ANYONE + THREAD_ADMIN + PREMIUM).
     if (!allowed) {
       const sessionUserId = ctx.native.userId ?? '';
       const sessionId = ctx.native.sessionId ?? '';
@@ -202,6 +203,16 @@ export const enforcePermission: MiddlewareFn<OnCommandCtx> = async function (
         sessionId,
         senderID,
       );
+      if (!allowed) {
+        // Premium users can run thread-admin commands; thread-admin alone does NOT
+        // grant premium access — the privilege relationship is one-directional.
+        allowed = await isBotPremium(
+          sessionUserId,
+          ctx.native.platform,
+          sessionId,
+          senderID,
+        );
+      }
     }
 
     if (!allowed) {
@@ -227,9 +238,35 @@ export const enforcePermission: MiddlewareFn<OnCommandCtx> = async function (
       });
       return; // Do NOT call next() — chain halts; handler never runs
     }
+  } else if (role === Role.PREMIUM) {
+    // Premium-gate: only premium users and bot admins may invoke.
+    // Thread admins alone do NOT qualify — PREMIUM is a separate privilege tier
+    // that grants ANYONE + THREAD_ADMIN + PREMIUM but intentionally excludes BOT_ADMIN.
+    const sessionUserId = ctx.native.userId ?? '';
+    const sessionId = ctx.native.sessionId ?? '';
+    let allowed = await isBotAdmin(
+      sessionUserId,
+      ctx.native.platform,
+      sessionId,
+      senderID,
+    );
+    if (!allowed) {
+      allowed = await isBotPremium(
+        sessionUserId,
+        ctx.native.platform,
+        sessionId,
+        senderID,
+      );
+    }
+    if (!allowed) {
+      await ctx.chat.replyMessage({
+        message: '🚫 This command is restricted to premium users.',
+      });
+      return; // Do NOT call next() — chain halts; handler never runs
+    }
   }
 
-  // role > 2 or unrecognised: fall through and allow (forward-compatible default)
+  // role > 3 or unrecognised: fall through and allow (forward-compatible default)
   await next();
 };
 

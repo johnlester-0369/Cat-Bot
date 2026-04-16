@@ -111,6 +111,15 @@ CREATE TABLE IF NOT EXISTS bot_admin (
   PRIMARY KEY (user_id, platform_id, session_id, admin_id)
 );
 
+-- ── Bot Premium — grants ANYONE + THREAD_ADMIN + PREMIUM access (not BOT_ADMIN) ──
+CREATE TABLE IF NOT EXISTS bot_premium (
+  user_id     TEXT    NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+  platform_id INTEGER NOT NULL,
+  session_id  TEXT    NOT NULL,
+  premium_id  TEXT    NOT NULL,
+  PRIMARY KEY (user_id, platform_id, session_id, premium_id)
+);
+
 -- ── Platform credentials ─────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS bot_credential_discord (
   user_id             TEXT    NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
