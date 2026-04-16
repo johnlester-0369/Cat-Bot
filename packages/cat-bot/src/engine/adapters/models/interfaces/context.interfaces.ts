@@ -27,7 +27,10 @@ export interface EditOptions {
   message?: string;
   message_id_to_edit?: string;
   style?: MessageStyleValue;
-  button?: string[];
+  /**
+   * Flat array → single keyboard row; 2-D array → multiple rows (grid / mixed layout).
+   */
+  button?: string[] | string[][];
   attachment?: NamedStreamAttachment[];
   attachment_url?: NamedUrlAttachment[];
   threadID?: string;
@@ -84,7 +87,10 @@ export interface ReplyOptions {
   message?: string;
   attachment?: NamedStreamAttachment[];
   attachment_url?: NamedUrlAttachment[];
-  button?: string[];
+  /**
+   * Flat array → single keyboard row; 2-D array → multiple rows (grid / mixed layout).
+   */
+  button?: string[] | string[][];
   threadID?: string;
   thread_id?: string;
   messageID?: string;
