@@ -129,7 +129,7 @@ export default function HomePage() {
         <div className="pointer-events-none absolute -top-40 -left-40 h-[600px] w-[600px] rounded-full bg-primary/5 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-20 -right-20 h-[400px] w-[400px] rounded-full bg-tertiary/5 blur-3xl" />
 
-        <div className="relative z-10 w-full max-w-6xl mx-auto px-6 py-24">
+        <div className="relative z-10 w-full max-w-6xl mx-auto px-6 pb-12">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             {/* ── Left: copy column ─────────────────────────────────────── */}
             <div className="flex flex-col gap-8">
