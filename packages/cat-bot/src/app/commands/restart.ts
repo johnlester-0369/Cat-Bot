@@ -1,6 +1,7 @@
 import { sessionManager } from '@/engine/modules/session/session-manager.lib.js';
 import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
+import { Platforms } from '@/engine/modules/platform/platform.constants.js';
 import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 
 export const config = {
@@ -14,6 +15,12 @@ export const config = {
   usage: '',
   cooldown: 5,
   hasPrefix: true,
+  // Exclude Facebook Page since facebook page use PSID (Page-Scoped ID)
+  platform: [
+    Platforms.Discord,
+    Platforms.Telegram,
+    Platforms.FacebookMessenger,
+  ],
 };
 
 export const onCommand = async ({ chat, native }: AppCtx) => {
