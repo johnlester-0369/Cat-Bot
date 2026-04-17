@@ -53,8 +53,9 @@ export async function replyMessage(
   );
 
   // Facebook Button Template: pairs a required non-empty text with up to 3 postback buttons.
-  // We handle this BEFORE the plain-text path so the template is sent first when buttons
-  // are present; any attachments follow as sequential Graph API calls.
+  // Attachments are intentionally sent BEFORE the template — Facebook renders messages in
+  // insertion order, so leading with the image (e.g. the meme from meme.ts) places the
+  // visual content above the caption+button row in the chat thread as the user sees it.
   // API reference: developers.facebook.com/docs/messenger-platform/send-messages/template/button
   if (button.length > 0) {
     // Flatten 2D array of rows into a 1D array to extract ButtonItem properties
@@ -64,6 +65,21 @@ export async function replyMessage(
       title: btn.label.slice(0, 20),
       payload: btn.id,
     }));
+    // Send URL attachments first — image appears above the button template row in chat
+    for (const { url, name } of attachment_url) {
+      await pageApi.sendUrlAttachment(url, threadID, name);
+    }
+    // Send stream/buffer attachments before the template for the same visual ordering reason
+    for (const stream of attachStreams) {
+      await new Promise<void>((resolve, reject) => {
+        pageApi.sendMessage(
+          { body: '', attachment: stream },
+          threadID,
+          (err) => (err ? reject(err) : resolve()),
+        );
+      });
+    }
+    // Button template sent last — text caption and postback buttons follow the attachment visually
     const templateId = await new Promise<string | undefined>(
       (resolve, reject) => {
         pageApi.sendMessage(
@@ -80,20 +96,6 @@ export async function replyMessage(
         );
       },
     );
-    // Send URL attachments via Graph API server-side URL fetch — faster than stream download/reupload
-    for (const { url, name } of attachment_url) {
-      await pageApi.sendUrlAttachment(url, threadID, name);
-    }
-    // Send any stream/buffer attachments via multipart form-data after the button template
-    for (const stream of attachStreams) {
-      await new Promise<void>((resolve, reject) => {
-        pageApi.sendMessage(
-          { body: '', attachment: stream },
-          threadID,
-          (err) => (err ? reject(err) : resolve()),
-        );
-      });
-    }
     return templateId;
   }
 
