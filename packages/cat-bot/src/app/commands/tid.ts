@@ -39,6 +39,6 @@ export const onCommand = async ({
   const threadName = await thread.getName();
   await chat.replyMessage({
     style: MessageStyle.MARKDOWN,
-    message: `**Thread ID:** \`${threadID}\`\n**Thread Name:** ${threadName}`,
+    message: `**Thread ID:** ${threadID}\n**Thread Name:** ${threadName}`,
   });
 };

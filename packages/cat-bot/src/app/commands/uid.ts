@@ -38,8 +38,8 @@ export const onCommand = async ({ chat, event }: AppCtx): Promise<void> => {
     style: MessageStyle.MARKDOWN,
     message: targetID
       ? isReply
-        ? `**Replied user ID:** \`${targetID}\``
-        : `**Your user ID:** \`${targetID}\``
+        ? `**Replied user ID:** ${targetID}`
+        : `**Your user ID:** ${targetID}`
       : '❌ Could not resolve user ID for this platform.',
   });
 };
