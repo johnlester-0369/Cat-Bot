@@ -27,6 +27,7 @@ import { isPlatformAllowed } from '@/engine/modules/platform/platform-filter.uti
 // Shared usage guide factory — injected into AppCtx so onCommand handlers can
 // call ctx.usage() to display a formatted guide when arguments are invalid/missing.
 import { createUsage } from '@/engine/utils/usage.util.js';
+import { createCurrenciesContext } from '@/engine/lib/currencies.lib.js';
 
 /**
  * Dispatches a parsed command to its registered module.
@@ -84,6 +85,7 @@ export async function dispatchCommand(
     session: { id: '', context: {} },
     emoji: '',
     messageID: (ctx.event['messageID'] as string) || '',
+    currencies: createCurrenciesContext(ctx.native.userId ?? '', ctx.native.platform, ctx.native.sessionId ?? ''),
   }).catch((err: unknown) => {
     console.error(`❌ Command "${parsed.name}" failed`, err);
   });

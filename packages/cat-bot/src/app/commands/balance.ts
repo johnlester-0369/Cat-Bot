@@ -44,19 +44,6 @@ export const config = {
   ],
 };
 
-/**
- * Reads the accumulated coin balance for a single platform user ID.
- * Returns 0 when the user has never claimed /daily — avoids throwing on absent
- * collections instead of surfacing an unhandled rejection to the handler.
- */
-async function getCoins(db: AppCtx['db'], uid: string): Promise<number> {
-  const userColl = db.users.collection(uid);
-  if (!(await userColl.isCollectionExist('money'))) return 0;
-  const money = await userColl.getCollection('money');
-  const val = (await money.get('coins')) as number | undefined;
-  return val ?? 0;
-}
-
 const BUTTON_ID = { daily_status: 'daily_status', back: 'back' } as const;
 
 // Complement to /balance: shows when the daily claim resets so the user doesn't
@@ -131,7 +118,7 @@ export const button = {
 export const onCommand = async ({
   chat,
   event,
-  db,
+  currencies,
   native,
   button,
 }: AppCtx): Promise<void> => {
@@ -146,7 +133,7 @@ export const onCommand = async ({
     for (const uid of mentionIDs) {
       // Platforms embed '@' in the mention display name — strip it for cleaner output
       const displayName = (mentions?.[uid] ?? uid).replace(/^@/, '');
-      const coins = await getCoins(db, uid);
+      const coins = await currencies.getMoney(uid);
       lines.push(`**${displayName}:** ${coins.toLocaleString()} coins`);
     }
     // No button on the mention path — the balance is for the mentioned user, not the sender;
@@ -168,7 +155,7 @@ export const onCommand = async ({
     return;
   }
 
-  const coins = await getCoins(db, senderID);
+  const coins = await currencies.getMoney(senderID);
   // Edit when navigating back via the ⬅ Back button; reply for fresh /balance invocations
   const payload = {
     style: MessageStyle.MARKDOWN,

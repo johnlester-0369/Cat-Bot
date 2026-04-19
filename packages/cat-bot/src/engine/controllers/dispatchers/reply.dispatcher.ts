@@ -24,6 +24,7 @@ import {
 import type { OnReplyCtx } from '@/engine/types/middleware.types.js';
 // Platform filter — enforces config.platform[] declared by each command module
 import { isPlatformAllowed } from '@/engine/modules/platform/platform-filter.util.js';
+import { createCurrenciesContext } from '@/engine/lib/currencies.lib.js';
 
 /**
  * Checks whether a message_reply event matches a pending onReply state and, if so,
@@ -104,6 +105,7 @@ export async function dispatchOnReply(
         parsed: { name: stored.command, args: [] },
         emoji: '',
         messageID: (event['messageID'] as string) || '',
+        currencies: createCurrenciesContext(ctx.native.userId ?? '', ctx.native.platform, ctx.native.sessionId ?? ''),
       }).catch((err: unknown) => {
         console.error(
           `❌ onReply "${stored.command}.${stored.state}" failed`,

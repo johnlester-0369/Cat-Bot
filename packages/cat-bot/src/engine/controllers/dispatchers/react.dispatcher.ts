@@ -23,6 +23,7 @@ import {
 import type { OnReactCtx } from '@/engine/types/middleware.types.js';
 // Platform filter — enforces config.platform[] declared by each command module
 import { isPlatformAllowed } from '@/engine/modules/platform/platform-filter.util.js';
+import { createCurrenciesContext } from '@/engine/lib/currencies.lib.js';
 
 /**
  * Checks for a pending onReact state matching the message_reaction event's
@@ -89,6 +90,7 @@ export async function dispatchOnReact(
           await import('@/engine/modules/options/options-map.lib.js')
         ).OptionsMap.empty(),
         parsed: { name: stored.command, args: [] },
+        currencies: createCurrenciesContext(ctx.native.userId ?? '', ctx.native.platform, ctx.native.sessionId ?? ''),
       }).catch((err: unknown) => {
         console.error(`❌ onReact "${stored.command}.${emoji}" failed`, err);
       });

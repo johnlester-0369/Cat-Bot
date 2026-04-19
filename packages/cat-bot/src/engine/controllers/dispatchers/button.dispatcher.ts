@@ -36,6 +36,7 @@ import type { AppCtx } from '@/engine/types/controller.types.js';
 // Shared usage guide factory — injected into AppCtx so button onClick handlers
 // have the same ctx.usage() API available as onCommand handlers.
 import { createUsage } from '@/engine/utils/usage.util.js';
+import { createCurrenciesContext } from '@/engine/lib/currencies.lib.js';
 
 /**
  * Button Dispatch — routes interactive button clicks and text-menu fallbacks
@@ -163,6 +164,7 @@ export async function dispatchButtonFallback(
     parsed: { name: stored.command, args: [] },
     emoji: '',
     messageID: (buttonEvent['messageID'] as string) || '',
+    currencies: createCurrenciesContext(ctx.native.userId ?? '', ctx.native.platform, ctx.native.sessionId ?? ''),
   };
 
   // State is intentionally NOT deleted — the numbered menu remains persistently re-selectable,
@@ -283,6 +285,7 @@ export async function handleButtonAction(
         parsed: { name: commandName, args: [] },
         emoji: '',
         messageID: (event['messageID'] as string) || '',
+        currencies: createCurrenciesContext(native.userId ?? '', native.platform, native.sessionId ?? ''),
       };
 
       await Promise.resolve(handler.onClick(ctx)).catch((err: unknown) => {

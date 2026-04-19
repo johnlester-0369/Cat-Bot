@@ -53,7 +53,7 @@ export const button = {
   [BUTTON_ID.check_balance]: {
     label: '💰 My Balance',
     style: ButtonStyle.SECONDARY,
-    onClick: async ({ chat, event, db, native, button }: AppCtx) => {
+    onClick: async ({ chat, event, native, button, currencies }: AppCtx) => {
       const senderID = event['senderID'] as string | undefined;
       // Back button lets the user return to the daily claim status without retyping the command
       const backId = button.generateID({ id: BUTTON_ID.back });
@@ -66,18 +66,8 @@ export const button = {
         });
         return;
       }
-      const userColl = db.users.collection(senderID);
-      if (!(await userColl.isCollectionExist('money'))) {
-        await chat.editMessage({
-          style: MessageStyle.MARKDOWN,
-          message_id_to_edit: event['messageID'] as string,
-          message: '💰 **Your balance:** 0 coins',
-          ...(hasNativeButtons(native.platform) ? { button: [backId] } : {}),
-        });
-        return;
-      }
-      const money = await userColl.getCollection('money');
-      const coins = ((await money.get('coins')) as number | undefined) ?? 0;
+      // currencies.getMoney returns 0 when the user has no money collection yet — no early-return needed
+      const coins = await currencies.getMoney(senderID);
       await chat.editMessage({
         style: MessageStyle.MARKDOWN,
         message_id_to_edit: event['messageID'] as string,
@@ -161,6 +151,7 @@ export const onCommand = async ({
   db,
   native,
   button,
+  currencies,
 }: AppCtx): Promise<void> => {
   const senderID = event['senderID'] as string | undefined;
 
@@ -227,7 +218,7 @@ export const onCommand = async ({
   await daily.set('lastClaim', now);
   await daily.set('streak', newStreak);
   // Persist earned coins so /balance can read the running total from the money collection.
-  await daily.increment('coins', totalCoins);
+  await currencies.increaseMoney({ user_id: senderID, money: totalCoins });
 
   // Button offered only on platforms with native components — encourages the economy
   // loop (daily → balance check) without adding text-menu noise on FB Messenger.

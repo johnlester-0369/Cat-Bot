@@ -17,6 +17,7 @@ import type { SessionLogger } from '@/engine/modules/logger/logger.lib.js'; // R
 import type { OptionsMap } from '@/engine/modules/options/options-map.lib.js';
 import type { CollectionManager } from '@/engine/lib/db-collection.lib.js';
 import type { ButtonContext } from '@/engine/adapters/models/interfaces/index.js';
+import type { CurrenciesContext } from '@/engine/lib/currencies.lib.js';
 
 /** A command module loaded from src/modules/commands/ */
 export type CommandModule = Record<string, unknown>;
@@ -119,4 +120,6 @@ export interface AppCtx extends BaseCtx {
    *   if (!args[0]) return usage();
    */
   usage: () => Promise<void>;
+  /** Economy API for reading and modifying a user's coin balance (getMoney / increaseMoney / decreaseMoney). */
+  currencies: CurrenciesContext;
 }
