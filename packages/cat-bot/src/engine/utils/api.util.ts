@@ -36,9 +36,6 @@ const APIs: Record<string, ApiEntry> = {
   deline: {
     baseURL: 'https://api.deline.web.id',
   },
-  faaa: {
-    baseURL: 'https://api-faa.my.id',
-  },
   kuroneko: {
     baseURL: 'https://api.danzy.web.id',
   },
@@ -50,16 +47,6 @@ const APIs: Record<string, ApiEntry> = {
   },
   nexray: {
     baseURL: 'https://api.nexray.web.id',
-  },
-  sanka: {
-    baseURL: 'https://www.sankavolereii.my.id',
-    APIKey: 'planaai',
-  },
-  yp: {
-    baseURL: 'https://api.yupra.my.id',
-  },
-  zell: {
-    baseURL: 'https://zellapi.autos',
   },
   zenzxz: {
     baseURL: 'https://api.zenzxz.my.id',

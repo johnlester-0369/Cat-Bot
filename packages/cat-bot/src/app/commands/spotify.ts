@@ -12,7 +12,7 @@ import { createUrl } from '@/engine/utils/api.util.js';
 
 export const config = {
   name: 'spotify',
-  aliases: ['sp', 'music', 'shazam'] as string[],
+  aliases: ['sp', 'shazam'] as string[],
   version: '1.0.0',
   role: Role.ANYONE,
   author: 'AjiroDesu',
