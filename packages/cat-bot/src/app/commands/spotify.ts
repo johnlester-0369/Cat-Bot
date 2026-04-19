@@ -1,11 +1,14 @@
 /**
  * Spotify / Shazam Command
- * Search for a song and get its details and preview.
+ *
+ * Search for a song and get its details and audio preview.
+ * Uses the betadash free API via the native api.util URL builder so the base
+ * URL is managed centrally in the registry rather than hardcoded here.
  */
-
 import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
 import { MessageStyle } from '@/engine/constants/message-style.constants.js';
+import { createUrl } from '@/engine/utils/api.util.js';
 
 export const config = {
   name: 'spotify',
@@ -36,17 +39,28 @@ interface ShazamResponse {
   results?: ShazamSong[];
 }
 
-export const onCommand = async ({ args, chat, usage, prefix = '/' }: AppCtx): Promise<void> => {
-  if (!args.length) {
-    await usage();
-    return;
-  }
+export const onCommand = async ({
+  args,
+  chat,
+  usage,
+}: AppCtx): Promise<void> => {
+  if (!args.length) return usage();
 
   const title = args.join(' ');
 
+  // Build the endpoint URL via the centralised api.util registry —
+  // the betadash base URL lives in APIs and is not repeated here.
+  const url = createUrl('betadash', '/shazam', { title, limit: '1' });
+  if (!url) {
+    await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
+      message: '❌ Failed to build the API request URL.',
+    });
+    return;
+  }
+
   let data: ShazamResponse;
   try {
-    const url = `https://betadash-api-swordslush-production.up.railway.app/shazam?title=${encodeURIComponent(title)}&limit=1`;
     const res = await fetch(url);
     if (!res.ok) throw new Error(`API responded with status ${res.status}`);
     data = (await res.json()) as ShazamResponse;
@@ -82,7 +96,8 @@ export const onCommand = async ({ args, chat, usage, prefix = '/' }: AppCtx): Pr
     ? new Date(song.releaseDate).getFullYear()
     : 'N/A';
 
-  const genres = song.genreNames?.filter((g) => g !== 'Music').join(', ') || 'N/A';
+  const genres =
+    song.genreNames?.filter((g) => g !== 'Music').join(', ') || 'N/A';
 
   const caption =
     `🎵 **${song.title}**\n` +
@@ -92,7 +107,7 @@ export const onCommand = async ({ args, chat, usage, prefix = '/' }: AppCtx): Pr
     `⏱ Duration: ${duration}\n` +
     `📅 Released: ${releaseYear}`;
 
-  // Send album art with song details
+  // ── Album art + song details ───────────────────────────────────────────────
   if (song.thumbnail) {
     try {
       await chat.replyMessage({
@@ -101,25 +116,24 @@ export const onCommand = async ({ args, chat, usage, prefix = '/' }: AppCtx): Pr
         attachment_url: [{ name: 'album_art.jpg', url: song.thumbnail }],
       });
     } catch {
+      // Fall back to text-only when the attachment fails (e.g. expired CDN URL)
       await chat.replyMessage({ style: MessageStyle.MARKDOWN, message: caption });
     }
   } else {
     await chat.replyMessage({ style: MessageStyle.MARKDOWN, message: caption });
   }
 
-  // Fetch and send preview as an MP3 file
+  // ── Audio preview ──────────────────────────────────────────────────────────
   if (song.previewUrl) {
     try {
       const audioRes = await fetch(song.previewUrl);
-      if (!audioRes.ok) throw new Error(`Failed to fetch audio: ${audioRes.status}`);
-      const arrayBuffer = await audioRes.arrayBuffer();
-      const audioBuffer = Buffer.from(arrayBuffer);
-
+      if (!audioRes.ok)
+        throw new Error(`Failed to fetch audio: ${audioRes.status}`);
+      const audioBuffer = Buffer.from(await audioRes.arrayBuffer());
       const fileName = `${song.title} - ${song.artistName}.mp3`.replace(
         /[/\\?%*:|"<>]/g,
         '-',
       );
-
       await chat.reply({
         style: MessageStyle.MARKDOWN,
         message: `🎵 ${song.title} — ${song.artistName}`,
