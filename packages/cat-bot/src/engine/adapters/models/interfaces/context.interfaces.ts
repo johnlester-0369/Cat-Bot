@@ -138,6 +138,8 @@ export interface UserContext {
   getInfo(userID: string): Promise<UnifiedUserInfo>;
   /** Returns the display name of a user using cached/in-flight data (Discord/Telegram) or the DB (FB). Falls back to "User {id}". */
   getName(userID: string): Promise<string>;
+  /** Returns the avatar URL for a user; null when the platform does not expose one or the user has no avatar set. */
+  getAvatarUrl(userID: string): Promise<string | null>;
 }
 
 /**

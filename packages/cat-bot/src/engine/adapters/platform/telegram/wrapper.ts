@@ -46,6 +46,7 @@ import { setNickname } from './lib/setNickname.js';
 import { editMessage } from './lib/editMessage.js';
 import { getFullThreadInfo } from './lib/getFullThreadInfo.js';
 import { getFullUserInfo } from './lib/getFullUserInfo.js';
+import { getAvatarUrl } from './lib/getAvatarUrl.js';
 import { addUserToGroup, setGroupReaction } from './unsupported.js';
 
 // Database fallbacks for cross-platform unified name resolution
@@ -215,6 +216,12 @@ class TelegramApi extends UnifiedApi {
       if (name) return Promise.resolve(name);
     }
     return dbGetUserName(userID);
+  }
+
+  override getAvatarUrl(userID: string): Promise<string | null> {
+    logger.debug('[telegram] getAvatarUrl called', { userID });
+    // Two-step Bot API resolution: getUserProfilePhotos → getFileLink (CDN URL ~1 hour TTL)
+    return getAvatarUrl(this.#ctx, userID);
   }
 
   /**

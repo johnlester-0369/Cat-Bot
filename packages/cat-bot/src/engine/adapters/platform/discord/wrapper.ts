@@ -48,6 +48,7 @@ import { getBotID as getBotIDLib } from './lib/getBotID.js';
 import { getFullThreadInfo as getFullThreadInfoLib } from './lib/getFullThreadInfo.js';
 import { getFullUserInfo as getFullUserInfoLib } from './lib/getFullUserInfo.js';
 import { removeUserFromGroup as removeUserFromGroupLib } from './lib/removeUserFromGroup.js';
+import { getAvatarUrl as getAvatarUrlLib } from './lib/getAvatarUrl.js';
 
 // Unsupported operations consolidated into single file
 import {
@@ -414,6 +415,19 @@ class DiscordApi extends UnifiedApi {
     if (name) return Promise.resolve(name);
     return dbGetThreadName(_threadID);
   }
+
+  /**
+   * Guild-member cache-first (captures server-specific avatar overrides), then global user fetch.
+   * Uses discord.js v14 displayAvatarURL() which returns the default avatar when no custom one is set.
+   */
+  override getAvatarUrl(userID: string): Promise<string | null> {
+    logger.debug('[discord] getAvatarUrl called', { userID });
+    return getAvatarUrlLib(
+      this.#interaction.client,
+      this.#interaction.guild,
+      userID,
+    );
+  }
 }
 
 // ── createDiscordApi (interaction factory) ─────────────────────────────────────
@@ -673,6 +687,10 @@ export function createDiscordChannelApi(
     const name = guild?.name || channel.name;
     if (name) return Promise.resolve(name);
     return dbGetThreadName(_tid);
+  };
+  api.getAvatarUrl = (uid) => {
+    logger.debug('[discord] getAvatarUrl called', { userID: uid });
+    return getAvatarUrlLib(client, guild, uid);
   };
 
   return api;
