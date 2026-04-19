@@ -52,9 +52,10 @@ import {
   removeUserFromGroup,
   setGroupReaction,
   reactToMessage,
+  getAvatarUrl,
 } from './unsupported.js';
 
-// ── Class shell ───────────────────────────────────────────────────────────────
+// FB Page has no zero-cost name endpoint — delegate to the database layer which
 
 class FbPageApi extends UnifiedApi {
   readonly #pageApi: PageApi;
@@ -209,6 +210,11 @@ class FbPageApi extends UnifiedApi {
       emoji,
     });
     return reactToMessage(threadID, messageID, emoji);
+  }
+
+  override getAvatarUrl(userID: string): Promise<string | null> {
+    logger.debug('[facebook-page] getAvatarUrl called', { userID });
+    return getAvatarUrl(userID);
   }
 }
 
