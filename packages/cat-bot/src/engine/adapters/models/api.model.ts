@@ -333,4 +333,20 @@ export class UnifiedApi {
       `getThreadName not implemented on platform: ${this.platform}`,
     );
   }
+
+  /**
+   * Returns the avatar URL for a user, or null when the platform does not expose one
+   * or the user has no avatar set.
+   * Discord: uses guild-member/user cache then REST; Telegram: getUserProfilePhotos + getFileLink;
+   * Facebook Messenger: public Graph API photo endpoint; Facebook Page: unsupported.
+   */
+  async getAvatarUrl(_userID: string): Promise<string | null> {
+    logger.debug('[UnifiedApi] getAvatarUrl called', {
+      platform: this.platform,
+      userID: _userID,
+    });
+    throw new Error(
+      `getAvatarUrl not implemented on platform: ${this.platform}`,
+    );
+  }
 }

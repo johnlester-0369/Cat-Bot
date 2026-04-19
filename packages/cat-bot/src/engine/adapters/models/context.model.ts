@@ -594,6 +594,10 @@ export function createUserContext(
       logger.debug('[context.model] UserContext.getName called', { userID });
       return api.getUserName(userID);
     },
+    getAvatarUrl: (userID) => {
+      logger.debug('[context.model] UserContext.getAvatarUrl called', { userID });
+      return api.getAvatarUrl(userID);
+    },
   };
 }
 
