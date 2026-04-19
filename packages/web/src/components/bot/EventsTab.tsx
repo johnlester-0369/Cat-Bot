@@ -1,8 +1,11 @@
+import { useState } from 'react'
+import { Search } from 'lucide-react'
 import Card from '@/components/ui/data-display/Card'
 import Badge from '@/components/ui/data-display/Badge'
 import Alert from '@/components/ui/feedback/Alert'
 import Progress from '@/components/ui/feedback/Progress'
 import Switch from '@/components/ui/forms/Switch'
+import Input from '@/components/ui/forms/Input'
 import type { BotEventItemDto } from '@/dtos/bot.dto'
 
 export interface EventsTabProps {
@@ -23,7 +26,20 @@ export function EventsTab({
   error,
   toggleEvent,
 }: EventsTabProps) {
+  // Local query state — client-side filter; event list is already in memory, no round-trip needed
+  const [query, setQuery] = useState('')
+
   if (isLoading) return <Progress.Circular message="Loading events…" />
+
+  // Derive visible subset on each render; empty query passes everything through unchanged
+  const filtered =
+    query.trim() === ''
+      ? events
+      : events.filter(
+          (evt) =>
+            evt.eventName.toLowerCase().includes(query.toLowerCase()) ||
+            evt.description?.toLowerCase().includes(query.toLowerCase()),
+        )
 
   return (
     <div className="flex flex-col gap-4">
@@ -43,20 +59,35 @@ export function EventsTab({
           </p>
         </div>
         <Badge color="secondary" size="sm" variant="tonal">
-          {events.length} total
+          {query.trim()
+            ? `${filtered.length} of ${events.length}`
+            : `${events.length} total`}
         </Badge>
       </div>
 
-      {events.length === 0 ? (
-        <Card.Root variant="outlined" padding="lg">
+      <div className="bg-surface p-2 rounded-full">
+        {/* Search — filters the in-memory list; no refetch since the full event set is already loaded */}
+        <Input
+          placeholder="Search events…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          leftIcon={<Search className="h-4 w-4 text-on-surface-variant" />}
+          pill
+        />
+      </div>
+
+      {filtered.length === 0 ? (
+        <Card.Root padding="lg">
           <p className="text-body-md text-on-surface-variant italic text-center">
-            No events synced yet — start the bot to populate this list.
+            {query.trim()
+              ? `No events match "${query}"`
+              : 'No events synced yet — start the bot to populate this list.'}
           </p>
         </Card.Root>
       ) : (
         // 3-col responsive grid — mirrors CommandsTab breakpoints for visual consistency
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {events.map((evt) => (
+          {filtered.map((evt) => (
             <Card.Root
               key={evt.eventName}
               padding="sm"

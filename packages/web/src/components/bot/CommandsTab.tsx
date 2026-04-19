@@ -1,8 +1,11 @@
+import { useState } from 'react'
+import { Search } from 'lucide-react'
 import Card from '@/components/ui/data-display/Card'
 import Badge from '@/components/ui/data-display/Badge'
 import Alert from '@/components/ui/feedback/Alert'
 import Progress from '@/components/ui/feedback/Progress'
 import Switch from '@/components/ui/forms/Switch'
+import Input from '@/components/ui/forms/Input'
 import type { BotCommandItemDto } from '@/dtos/bot.dto'
 
 const ROLE_LABEL: Record<number, string> = {
@@ -32,7 +35,20 @@ export function CommandsTab({
   toggleCommand,
   prefix,
 }: CommandsTabProps) {
+  // Local query state — client-side filter so the grid reacts instantly without a server round-trip
+  const [query, setQuery] = useState('')
+
   if (isLoading) return <Progress.Circular message="Loading commands…" />
+
+  // Derive visible subset on each render; empty query passes everything through unchanged
+  const filtered =
+    query.trim() === ''
+      ? commands
+      : commands.filter(
+          (cmd) =>
+            cmd.commandName.toLowerCase().includes(query.toLowerCase()) ||
+            cmd.description?.toLowerCase().includes(query.toLowerCase()),
+        )
 
   return (
     <div className="flex flex-col gap-4">
@@ -52,20 +68,35 @@ export function CommandsTab({
           </p>
         </div>
         <Badge color="secondary" size="sm" variant="tonal">
-          {commands.length} total
+          {query.trim()
+            ? `${filtered.length} of ${commands.length}`
+            : `${commands.length} total`}
         </Badge>
       </div>
 
-      {commands.length === 0 ? (
-        <Card.Root variant="outlined" padding="lg">
+      <div className="bg-surface p-2 rounded-full">
+        {/* Search — filters the in-memory list; no refetch since the full command set is already loaded */}
+        <Input
+          placeholder="Search commands…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          leftIcon={<Search className="h-4 w-4 text-on-surface-variant" />}
+          pill
+        />
+      </div>
+
+      {filtered.length === 0 ? (
+        <Card.Root padding="lg">
           <p className="text-body-md text-on-surface-variant italic text-center">
-            No commands synced yet — start the bot to populate this list.
+            {query.trim()
+              ? `No commands match "${query}"`
+              : 'No commands synced yet — start the bot to populate this list.'}
           </p>
         </Card.Root>
       ) : (
         // 3-col responsive grid — each command gets its own outlined card
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {commands.map((cmd) => (
+          {filtered.map((cmd) => (
             <Card.Root
               key={cmd.commandName}
               padding="sm"
