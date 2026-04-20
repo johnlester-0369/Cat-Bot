@@ -36,6 +36,7 @@ import { isThreadAdmin } from '@/engine/repos/threads.repo.js';
 import { isBotAdmin, isBotPremium } from '@/engine/repos/credentials.repo.js';
 import { Role } from '@/engine/constants/role.constants.js';
 import { isUserBanned, isThreadBanned } from '@/engine/repos/banned.repo.js';
+import { isSystemAdmin } from '@/engine/repos/system-admin.repo.js';
 
 // ── Cooldown Enforcement ─────────────────────────────────────────────────────
 
@@ -186,6 +187,24 @@ export const enforcePermission: MiddlewareFn<OnCommandCtx> = async function (
     ctx.event['userID'] ??
     '') as string;
   const threadID = (ctx.event['threadID'] ?? '') as string;
+  // System admins hold the highest authority and inherit every role below them.
+  // Short-circuit here before any specific role gate runs — this single check
+  // also makes Role.SYSTEM_ADMIN commands reachable: the deny branch below is
+  // only reached when the sender is NOT a system admin.
+  if (senderID) {
+    const isSysAdmin = await isSystemAdmin(senderID);
+    if (isSysAdmin) { await next(); return; }
+  }
+
+  if (role === Role.SYSTEM_ADMIN) {
+    // Sender is not a system admin — the bypass above would have short-circuited.
+    // No role below SYSTEM_ADMIN (BOT_ADMIN, PREMIUM, THREAD_ADMIN, ANYONE) may
+    // invoke a SYSTEM_ADMIN command, so deny unconditionally here.
+    await ctx.chat.replyMessage({
+      message: '🚫 This command is restricted to system admins.',
+    });
+    return;
+  }
 
   if (role === Role.THREAD_ADMIN) {
     // Thread-admin gate: on-chat.middleware has already synced the thread before
@@ -310,7 +329,10 @@ export const enforceNotBanned: MiddlewareFn<OnCommandCtx> = async function (
       sessionId,
       senderID,
     );
-    if (isAdmin) {
+    // System admins carry global authority equivalent to bot admin for ban bypass purposes —
+    // only checked when isAdmin is false to avoid an unnecessary DB call when already allowed.
+    const isSysAdmin = isAdmin ? false : await isSystemAdmin(senderID);
+    if (isAdmin || isSysAdmin) {
       await next();
       return;
     }

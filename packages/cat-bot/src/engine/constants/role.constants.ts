@@ -27,7 +27,9 @@ export const Role = {
   /** Only premium users (BotPremium table for this owner session) can invoke.
    *  Premium users inherit ANYONE and THREAD_ADMIN access but NOT BOT_ADMIN. */
   PREMIUM: 3,
+  /** Only system admins (configured globally) can invoke; highest authority across all bots. */
+  SYSTEM_ADMIN: 4,
 } as const;
 
-/** Union of all valid role level values: 0 | 1 | 2 | 3 */
+/** Union of all valid role level values: 0 | 1 | 2 | 3 | 4 */
 export type RoleLevel = (typeof Role)[keyof typeof Role];
