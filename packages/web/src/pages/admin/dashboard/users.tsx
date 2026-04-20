@@ -11,6 +11,7 @@ import Textarea from '@/components/ui/forms/Textarea'
 import Alert from '@/components/ui/feedback/Alert'
 import Badge from '@/components/ui/data-display/Badge'
 import { useAdminBots } from '@/features/admin/hooks/useAdminBots'
+import adminService from '@/features/admin/services/admin.service'
 
 interface ManagedUser {
   id: string
@@ -90,6 +91,12 @@ export default function AdminUsersPage() {
         )
         setBanTarget(null)
         setBanReason('')
+        // Fire-and-forget: stop all running bot sessions for the banned user.
+        // The dialog closes immediately; session teardown is async so the operator
+        // is never blocked by network latency or a large bot-session count.
+        adminService.stopUserSessions(banTarget.id).catch((err) => {
+          console.error('[AdminUsersPage] Failed to stop sessions for banned user', err)
+        })
       }
     } catch (err) {
       setBanError(err instanceof Error ? err.message : 'Failed to ban user')
@@ -131,6 +138,11 @@ export default function AdminUsersPage() {
           ),
         )
         setUnbanTarget(null)
+        // Fire-and-forget: restart all bot sessions for the unbanned user.
+        // Same rationale as the ban path — the UI resolves immediately.
+        adminService.startUserSessions(unbanTarget.id).catch((err) => {
+          console.error('[AdminUsersPage] Failed to start sessions for unbanned user', err)
+        })
       }
     } catch (err) {
       setUnbanError(err instanceof Error ? err.message : 'Failed to unban user')
