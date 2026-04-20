@@ -33,7 +33,7 @@ export default function Layout() {
   const isLogin = location.pathname === '/login'
   const isSignup = location.pathname === '/signup'
 
-  // Collapse the mobile drawer on route change. Done during render 
+  // Collapse the mobile drawer on route change. Done during render
   // to avoid cascading state updates from effects.
   if (location.pathname !== prevPath) {
     setPrevPath(location.pathname)

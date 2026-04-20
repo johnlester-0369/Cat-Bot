@@ -14,7 +14,7 @@ const ROLE_LABEL: Record<number, string> = {
   1: 'Group Admin',
   2: 'Bot Admin',
   3: 'Premium',
-  4: 'System Admin'
+  4: 'System Admin',
 }
 
 /**
@@ -24,7 +24,7 @@ const ROLE_LABEL: Record<number, string> = {
 export default function BotCommandsPage() {
   const { bot, id } = useBotContext()
   const { commands, isLoading, error, toggleCommand } = useBotCommands(id)
-  
+
   const [query, setQuery] = useState('')
 
   if (isLoading) return <Progress.Circular message="Loading commands…" />

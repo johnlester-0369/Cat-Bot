@@ -151,7 +151,9 @@ function BotCard({
       {/* Identity + live status */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-3 min-w-0">
-          <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${platformColors}`}>
+          <span
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${platformColors}`}
+          >
             {getPlatformIcon(bot.platform)}
           </span>
           <div className="min-w-0">
@@ -242,7 +244,9 @@ export default function BotManagerPage() {
   return (
     <div className="flex flex-col gap-8">
       {/* Sets the browser tab title for the Bot Manager listing page */}
-      <Helmet><title>Bot Manager · Cat-Bot</title></Helmet>
+      <Helmet>
+        <title>Bot Manager · Cat-Bot</title>
+      </Helmet>
       {/* ── Page header ─────────────────────────────────────────────────── */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>

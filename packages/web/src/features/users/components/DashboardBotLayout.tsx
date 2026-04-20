@@ -1,5 +1,11 @@
 import { Helmet } from '@dr.pogodin/react-helmet'
-import { useSearchParams, useNavigate, useLocation, Outlet, useOutletContext } from 'react-router-dom'
+import {
+  useSearchParams,
+  useNavigate,
+  useLocation,
+  Outlet,
+  useOutletContext,
+} from 'react-router-dom'
 import { Bot, ArrowLeft } from 'lucide-react'
 import Tabs from '@/components/ui/navigation/Tabs'
 import Progress from '@/components/ui/feedback/Progress'
@@ -90,8 +96,10 @@ export default function BotLayout() {
   return (
     <div className="flex flex-col gap-6">
       {/* Dynamic title shows which bot is open */}
-      <Helmet><title>{bot.nickname} · Cat-Bot</title></Helmet>
-      
+      <Helmet>
+        <title>{bot.nickname} · Cat-Bot</title>
+      </Helmet>
+
       {/* Controlled tabs navigating React Router underneath */}
       <Tabs.Root value={currentTab} onChange={handleTabChange}>
         <Tabs.List variant="line">
@@ -104,7 +112,11 @@ export default function BotLayout() {
 
       {/* Outlet renders the specific page chunk, wrapped in animation classes matching Tabs.Panel */}
       <div className="focus-visible:outline-none animate-in fade-in duration-normal">
-        <Outlet context={{ bot, setBot, isActive, startedAt, id } satisfies BotContextType} />
+        <Outlet
+          context={
+            { bot, setBot, isActive, startedAt, id } satisfies BotContextType
+          }
+        />
       </div>
     </div>
   )

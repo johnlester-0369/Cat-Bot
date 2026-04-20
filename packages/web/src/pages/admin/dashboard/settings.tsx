@@ -25,7 +25,8 @@ import type { SystemAdminDto } from '@/features/admin/services/admin.service'
 export default function AdminSettingsPage() {
   const { theme, setTheme } = useTheme()
 
-  const { data: session, isPending: sessionLoading } = authAdminClient.useSession()
+  const { data: session, isPending: sessionLoading } =
+    authAdminClient.useSession()
 
   // ── Profile edit state ─────────────────────────────────────────────────────
   const [profileName, setProfileName] = useState('')
@@ -40,9 +41,16 @@ export default function AdminSettingsPage() {
   }
 
   const handleUpdateProfile = async (): Promise<void> => {
-    if (!profileName.trim()) { setProfileError('Name cannot be empty'); return }
-    setProfileSaving(true); setProfileError(null); setProfileSuccess(false)
-    const { error } = await authAdminClient.updateUser({ name: profileName.trim() })
+    if (!profileName.trim()) {
+      setProfileError('Name cannot be empty')
+      return
+    }
+    setProfileSaving(true)
+    setProfileError(null)
+    setProfileSuccess(false)
+    const { error } = await authAdminClient.updateUser({
+      name: profileName.trim(),
+    })
     if (error) {
       setProfileError(error.message ?? 'Failed to update profile')
     } else {
@@ -61,18 +69,29 @@ export default function AdminSettingsPage() {
   const [passwordSuccess, setPasswordSuccess] = useState(false)
 
   const handleChangePassword = async (): Promise<void> => {
-    setPasswordError(null); setPasswordSuccess(false)
-    if (newPassword !== confirmPassword) { setPasswordError('New passwords do not match'); return }
-    if (newPassword.length < 8) { setPasswordError('New password must be at least 8 characters'); return }
+    setPasswordError(null)
+    setPasswordSuccess(false)
+    if (newPassword !== confirmPassword) {
+      setPasswordError('New passwords do not match')
+      return
+    }
+    if (newPassword.length < 8) {
+      setPasswordError('New password must be at least 8 characters')
+      return
+    }
     setPasswordSaving(true)
     const { error } = await authAdminClient.changePassword({
-      currentPassword, newPassword, revokeOtherSessions: true,
+      currentPassword,
+      newPassword,
+      revokeOtherSessions: true,
     })
     if (error) {
       setPasswordError(error.message ?? 'Failed to change password')
     } else {
       setPasswordSuccess(true)
-      setCurrentPassword(''); setNewPassword(''); setConfirmPassword('')
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
       setTimeout(() => setPasswordSuccess(false), 3000)
     }
     setPasswordSaving(false)
@@ -92,9 +111,13 @@ export default function AdminSettingsPage() {
       try {
         const result = await adminService.getSystemAdmins()
         setSystemAdmins(result.admins)
-        setAdminIds(result.admins.length > 0 ? result.admins.map((a) => a.adminId) : [''])
+        setAdminIds(
+          result.admins.length > 0 ? result.admins.map((a) => a.adminId) : [''],
+        )
       } catch (err) {
-        setAdminError(err instanceof Error ? err.message : 'Failed to load system admins')
+        setAdminError(
+          err instanceof Error ? err.message : 'Failed to load system admins',
+        )
       } finally {
         setAdminLoading(false)
       }
@@ -117,11 +140,15 @@ export default function AdminSettingsPage() {
   }
 
   const handleRemoveAdminRow = (index: number) => {
-    setAdminIds((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== index) : prev))
+    setAdminIds((prev) =>
+      prev.length > 1 ? prev.filter((_, i) => i !== index) : prev,
+    )
   }
 
   // Compute diff to determine if a save is needed and what to dispatch
-  const targetIds = Array.from(new Set(adminIds.map((id) => id.trim()).filter((id) => id !== '')))
+  const targetIds = Array.from(
+    new Set(adminIds.map((id) => id.trim()).filter((id) => id !== '')),
+  )
   const currentIds = systemAdmins.map((a) => a.adminId)
   const isAdminsModified =
     targetIds.length !== currentIds.length ||
@@ -142,12 +169,16 @@ export default function AdminSettingsPage() {
 
       const result = await adminService.getSystemAdmins()
       setSystemAdmins(result.admins)
-      setAdminIds(result.admins.length > 0 ? result.admins.map((a) => a.adminId) : [''])
+      setAdminIds(
+        result.admins.length > 0 ? result.admins.map((a) => a.adminId) : [''],
+      )
 
       setAdminSuccess(true)
       setTimeout(() => setAdminSuccess(false), 3000)
     } catch (err) {
-      setAdminError(err instanceof Error ? err.message : 'Failed to update system admins')
+      setAdminError(
+        err instanceof Error ? err.message : 'Failed to update system admins',
+      )
     } finally {
       setAdminSaving(false)
     }
@@ -160,7 +191,9 @@ export default function AdminSettingsPage() {
       </Helmet>
 
       <div>
-        <h1 className="text-headline-md font-semibold text-on-surface">Settings</h1>
+        <h1 className="text-headline-md font-semibold text-on-surface">
+          Settings
+        </h1>
         <p className="mt-1 text-body-md text-on-surface-variant">
           Manage your admin profile and interface preferences.
         </p>
@@ -172,13 +205,18 @@ export default function AdminSettingsPage() {
           <div className="flex items-center gap-3">
             <div>
               <Card.Title as="h2">Appearance</Card.Title>
-              <Card.Description>Customize how the Admin dashboard looks for you.</Card.Description>
+              <Card.Description>
+                Customize how the Admin dashboard looks for you.
+              </Card.Description>
             </div>
           </div>
         </Card.Header>
         <div className="flex items-center justify-between gap-4 rounded-xl bg-surface-container-low border border-outline-variant/50 px-4 py-3.5">
-              <p className="text-body-md font-medium text-on-surface">Dark mode</p>
-          <Switch checked={theme === 'dark'} onChange={() => setTheme(toggleTheme(theme))} />
+          <p className="text-body-md font-medium text-on-surface">Dark mode</p>
+          <Switch
+            checked={theme === 'dark'}
+            onChange={() => setTheme(toggleTheme(theme))}
+          />
         </div>
       </Card.Root>
 
@@ -198,7 +236,9 @@ export default function AdminSettingsPage() {
                 {sessionLoading ? (
                   <Skeleton textSize="body-sm" width="55%" />
                 ) : (
-                  <span className="text-body-sm font-medium text-on-surface">{session?.user?.email ?? '—'}</span>
+                  <span className="text-body-sm font-medium text-on-surface">
+                    {session?.user?.email ?? '—'}
+                  </span>
                 )}
               </DataList.ItemValue>
             </DataList.Item>
@@ -208,13 +248,21 @@ export default function AdminSettingsPage() {
             <div className="flex gap-2">
               <Input
                 value={profileName}
-                onChange={(e) => { setProfileName(e.target.value); setProfileError(null); setProfileSuccess(false) }}
+                onChange={(e) => {
+                  setProfileName(e.target.value)
+                  setProfileError(null)
+                  setProfileSuccess(false)
+                }}
                 placeholder={sessionLoading ? 'Loading…' : 'Your name'}
                 disabled={sessionLoading || profileSaving}
               />
               <Button
-                variant="tonal" color="primary" size="md"
-                onClick={() => { void handleUpdateProfile() }}
+                variant="tonal"
+                color="primary"
+                size="md"
+                onClick={() => {
+                  void handleUpdateProfile()
+                }}
                 disabled={sessionLoading || profileSaving}
                 isLoading={profileSaving}
                 className="flex-shrink-0"
@@ -223,8 +271,22 @@ export default function AdminSettingsPage() {
               </Button>
             </div>
           </Field.Root>
-          {profileError && <Alert variant="tonal" color="error" title={profileError} size="sm" />}
-          {profileSuccess && <Alert variant="tonal" color="success" title="Profile updated successfully." size="sm" />}
+          {profileError && (
+            <Alert
+              variant="tonal"
+              color="error"
+              title={profileError}
+              size="sm"
+            />
+          )}
+          {profileSuccess && (
+            <Alert
+              variant="tonal"
+              color="success"
+              title="Profile updated successfully."
+              size="sm"
+            />
+          )}
         </div>
       </Card.Root>
 
@@ -235,7 +297,9 @@ export default function AdminSettingsPage() {
             <div>
               <Card.Title as="h2">System Administrators</Card.Title>
               <Card.Description>
-                The absolute highest authority role in Cat-Bot. System Administrators bypass all command role restrictions and ban checks.
+                The absolute highest authority role in Cat-Bot. System
+                Administrators bypass all command role restrictions and ban
+                checks.
               </Card.Description>
             </div>
             <Button
@@ -255,7 +319,10 @@ export default function AdminSettingsPage() {
           {adminLoading ? (
             <div className="flex flex-col gap-2">
               {[1, 2].map((i) => (
-                <div key={i} className="h-10 rounded-xl bg-surface-container animate-pulse" />
+                <div
+                  key={i}
+                  className="h-10 rounded-xl bg-surface-container animate-pulse"
+                />
               ))}
             </div>
           ) : (
@@ -287,8 +354,17 @@ export default function AdminSettingsPage() {
             </div>
           )}
 
-          {adminError !== null && <Alert variant="tonal" color="error" title={adminError} size="sm" />}
-          {adminSuccess && <Alert variant="tonal" color="success" title="System administrators updated successfully." size="sm" />}
+          {adminError !== null && (
+            <Alert variant="tonal" color="error" title={adminError} size="sm" />
+          )}
+          {adminSuccess && (
+            <Alert
+              variant="tonal"
+              color="success"
+              title="System administrators updated successfully."
+              size="sm"
+            />
+          )}
 
           <div className="flex justify-end pt-1">
             <Button
@@ -310,7 +386,10 @@ export default function AdminSettingsPage() {
         <Card.Header>
           <div>
             <Card.Title as="h2">Security</Card.Title>
-            <Card.Description>Change your password. All other active sessions will be signed out.</Card.Description>
+            <Card.Description>
+              Change your password. All other active sessions will be signed
+              out.
+            </Card.Description>
           </div>
         </Card.Header>
         <div className="flex flex-col gap-4">
@@ -318,7 +397,10 @@ export default function AdminSettingsPage() {
             <Field.Label>Current password</Field.Label>
             <PasswordInput
               value={currentPassword}
-              onChange={(e) => { setCurrentPassword(e.target.value); setPasswordError(null) }}
+              onChange={(e) => {
+                setCurrentPassword(e.target.value)
+                setPasswordError(null)
+              }}
               placeholder="Enter current password"
               disabled={passwordSaving}
             />
@@ -328,7 +410,10 @@ export default function AdminSettingsPage() {
               <Field.Label>New password</Field.Label>
               <PasswordInput
                 value={newPassword}
-                onChange={(e) => { setNewPassword(e.target.value); setPasswordError(null) }}
+                onChange={(e) => {
+                  setNewPassword(e.target.value)
+                  setPasswordError(null)
+                }}
                 placeholder="At least 8 characters"
                 disabled={passwordSaving}
               />
@@ -337,16 +422,27 @@ export default function AdminSettingsPage() {
               <Field.Label>Confirm new password</Field.Label>
               <PasswordInput
                 value={confirmPassword}
-                onChange={(e) => { setConfirmPassword(e.target.value); setPasswordError(null) }}
+                onChange={(e) => {
+                  setConfirmPassword(e.target.value)
+                  setPasswordError(null)
+                }}
                 placeholder="Repeat new password"
                 disabled={passwordSaving}
               />
             </Field.Root>
           </div>
-          {passwordError && <Alert variant="tonal" color="error" title={passwordError} size="sm" />}
+          {passwordError && (
+            <Alert
+              variant="tonal"
+              color="error"
+              title={passwordError}
+              size="sm"
+            />
+          )}
           {passwordSuccess && (
             <Alert
-              variant="tonal" color="success"
+              variant="tonal"
+              color="success"
               title="Password changed successfully."
               message="All other sessions have been signed out."
               size="sm"
@@ -354,9 +450,18 @@ export default function AdminSettingsPage() {
           )}
           <div className="flex justify-end pt-1">
             <Button
-              variant="filled" color="primary" size="sm"
-              onClick={() => { void handleChangePassword() }}
-              disabled={passwordSaving || !currentPassword || !newPassword || !confirmPassword}
+              variant="filled"
+              color="primary"
+              size="sm"
+              onClick={() => {
+                void handleChangePassword()
+              }}
+              disabled={
+                passwordSaving ||
+                !currentPassword ||
+                !newPassword ||
+                !confirmPassword
+              }
               isLoading={passwordSaving}
             >
               Change password

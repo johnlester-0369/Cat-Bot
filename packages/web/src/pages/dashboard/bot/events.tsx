@@ -16,7 +16,7 @@ import { useBotEvents } from '@/features/users/hooks/useBotEvents'
 export default function BotEventsPage() {
   const { id } = useBotContext()
   const { events, isLoading, error, toggleEvent } = useBotEvents(id)
-  
+
   const [query, setQuery] = useState('')
 
   if (isLoading) return <Progress.Circular message="Loading events…" />

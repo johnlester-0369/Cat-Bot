@@ -77,7 +77,9 @@ export default function LoginPage() {
   return (
     <div className="flex items-center justify-center min-h-[80vh] px-6 py-12">
       {/* Sets the browser tab title for the login page */}
-      <Helmet><title>Log In · Cat-Bot</title></Helmet>
+      <Helmet>
+        <title>Log In · Cat-Bot</title>
+      </Helmet>
       <div className="w-full max-w-md flex flex-col gap-8">
         {/* Header */}
         <div className="text-center flex flex-col gap-2">

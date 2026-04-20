@@ -79,10 +79,11 @@ export default function AdminLoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-surface-container-high px-4 py-12">
-      <Helmet><title>Admin · Cat-Bot</title></Helmet>
+      <Helmet>
+        <title>Admin · Cat-Bot</title>
+      </Helmet>
 
       <div className="w-full max-w-sm flex flex-col gap-6">
-
         {/* Lock icon + heading — minimal, no marketing copy */}
         <div className="flex flex-col items-center gap-3 text-center">
           <span className="inline-flex items-center justify-center w-11 h-11 rounded-2xl bg-primary/10 text-primary">
@@ -165,7 +166,6 @@ export default function AdminLoginPage() {
             </Button>
           </form>
         </div>
-
       </div>
     </div>
   )

@@ -11,7 +11,10 @@ import Alert from '@/components/ui/feedback/Alert'
 import { useBotUpdate } from '@/features/users/hooks/useBotUpdate'
 import { useBotValidation } from '@/features/users/hooks/useBotValidation'
 import type { PlatformCredentials } from '@/features/users/dtos/bot.dto'
-import { PlatformFieldInputs, type PlatformFields } from '@/features/users/components/PlatformFieldInputs'
+import {
+  PlatformFieldInputs,
+  type PlatformFields,
+} from '@/features/users/components/PlatformFieldInputs'
 import { VerificationStatusDisplay } from '@/features/users/components/VerificationStatusDisplay'
 import { getPlatformLabel } from '@/utils/bot.util'
 import { botService } from '@/features/users/services/bot.service'
@@ -35,12 +38,18 @@ interface FormState {
 export default function BotSettingsPage() {
   const { bot, setBot, isActive } = useBotContext()
   const { updateBot, isLoading, error } = useBotUpdate()
-  const [savePhase, setSavePhase] = useState<'idle' | 'clearing' | 'saving'>('idle')
+  const [savePhase, setSavePhase] = useState<'idle' | 'clearing' | 'saving'>(
+    'idle',
+  )
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
-  
+
   const navigate = useNavigate()
-  const { status: verificationStatus, validate, reset: resetVerification } = useBotValidation()
+  const {
+    status: verificationStatus,
+    validate,
+    reset: resetVerification,
+  } = useBotValidation()
   const { snackbar, setPosition } = useSnackbar()
 
   const [form, setForm] = useState<FormState>({
@@ -80,7 +89,10 @@ export default function BotSettingsPage() {
   // ── Field handlers ────────────────────────────────────────────────────────
 
   const handleTopField = (
-    key: keyof Omit<FormState, 'botAdmins' | 'botPremiums' | 'platform' | 'platformFields'>,
+    key: keyof Omit<
+      FormState,
+      'botAdmins' | 'botPremiums' | 'platform' | 'platformFields'
+    >,
     value: string,
   ) => {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -147,7 +159,10 @@ export default function BotSettingsPage() {
       case Platforms.Telegram:
         return !!form.platformFields.telegramToken
       case Platforms.FacebookPage:
-        return !!form.platformFields.fbPageAccessToken && !!form.platformFields.fbPageId
+        return (
+          !!form.platformFields.fbPageAccessToken &&
+          !!form.platformFields.fbPageId
+        )
       case Platforms.FacebookMessenger:
         return !!form.platformFields.appstate.trim()
       default:
@@ -198,16 +213,37 @@ export default function BotSettingsPage() {
 
   const isCredentialsModified = (() => {
     if (form.platform === Platforms.Discord)
-      return form.platformFields.discordToken !== (bot.credentials.platform === Platforms.Discord ? bot.credentials.discordToken : '')
+      return (
+        form.platformFields.discordToken !==
+        (bot.credentials.platform === Platforms.Discord
+          ? bot.credentials.discordToken
+          : '')
+      )
     if (form.platform === Platforms.Telegram)
-      return form.platformFields.telegramToken !== (bot.credentials.platform === Platforms.Telegram ? bot.credentials.telegramToken : '')
+      return (
+        form.platformFields.telegramToken !==
+        (bot.credentials.platform === Platforms.Telegram
+          ? bot.credentials.telegramToken
+          : '')
+      )
     if (form.platform === Platforms.FacebookPage)
       return (
-        form.platformFields.fbPageAccessToken !== (bot.credentials.platform === Platforms.FacebookPage ? bot.credentials.fbAccessToken : '') ||
-        form.platformFields.fbPageId !== (bot.credentials.platform === Platforms.FacebookPage ? bot.credentials.fbPageId : '')
+        form.platformFields.fbPageAccessToken !==
+          (bot.credentials.platform === Platforms.FacebookPage
+            ? bot.credentials.fbAccessToken
+            : '') ||
+        form.platformFields.fbPageId !==
+          (bot.credentials.platform === Platforms.FacebookPage
+            ? bot.credentials.fbPageId
+            : '')
       )
     if (form.platform === Platforms.FacebookMessenger)
-      return form.platformFields.appstate !== (bot.credentials.platform === Platforms.FacebookMessenger ? bot.credentials.appstate : '')
+      return (
+        form.platformFields.appstate !==
+        (bot.credentials.platform === Platforms.FacebookMessenger
+          ? bot.credentials.appstate
+          : '')
+      )
     return false
   })()
 
@@ -256,7 +292,12 @@ export default function BotSettingsPage() {
         bot.credentials.platform === Platforms.Discord ||
         bot.credentials.platform === Platforms.Telegram
 
-      if (isCredentialsModified && bot.prefix === '/' && isActive && isSlashPlatform) {
+      if (
+        isCredentialsModified &&
+        bot.prefix === '/' &&
+        isActive &&
+        isSlashPlatform
+      ) {
         setSavePhase('clearing')
         await updateBot(bot.sessionId, {
           botNickname: bot.nickname,
@@ -317,7 +358,9 @@ export default function BotSettingsPage() {
       })
       navigate('/dashboard')
     } catch (err) {
-      setDeleteError(err instanceof Error ? err.message : 'Failed to delete bot')
+      setDeleteError(
+        err instanceof Error ? err.message : 'Failed to delete bot',
+      )
     } finally {
       setIsDeleting(false)
     }
@@ -360,7 +403,9 @@ export default function BotSettingsPage() {
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-label-md font-medium text-on-surface">Bot Admins</p>
+              <p className="text-label-md font-medium text-on-surface">
+                Bot Admins
+              </p>
               <p className="text-label-sm text-on-surface-variant mt-0.5">
                 User IDs that have admin privileges
               </p>
@@ -405,7 +450,9 @@ export default function BotSettingsPage() {
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-label-md font-medium text-on-surface">Bot Premiums</p>
+              <p className="text-label-md font-medium text-on-surface">
+                Bot Premiums
+              </p>
               <p className="text-label-sm text-on-surface-variant mt-0.5">
                 User IDs with premium command privileges
               </p>
@@ -499,7 +546,9 @@ export default function BotSettingsPage() {
               onClick={handleVerify}
               disabled={!canVerify || verificationStatus.phase === 'validating'}
             >
-              {verificationStatus.phase === 'validating' ? 'Verifying…' : 'Verify Credentials'}
+              {verificationStatus.phase === 'validating'
+                ? 'Verifying…'
+                : 'Verify Credentials'}
             </Button>
           )}
         </div>
@@ -516,16 +565,25 @@ export default function BotSettingsPage() {
           isLoading={savePhase !== 'idle' || isLoading}
           onClick={() => void handleSubmit()}
         >
-          {savePhase === 'clearing' ? 'Clearing old commands...' : 'Save Changes'}
+          {savePhase === 'clearing'
+            ? 'Clearing old commands...'
+            : 'Save Changes'}
         </Button>
       </div>
 
       <Divider spacing="lg" />
 
-      <Card.Root variant="elevated" shadowElevation={1} padding="md" className="border-error/30 bg-error/5">
+      <Card.Root
+        variant="elevated"
+        shadowElevation={1}
+        padding="md"
+        className="border-error/30 bg-error/5"
+      >
         <Card.Header>
           <div>
-            <Card.Title as="h3" className="text-error">Danger Zone</Card.Title>
+            <Card.Title as="h3" className="text-error">
+              Danger Zone
+            </Card.Title>
             <Card.Description>
               Permanently delete this bot and all its associated data.
             </Card.Description>
@@ -541,7 +599,10 @@ export default function BotSettingsPage() {
           <div className="flex justify-end">
             <Dialog.Root>
               <Dialog.Trigger asChild>
-                <Button size="sm" className="!bg-[rgb(var(--light-color-error))] !text-[rgb(var(--light-color-surface))] w-full sm:w-auto">
+                <Button
+                  size="sm"
+                  className="!bg-[rgb(var(--light-color-error))] !text-[rgb(var(--light-color-surface))] w-full sm:w-auto"
+                >
                   Delete Bot
                 </Button>
               </Dialog.Trigger>
@@ -553,14 +614,22 @@ export default function BotSettingsPage() {
                     <Dialog.CloseTrigger />
                   </Dialog.Header>
                   <Dialog.Body>
-                    <p>Are you sure you want to permanently delete <strong>{bot.nickname}</strong>? This action cannot be undone.</p>
+                    <p>
+                      Are you sure you want to permanently delete{' '}
+                      <strong>{bot.nickname}</strong>? This action cannot be
+                      undone.
+                    </p>
                     {deleteError && (
-                      <p className="mt-2 text-body-sm text-error">{deleteError}</p>
+                      <p className="mt-2 text-body-sm text-error">
+                        {deleteError}
+                      </p>
                     )}
                   </Dialog.Body>
                   <Dialog.Footer>
                     <Dialog.CloseTrigger asChild>
-                      <Button variant="text" color="neutral">Cancel</Button>
+                      <Button variant="text" color="neutral">
+                        Cancel
+                      </Button>
                     </Dialog.CloseTrigger>
                     <Button
                       className="!bg-[rgb(var(--light-color-error))] !text-[rgb(var(--light-color-surface))]"

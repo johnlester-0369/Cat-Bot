@@ -9,10 +9,23 @@ import Pagination, {
 // ============================================================================
 
 // Added 'filled' variant to fix TS2367 type overlap compilation error
-type TableVariant = 'default' | 'bordered' | 'striped' | 'ghost' | 'soft' | 'filled' | 'glass'
+type TableVariant =
+  | 'default'
+  | 'bordered'
+  | 'striped'
+  | 'ghost'
+  | 'soft'
+  | 'filled'
+  | 'glass'
 type TableSize = 'sm' | 'md' | 'lg'
 type TableAlign = 'left' | 'center' | 'right'
-type TableColorScheme = 'primary' | 'secondary' | 'tertiary' | 'success' | 'warning' | 'error'
+type TableColorScheme =
+  | 'primary'
+  | 'secondary'
+  | 'tertiary'
+  | 'success'
+  | 'warning'
+  | 'error'
 
 interface TableContextValue {
   variant: TableVariant
@@ -115,7 +128,10 @@ const softRowHoverClasses: Record<TableColorScheme, string> = {
 }
 
 // Centralized header bg resolver — keeps sub-components thin and the logic co-located with the maps
-function getHeaderBgClass(variant: TableVariant, colorScheme: TableColorScheme): string {
+function getHeaderBgClass(
+  variant: TableVariant,
+  colorScheme: TableColorScheme,
+): string {
   if (variant === 'soft') return softHeaderClasses[colorScheme]
   if (variant === 'filled') return filledHeaderClasses[colorScheme]
   if (variant === 'ghost') return 'bg-transparent'
@@ -124,7 +140,10 @@ function getHeaderBgClass(variant: TableVariant, colorScheme: TableColorScheme):
 }
 
 // Centralized row hover resolver — avoids duplicating colorScheme branching across TableRow and TableBody
-function getRowHoverClass(variant: TableVariant, colorScheme: TableColorScheme): string {
+function getRowHoverClass(
+  variant: TableVariant,
+  colorScheme: TableColorScheme,
+): string {
   if (variant === 'soft') return softRowHoverClasses[colorScheme]
   if (variant === 'ghost') return 'hover:bg-surface-container/40'
   if (variant === 'glass') return 'hover:bg-surface/30'
@@ -136,8 +155,7 @@ function getRowHoverClass(variant: TableVariant, colorScheme: TableColorScheme):
 // ScrollArea Component
 // ============================================================================
 
-export interface TableScrollAreaProps
-  extends React.HTMLAttributes<HTMLDivElement> {
+export interface TableScrollAreaProps extends React.HTMLAttributes<HTMLDivElement> {
   /** Maximum height before vertical scrolling */
   maxHeight?: string
   /** Maximum width before horizontal scrolling */
@@ -173,7 +191,10 @@ const TableScrollArea = React.forwardRef<HTMLDivElement, TableScrollAreaProps>(
     return (
       <div
         ref={ref}
-        className={cn('w-full rounded-lg border border-outline-variant', className)}
+        className={cn(
+          'w-full rounded-lg border border-outline-variant',
+          className,
+        )}
         style={scrollStyles}
         {...props}
       >
@@ -188,8 +209,7 @@ TableScrollArea.displayName = 'Table.ScrollArea'
 // Root Component
 // ============================================================================
 
-export interface TableRootProps
-  extends React.TableHTMLAttributes<HTMLTableElement> {
+export interface TableRootProps extends React.TableHTMLAttributes<HTMLTableElement> {
   /** Visual style variant */
   variant?: TableVariant
   /** Size affecting padding and font size */
@@ -285,11 +305,13 @@ const TableBody = React.forwardRef<HTMLTableSectionElement, TableBodyProps>(
         ref={ref}
         className={cn(
           '[&_tr:last-child]:border-0',
-          variant === 'striped' && '[&_tr:nth-child(even)]:bg-surface-container-low',
+          variant === 'striped' &&
+            '[&_tr:nth-child(even)]:bg-surface-container-low',
           // Soft: colorScheme-tinted stripes provide visual rhythm without heavy borders
           variant === 'soft' && softStripeClasses[colorScheme],
           // Filled: alternate between two surface levels for density-friendly readability
-          variant === 'filled' && '[&_tr:nth-child(even)]:bg-surface-container-low',
+          variant === 'filled' &&
+            '[&_tr:nth-child(even)]:bg-surface-container-low',
           className,
         )}
         {...props}
@@ -329,8 +351,7 @@ TableFooter.displayName = 'Table.Footer'
 // Row Component
 // ============================================================================
 
-export interface TableRowProps
-  extends React.HTMLAttributes<HTMLTableRowElement> {
+export interface TableRowProps extends React.HTMLAttributes<HTMLTableRowElement> {
   /** Mark row as selected */
   selected?: boolean
   /** Disable hover effect for this row */
@@ -371,8 +392,7 @@ TableRow.displayName = 'Table.Row'
 // Head Cell Component
 // ============================================================================
 
-export interface TableHeadProps
-  extends React.ThHTMLAttributes<HTMLTableCellElement> {
+export interface TableHeadProps extends React.ThHTMLAttributes<HTMLTableCellElement> {
   /** Text alignment */
   align?: TableAlign
   /** Enable sortable styling */
@@ -413,7 +433,10 @@ const TableHead = React.forwardRef<HTMLTableCellElement, TableHeadProps>(
           sortable &&
             'cursor-pointer select-none hover:bg-surface-container transition-colors',
           // Glass sticky: bg-transparent lets the root table's backdrop-blur show through
-          sticky && (variant === 'glass' ? 'sticky left-0 z-20 bg-transparent' : 'sticky left-0 z-20 bg-surface-container-low'),
+          sticky &&
+            (variant === 'glass'
+              ? 'sticky left-0 z-20 bg-transparent'
+              : 'sticky left-0 z-20 bg-surface-container-low'),
           className,
         )}
         onClick={sortable ? onClick : undefined}
@@ -469,8 +492,7 @@ TableHead.displayName = 'Table.Head'
 // Cell Component
 // ============================================================================
 
-export interface TableCellProps
-  extends React.TdHTMLAttributes<HTMLTableCellElement> {
+export interface TableCellProps extends React.TdHTMLAttributes<HTMLTableCellElement> {
   /** Text alignment */
   align?: TableAlign
   /** Make cell sticky horizontally */
@@ -506,7 +528,10 @@ const TableCell = React.forwardRef<HTMLTableCellElement, TableCellProps>(
           'text-on-surface',
           variant === 'bordered' && 'border border-outline-variant',
           // Glass needs bg-transparent (not bg-inherit) so backdrop-blur stays visible behind sticky columns
-          sticky && (variant === 'glass' ? 'sticky left-0 z-10 bg-transparent' : 'sticky left-0 z-10 bg-inherit'),
+          sticky &&
+            (variant === 'glass'
+              ? 'sticky left-0 z-10 bg-transparent'
+              : 'sticky left-0 z-10 bg-inherit'),
           truncate && 'truncate',
           className,
         )}
@@ -524,8 +549,7 @@ TableCell.displayName = 'Table.Cell'
 // Caption Component
 // ============================================================================
 
-export interface TableCaptionProps
-  extends React.HTMLAttributes<HTMLTableCaptionElement> {
+export interface TableCaptionProps extends React.HTMLAttributes<HTMLTableCaptionElement> {
   /** Position of caption */
   position?: 'top' | 'bottom'
 }
@@ -554,8 +578,7 @@ TableCaption.displayName = 'Table.Caption'
 // Empty State Component
 // ============================================================================
 
-export interface TableEmptyProps
-  extends React.HTMLAttributes<HTMLTableRowElement> {
+export interface TableEmptyProps extends React.HTMLAttributes<HTMLTableRowElement> {
   /** Number of columns to span */
   colSpan: number
   /** Icon to display */
@@ -603,8 +626,7 @@ TableEmpty.displayName = 'Table.Empty'
 // Loading Component
 // ============================================================================
 
-export interface TableLoadingProps
-  extends React.HTMLAttributes<HTMLTableRowElement> {
+export interface TableLoadingProps extends React.HTMLAttributes<HTMLTableRowElement> {
   /** Number of columns to span */
   colSpan: number
   /** Number of skeleton rows to show */

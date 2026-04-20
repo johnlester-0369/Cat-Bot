@@ -53,8 +53,8 @@ export function PlatformFieldInputs({
             value={fields.telegramToken}
             onChange={(e) => onChange('telegramToken', e.target.value)}
           />
-      </Field.Root>
-    )
+        </Field.Root>
+      )
 
     case Platforms.FacebookPage:
       return (

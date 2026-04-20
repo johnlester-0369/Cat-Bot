@@ -31,7 +31,11 @@ const AdminPublicRoute: React.FC = () => {
   // Authenticated admins go straight to the dashboard; they don't need the login form.
   if (isAuthenticated && user?.role === 'admin') {
     return (
-      <Navigate to={ROUTES.ADMIN.DASHBOARD} state={{ from: location }} replace />
+      <Navigate
+        to={ROUTES.ADMIN.DASHBOARD}
+        state={{ from: location }}
+        replace
+      />
     )
   }
 

@@ -103,7 +103,9 @@ export default function SignupPage() {
   return (
     <div className="flex items-center justify-center min-h-[80vh] px-6 py-12">
       {/* Sets the browser tab title for the sign-up page */}
-      <Helmet><title>Sign Up · Cat-Bot</title></Helmet>
+      <Helmet>
+        <title>Sign Up · Cat-Bot</title>
+      </Helmet>
       <div className="w-full max-w-md flex flex-col gap-8">
         {/* Header */}
         <div className="text-center flex flex-col gap-2">
@@ -111,7 +113,8 @@ export default function SignupPage() {
             Start building with Cat-Bot
           </h1>
           <p className="text-body-md text-on-surface-variant max-w-sm mx-auto">
-            Deploy bots across Discord, Telegram, and Facebook in minutes — all from one dashboard.
+            Deploy bots across Discord, Telegram, and Facebook in minutes — all
+            from one dashboard.
           </p>
         </div>
 

@@ -21,7 +21,9 @@ const SignupPage = lazy(() => import('@/pages/Signup'))
 const SettingsPage = lazy(() => import('@/pages/dashboard/settings'))
 const BotManagerPage = lazy(() => import('@/pages/dashboard'))
 const NewBotPage = lazy(() => import('@/pages/dashboard/create-new-bot'))
-const BotLayout = lazy(() => import('@/features/users/components/DashboardBotLayout'))
+const BotLayout = lazy(
+  () => import('@/features/users/components/DashboardBotLayout'),
+)
 const BotConsolePage = lazy(() => import('@/pages/dashboard/bot/index'))
 const BotCommandsPage = lazy(() => import('@/pages/dashboard/bot/commands'))
 const BotEventsPage = lazy(() => import('@/pages/dashboard/bot/events'))
@@ -118,15 +120,24 @@ export const router = createBrowserRouter([
             path: ROUTE_SEGMENTS.CREATE_NEW_BOT,
             element: withSuspense(<NewBotPage />),
           },
-          { 
-            path: ROUTE_SEGMENTS.BOT, 
+          {
+            path: ROUTE_SEGMENTS.BOT,
             element: withSuspense(<BotLayout />),
             children: [
               { index: true, element: withSuspense(<BotConsolePage />) },
-              { path: ROUTE_SEGMENTS.COMMANDS, element: withSuspense(<BotCommandsPage />) },
-              { path: ROUTE_SEGMENTS.EVENTS, element: withSuspense(<BotEventsPage />) },
-              { path: ROUTE_SEGMENTS.SETTINGS, element: withSuspense(<BotSettingsPage />) },
-            ]
+              {
+                path: ROUTE_SEGMENTS.COMMANDS,
+                element: withSuspense(<BotCommandsPage />),
+              },
+              {
+                path: ROUTE_SEGMENTS.EVENTS,
+                element: withSuspense(<BotEventsPage />),
+              },
+              {
+                path: ROUTE_SEGMENTS.SETTINGS,
+                element: withSuspense(<BotSettingsPage />),
+              },
+            ],
           },
         ],
       },
@@ -144,7 +155,10 @@ export const router = createBrowserRouter([
       {
         element: <AdminPublicRoute />,
         children: [
-          { path: ROUTES.ADMIN.ROOT, element: withSuspense(<AdminLoginPage />) },
+          {
+            path: ROUTES.ADMIN.ROOT,
+            element: withSuspense(<AdminLoginPage />),
+          },
         ],
       },
       {
@@ -154,10 +168,22 @@ export const router = createBrowserRouter([
             // AdminSidebarLayout provides the persistent sidebar for all protected admin pages
             element: <AdminSidebarLayout />,
             children: [
-              { path: ROUTES.ADMIN.DASHBOARD, element: withSuspense(<AdminDashboardPage />) },
-              { path: ROUTES.ADMIN.USERS, element: withSuspense(<AdminUsersPage />) },
-              { path: ROUTES.ADMIN.BOTS, element: withSuspense(<AdminBotsPage />) },
-              { path: ROUTES.ADMIN.SETTINGS, element: withSuspense(<AdminSettingsPage />) },
+              {
+                path: ROUTES.ADMIN.DASHBOARD,
+                element: withSuspense(<AdminDashboardPage />),
+              },
+              {
+                path: ROUTES.ADMIN.USERS,
+                element: withSuspense(<AdminUsersPage />),
+              },
+              {
+                path: ROUTES.ADMIN.BOTS,
+                element: withSuspense(<AdminBotsPage />),
+              },
+              {
+                path: ROUTES.ADMIN.SETTINGS,
+                element: withSuspense(<AdminSettingsPage />),
+              },
             ],
           },
         ],

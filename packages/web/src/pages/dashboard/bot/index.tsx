@@ -71,7 +71,9 @@ function InfoCard({
  */
 export default function BotConsolePage() {
   const { bot, isActive, startedAt, id } = useBotContext()
-  const sessionKey = bot ? `${bot.userId}:${bot.platformId}:${bot.sessionId}` : undefined
+  const sessionKey = bot
+    ? `${bot.userId}:${bot.platformId}:${bot.sessionId}`
+    : undefined
   const { logs, clearLogs } = useBotLogs(sessionKey)
 
   // Scroll anchor ref
@@ -79,7 +81,10 @@ export default function BotConsolePage() {
   useEffect(() => {
     const el = bottomRef.current
     if (!el) return
-    el.parentElement?.scrollTo({ top: el.parentElement.scrollHeight, behavior: 'smooth' })
+    el.parentElement?.scrollTo({
+      top: el.parentElement.scrollHeight,
+      behavior: 'smooth',
+    })
   }, [logs])
 
   return (
@@ -103,14 +108,20 @@ export default function BotConsolePage() {
           </Button>
           <Button
             color="primary"
-            onClick={() => { clearLogs(); void botService.restartBot(id) }}
+            onClick={() => {
+              clearLogs()
+              void botService.restartBot(id)
+            }}
             disabled={!isActive}
             className="w-full justify-center"
           >
             Restart
           </Button>
           <Button
-            onClick={() => { clearLogs(); void botService.stopBot(id) }}
+            onClick={() => {
+              clearLogs()
+              void botService.stopBot(id)
+            }}
             disabled={!isActive}
             className="!bg-[rgb(var(--light-color-error))] !text-[rgb(var(--light-color-surface))] w-full justify-center"
           >

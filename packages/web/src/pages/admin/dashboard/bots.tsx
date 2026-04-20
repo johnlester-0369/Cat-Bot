@@ -26,8 +26,12 @@ export default function AdminBotsPage() {
       : bots.filter(
           (s) =>
             s.nickname.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (s.userName ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (s.userEmail ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (s.userName ?? '')
+              .toLowerCase()
+              .includes(searchQuery.toLowerCase()) ||
+            (s.userEmail ?? '')
+              .toLowerCase()
+              .includes(searchQuery.toLowerCase()) ||
             (PLATFORM_LABELS[s.platform] ?? s.platform)
               .toLowerCase()
               .includes(searchQuery.toLowerCase()),
@@ -40,13 +44,21 @@ export default function AdminBotsPage() {
       </Helmet>
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-headline-md font-semibold text-on-surface">Bot Sessions</h1>
+          <h1 className="text-headline-md font-semibold text-on-surface">
+            Bot Sessions
+          </h1>
           <p className="mt-1 text-body-md text-on-surface-variant">
             All registered sessions across platforms.
           </p>
         </div>
         {!isLoading && (
-          <Badge variant="tonal" color="primary" size="md" pill className="shrink-0">
+          <Badge
+            variant="tonal"
+            color="primary"
+            size="md"
+            pill
+            className="shrink-0"
+          >
             {searchQuery.trim()
               ? `${filteredBots.length} of ${bots.length} matched`
               : `${activeBots} / ${bots.length} running`}
@@ -62,9 +74,18 @@ export default function AdminBotsPage() {
 
       {/* Per-platform summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {(['discord', 'telegram', 'facebook-page', 'facebook-messenger'] as const).map((platform) => {
+        {(
+          [
+            'discord',
+            'telegram',
+            'facebook-page',
+            'facebook-messenger',
+          ] as const
+        ).map((platform) => {
           const total = bots.filter((s) => s.platform === platform).length
-          const running = bots.filter((s) => s.platform === platform && s.isRunning).length
+          const running = bots.filter(
+            (s) => s.platform === platform && s.isRunning,
+          ).length
           return (
             <div
               key={platform}
@@ -73,8 +94,12 @@ export default function AdminBotsPage() {
               <span className="text-body-sm font-medium text-on-surface">
                 {PLATFORM_LABELS[platform] ?? platform}
               </span>
-              <p className="text-headline-sm font-bold text-on-surface">{total}</p>
-              <p className="text-label-sm text-on-surface-variant">{running} running</p>
+              <p className="text-headline-sm font-bold text-on-surface">
+                {total}
+              </p>
+              <p className="text-label-sm text-on-surface-variant">
+                {running} running
+              </p>
             </div>
           )
         })}
@@ -113,18 +138,24 @@ export default function AdminBotsPage() {
               {!isLoading &&
                 filteredBots.map((session) => (
                   <Table.Row key={`${session.userId}:${session.sessionId}`}>
-                    <Table.Cell className="font-medium">{session.nickname}</Table.Cell>
+                    <Table.Cell className="font-medium">
+                      {session.nickname}
+                    </Table.Cell>
                     <Table.Cell>
                       {session.userName || session.userEmail ? (
                         <div className="flex flex-col min-w-0">
                           <span className="font-medium text-on-surface truncate">
                             {session.userName || 'Unknown User'}
                           </span>
-                          <span className="text-label-sm text-on-surface-variant truncate">{session.userEmail}</span>
+                          <span className="text-label-sm text-on-surface-variant truncate">
+                            {session.userEmail}
+                          </span>
                         </div>
                       ) : (
                         // Fall back to raw cuid2 when the user row was deleted from the auth DB.
-                        <span className="text-on-surface-variant text-label-sm font-mono">{session.userId}</span>
+                        <span className="text-on-surface-variant text-label-sm font-mono">
+                          {session.userId}
+                        </span>
                       )}
                     </Table.Cell>
                     <Table.Cell>
@@ -149,7 +180,10 @@ export default function AdminBotsPage() {
                   </Table.Row>
                 ))}
               {!isLoading && filteredBots.length === 0 && bots.length > 0 && (
-                <Table.Empty colSpan={5} message={`No bot sessions match "${searchQuery}"`} />
+                <Table.Empty
+                  colSpan={5}
+                  message={`No bot sessions match "${searchQuery}"`}
+                />
               )}
             </Table.Body>
           </Table.Root>

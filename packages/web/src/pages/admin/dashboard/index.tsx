@@ -33,7 +33,9 @@ function StatCard({
 }) {
   return (
     <div className="rounded-2xl bg-surface border border-outline-variant p-5 flex flex-col gap-3 shadow-elevation-1">
-      <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${colorClass}`}>
+      <div
+        className={`h-10 w-10 rounded-xl flex items-center justify-center ${colorClass}`}
+      >
         <Icon className="h-5 w-5" />
       </div>
       <div>
@@ -60,7 +62,9 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const result = await authAdminClient.admin.listUsers({ query: { limit: 10 } })
+        const result = await authAdminClient.admin.listUsers({
+          query: { limit: 10 },
+        })
         if (!result.error) {
           setUsers((result.data?.users ?? []) as ManagedUser[])
         }
@@ -90,7 +94,9 @@ export default function AdminDashboardPage() {
         <title>Admin Overview · Cat-Bot</title>
       </Helmet>
       <div>
-        <h1 className="text-headline-md font-semibold text-on-surface">Overview</h1>
+        <h1 className="text-headline-md font-semibold text-on-surface">
+          Overview
+        </h1>
         <p className="mt-1 text-body-md text-on-surface-variant">
           Platform health and activity at a glance.
         </p>
@@ -134,13 +140,18 @@ export default function AdminDashboardPage() {
           {isBotsLoading ? (
             <div className="flex flex-col gap-2">
               {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="h-10 rounded-xl bg-surface-container animate-pulse" />
+                <div
+                  key={i}
+                  className="h-10 rounded-xl bg-surface-container animate-pulse"
+                />
               ))}
             </div>
           ) : (
             <div className="flex flex-col">
               {Object.entries(platformDist).map(([platform, count]) => {
-                const running = bots.filter((s) => s.platform === platform && s.isRunning).length
+                const running = bots.filter(
+                  (s) => s.platform === platform && s.isRunning,
+                ).length
                 return (
                   <div
                     key={platform}
@@ -153,7 +164,9 @@ export default function AdminDashboardPage() {
                       <p className="text-body-sm font-semibold text-on-surface">
                         {count} session{count !== 1 ? 's' : ''}
                       </p>
-                      <p className="text-label-sm text-on-surface-variant">{running} running</p>
+                      <p className="text-label-sm text-on-surface-variant">
+                        {running} running
+                      </p>
                     </div>
                   </div>
                 )
@@ -175,7 +188,10 @@ export default function AdminDashboardPage() {
           {isUsersLoading ? (
             <div className="flex flex-col gap-2">
               {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="h-10 rounded-xl bg-surface-container animate-pulse" />
+                <div
+                  key={i}
+                  className="h-10 rounded-xl bg-surface-container animate-pulse"
+                />
               ))}
             </div>
           ) : (
@@ -186,8 +202,12 @@ export default function AdminDashboardPage() {
                   className="flex items-center justify-between py-2.5 border-b border-outline-variant/50 last:border-0"
                 >
                   <div className="min-w-0">
-                    <p className="text-body-sm font-medium text-on-surface truncate">{u.name}</p>
-                    <p className="text-label-sm text-on-surface-variant truncate">{u.email}</p>
+                    <p className="text-body-sm font-medium text-on-surface truncate">
+                      {u.name}
+                    </p>
+                    <p className="text-label-sm text-on-surface-variant truncate">
+                      {u.email}
+                    </p>
                   </div>
                   <Badge
                     variant="tonal"

@@ -15,10 +15,10 @@ export const Platforms = {
   Telegram: 'telegram',
   FacebookMessenger: 'facebook-messenger',
   FacebookPage: 'facebook-page',
-} as const;
+} as const
 
 /** Union of all recognised platform name strings (hyphen format). */
-export type Platform = (typeof Platforms)[keyof typeof Platforms];
+export type Platform = (typeof Platforms)[keyof typeof Platforms]
 
 /**
  * Human-readable display labels for platform identifiers.
@@ -30,4 +30,4 @@ export const PLATFORM_LABELS: Record<string, string> = {
   [Platforms.Telegram]: 'Telegram',
   [Platforms.FacebookPage]: 'Facebook Page',
   [Platforms.FacebookMessenger]: 'Facebook Messenger',
-};
+}

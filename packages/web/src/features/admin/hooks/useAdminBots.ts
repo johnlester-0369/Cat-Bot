@@ -24,7 +24,9 @@ export function useAdminBots(): UseAdminBotsReturn {
         if (!cancelled) setBots(result.bots)
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Failed to load bot sessions')
+          setError(
+            err instanceof Error ? err.message : 'Failed to load bot sessions',
+          )
         }
       } finally {
         if (!cancelled) setIsLoading(false)

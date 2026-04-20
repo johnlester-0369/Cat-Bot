@@ -95,7 +95,10 @@ export default function AdminUsersPage() {
         // The dialog closes immediately; session teardown is async so the operator
         // is never blocked by network latency or a large bot-session count.
         adminService.stopUserSessions(banTarget.id).catch((err) => {
-          console.error('[AdminUsersPage] Failed to stop sessions for banned user', err)
+          console.error(
+            '[AdminUsersPage] Failed to stop sessions for banned user',
+            err,
+          )
         })
       }
     } catch (err) {
@@ -141,7 +144,10 @@ export default function AdminUsersPage() {
         // Fire-and-forget: restart all bot sessions for the unbanned user.
         // Same rationale as the ban path — the UI resolves immediately.
         adminService.startUserSessions(unbanTarget.id).catch((err) => {
-          console.error('[AdminUsersPage] Failed to start sessions for unbanned user', err)
+          console.error(
+            '[AdminUsersPage] Failed to start sessions for unbanned user',
+            err,
+          )
         })
       }
     } catch (err) {
@@ -252,26 +258,29 @@ export default function AdminUsersPage() {
                       size="sm"
                       pill
                     >
-                    {u.role ?? 'user'}
-                  </Badge>
-                </Table.Cell>
-                <Table.Cell>
-                  {(() => {
-                    const userBots = bots.filter((b) => b.userId === u.id);
-                    const total = userBots.length;
-                    // Count only the running sessions for this specific user, not the global total
-                    const active = userBots.filter((b) => b.isRunning).length;
-                    if (total === 0) return <span className="text-on-surface-variant/50">—</span>;
-                    return (
-                      <Badge variant="tonal" color="info" size="sm" pill>
-                        {active}/{total} session{total !== 1 ? 's' : ''}
-                      </Badge>
-                    );
-                  })()}
-                </Table.Cell>
-                <Table.Cell className="text-on-surface-variant">
-                  {new Date(u.createdAt).toLocaleDateString()}
-                </Table.Cell>
+                      {u.role ?? 'user'}
+                    </Badge>
+                  </Table.Cell>
+                  <Table.Cell>
+                    {(() => {
+                      const userBots = bots.filter((b) => b.userId === u.id)
+                      const total = userBots.length
+                      // Count only the running sessions for this specific user, not the global total
+                      const active = userBots.filter((b) => b.isRunning).length
+                      if (total === 0)
+                        return (
+                          <span className="text-on-surface-variant/50">—</span>
+                        )
+                      return (
+                        <Badge variant="tonal" color="info" size="sm" pill>
+                          {active}/{total} session{total !== 1 ? 's' : ''}
+                        </Badge>
+                      )
+                    })()}
+                  </Table.Cell>
+                  <Table.Cell className="text-on-surface-variant">
+                    {new Date(u.createdAt).toLocaleDateString()}
+                  </Table.Cell>
                   <Table.Cell align="right">
                     {/* Admins cannot be banned — would lock out the control plane.
                         Already-banned accounts show a static label rather than a
@@ -303,7 +312,7 @@ export default function AdminUsersPage() {
                     )}
                   </Table.Cell>
                 </Table.Row>
-            ))}
+              ))}
             {!isLoading && filteredUsers.length === 0 && (
               <Table.Empty
                 colSpan={6}

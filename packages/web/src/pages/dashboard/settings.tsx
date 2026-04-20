@@ -119,7 +119,9 @@ export default function SettingsPage() {
   return (
     <div className="flex flex-col gap-6 max-w-2xl mx-auto pb-12">
       {/* Sets the browser tab title for the user settings page */}
-      <Helmet><title>Settings · Cat-Bot</title></Helmet>
+      <Helmet>
+        <title>Settings · Cat-Bot</title>
+      </Helmet>
       {/* Page header */}
       <div>
         <h1 className="text-headline-md font-semibold text-on-surface">
@@ -144,9 +146,7 @@ export default function SettingsPage() {
         </Card.Header>
 
         <div className="flex items-center justify-between gap-4 rounded-xl bg-surface-container-low border border-outline-variant/50 px-4 py-3.5">
-              <p className="text-body-md font-medium text-on-surface">
-                Dark mode
-              </p>
+          <p className="text-body-md font-medium text-on-surface">Dark mode</p>
           <Switch
             checked={theme === 'dark'}
             onChange={() => setTheme(toggleTheme(theme))}

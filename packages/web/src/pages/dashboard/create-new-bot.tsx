@@ -15,7 +15,10 @@ import Divider from '@/components/ui/layout/Divider'
 import { ROUTES } from '@/constants/routes.constants'
 import { useBotCreate } from '@/features/users/hooks/useBotCreate'
 import { useBotValidation } from '@/features/users/hooks/useBotValidation'
-import type { Platform, PlatformCredentials } from '@/features/users/dtos/bot.dto'
+import type {
+  Platform,
+  PlatformCredentials,
+} from '@/features/users/dtos/bot.dto'
 import { Platforms } from '@/constants/platform.constants'
 import { getPlatformLabel, maskCredential } from '@/utils/bot.util'
 import {
@@ -291,7 +294,9 @@ export default function NewBotPage() {
   return (
     <div className="flex flex-col gap-6 max-w-2xl mx-auto">
       {/* Sets the browser tab title for the new-bot creation wizard */}
-      <Helmet><title>Create New Bot · Cat-Bot</title></Helmet>
+      <Helmet>
+        <title>Create New Bot · Cat-Bot</title>
+      </Helmet>
       {/* Page header */}
       <div>
         <h1 className="text-headline-md font-semibold text-on-surface">

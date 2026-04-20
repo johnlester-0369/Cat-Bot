@@ -18,7 +18,7 @@ const NAV_ITEMS = [
   { path: ROUTES.ADMIN.DASHBOARD, label: 'Overview', icon: LayoutDashboard },
   { path: ROUTES.ADMIN.USERS, label: 'Users', icon: Users },
   { path: ROUTES.ADMIN.BOTS, label: 'Bot Sessions', icon: Bot },
-  { path: ROUTES.ADMIN.SETTINGS, label: 'Settings', icon: Settings }
+  { path: ROUTES.ADMIN.SETTINGS, label: 'Settings', icon: Settings },
 ] as const
 
 // Extracted component so the identical nav tree doesn't need to be duplicated
@@ -143,7 +143,9 @@ export default function AdminSidebarLayout() {
   const handleLogout = () => {
     logout()
       .catch(() => {})
-      .finally(() => { navigate(ROUTES.ADMIN.ROOT) })
+      .finally(() => {
+        navigate(ROUTES.ADMIN.ROOT)
+      })
   }
 
   const currentLabel =

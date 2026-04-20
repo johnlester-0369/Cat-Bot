@@ -35,7 +35,9 @@ interface AdminAuthContextType {
   isLoading: boolean
 }
 
-const AdminAuthContext = createContext<AdminAuthContextType | undefined>(undefined)
+const AdminAuthContext = createContext<AdminAuthContextType | undefined>(
+  undefined,
+)
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const useAdminAuth = () => {

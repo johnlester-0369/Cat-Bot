@@ -146,7 +146,8 @@ const TabsList: React.FC<TabsListProps> = ({
         // Horizontal scroll for viewports too narrow to show all tabs (e.g. mobile with 4+ tabs).
         // scrollbar-width:none (Firefox) + webkit pseudo-element (Chrome/Safari/Edge) hide the
         // scrollbar visually — touch swipe and mouse wheel still scroll the list.
-        orientation === 'horizontal' && 'overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+        orientation === 'horizontal' &&
+          'overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
         variant === 'line' && orientation === 'horizontal' && 'gap-6',
         variant === 'line' && orientation === 'vertical' && 'gap-2',
         variant === 'enclosed' && 'gap-1',

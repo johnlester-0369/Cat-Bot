@@ -350,11 +350,15 @@ export interface SnackbarContainerProps {
 const positionClasses: Record<SnackbarPosition, string> = {
   // Mobile uses left-4 right-4 to span full width, sm+ reverts to corner or centered positioning
   'top-left': 'top-4 left-4 right-4 sm:right-auto items-center sm:items-start',
-  'top-center': 'top-4 left-4 right-4 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 items-center',
+  'top-center':
+    'top-4 left-4 right-4 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 items-center',
   'top-right': 'top-4 left-4 right-4 sm:left-auto items-center sm:items-end',
-  'bottom-left': 'bottom-4 left-4 right-4 sm:right-auto items-center sm:items-start',
-  'bottom-center': 'bottom-4 left-4 right-4 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 items-center',
-  'bottom-right': 'bottom-4 left-4 right-4 sm:left-auto items-center sm:items-end',
+  'bottom-left':
+    'bottom-4 left-4 right-4 sm:right-auto items-center sm:items-start',
+  'bottom-center':
+    'bottom-4 left-4 right-4 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 items-center',
+  'bottom-right':
+    'bottom-4 left-4 right-4 sm:left-auto items-center sm:items-end',
 }
 
 /**

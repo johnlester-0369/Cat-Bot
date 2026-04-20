@@ -33,32 +33,44 @@ export interface GetSystemAdminsResponseDto {
 export class AdminService {
   // GET /api/v1/admin/bots — all bot sessions across all owners
   async getAdminBots(): Promise<GetAdminBotsResponseDto> {
-    const response = await apiClient.get<GetAdminBotsResponseDto>('/api/v1/admin/bots')
+    const response =
+      await apiClient.get<GetAdminBotsResponseDto>('/api/v1/admin/bots')
     return response.data
   }
 
   async getSystemAdmins(): Promise<GetSystemAdminsResponseDto> {
-    const response = await apiClient.get<GetSystemAdminsResponseDto>('/api/v1/admin/system-admins')
+    const response = await apiClient.get<GetSystemAdminsResponseDto>(
+      '/api/v1/admin/system-admins',
+    )
     return response.data
   }
 
   async addSystemAdmin(adminId: string): Promise<SystemAdminDto> {
-    const response = await apiClient.post<SystemAdminDto>('/api/v1/admin/system-admins', { adminId })
+    const response = await apiClient.post<SystemAdminDto>(
+      '/api/v1/admin/system-admins',
+      { adminId },
+    )
     return response.data
   }
 
   async removeSystemAdmin(adminId: string): Promise<void> {
-    await apiClient.delete(`/api/v1/admin/system-admins/${encodeURIComponent(adminId)}`)
+    await apiClient.delete(
+      `/api/v1/admin/system-admins/${encodeURIComponent(adminId)}`,
+    )
   }
 
   /** Stops all bot sessions for a banned user — call fire-and-forget after better-auth banUser succeeds. */
   async stopUserSessions(userId: string): Promise<void> {
-    await apiClient.post(`/api/v1/admin/users/${encodeURIComponent(userId)}/ban-sessions`)
+    await apiClient.post(
+      `/api/v1/admin/users/${encodeURIComponent(userId)}/ban-sessions`,
+    )
   }
 
   /** Restarts all bot sessions for an unbanned user — call fire-and-forget after better-auth unbanUser succeeds. */
   async startUserSessions(userId: string): Promise<void> {
-    await apiClient.post(`/api/v1/admin/users/${encodeURIComponent(userId)}/unban-sessions`)
+    await apiClient.post(
+      `/api/v1/admin/users/${encodeURIComponent(userId)}/unban-sessions`,
+    )
   }
 }
 
