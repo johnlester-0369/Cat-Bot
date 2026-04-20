@@ -16,7 +16,7 @@ const DEFAULT_DB = {
   botSessionCommand: [], botSessionEvent: [], botCredentialDiscord: [],
   botCredentialTelegram: [], botCredentialFacebookPage: [],
   botCredentialFacebookMessenger: [], botSession: [], botAdmin: [], botPremium: [],
-  botThread: [], botUser: [], fbPageWebhook: [],
+  botThread: [], botUser: [], fbPageWebhook: [], systemAdmin: [],
   botThreadSession: [], botUserSession: [],
   botUserBanned: [], botThreadBanned: [],
   // better-auth core tables — required when DATABASE_TYPE=json so auth queries

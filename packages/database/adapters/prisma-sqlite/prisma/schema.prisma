@@ -111,6 +111,12 @@ model user {
   image         String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+  // better-auth admin plugin: role controls /admin/* endpoint access; ban fields allow
+  // admins to soft-suspend accounts without deleting rows, preserving audit history.
+  role          String?
+  banned        Boolean?  @default(false)
+  banReason     String?
+  banExpires    DateTime?
   sessions      session[]
   accounts      account[]
   // Back-relations to bot credential and identity tables — required by Prisma whenever a
@@ -136,6 +142,8 @@ model session {
   updatedAt DateTime @updatedAt
   ipAddress String?
   userAgent String?
+  // Null for all regular sessions; populated only when an admin creates an impersonation session.
+  impersonatedBy String?
   userId    String
   user      user     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -368,4 +376,16 @@ model BotThreadBanned {
 
   @@id([userId, platformId, sessionId, botThreadId])
   @@map("bot_threads_session_banned")
+}
+
+// ── System Admin — globally privileged platform-native user IDs ────────────────
+// adminId is the platform-native user ID granted global system admin authority
+// across all bot sessions — unlike bot_admin which is scoped per (userId, sessionId).
+// @unique prevents duplicate registrations without a separate query-before-insert guard.
+model SystemAdmin {
+  id        String   @id @default(cuid())
+  adminId   String   @unique
+  createdAt DateTime @default(now())
+
+  @@map("system_admin")
 }

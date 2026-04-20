@@ -115,6 +115,11 @@ export async function initDb(): Promise<void> {
       "emailVerified" BOOLEAN NOT NULL DEFAULT FALSE,
       image TEXT,
       "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      -- admin plugin: role controls /admin/* access; ban columns allow soft-suspension without deletion
+      role TEXT,
+      banned BOOLEAN DEFAULT FALSE,
+      "banReason" TEXT,
+      "banExpires" TIMESTAMPTZ,
       "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
@@ -126,6 +131,8 @@ export async function initDb(): Promise<void> {
       "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       "ipAddress" TEXT,
       "userAgent" TEXT,
+      -- Null for regular sessions; set to the admin's user.id only during an impersonation session
+      "impersonatedBy" TEXT,
       "userId" TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE
     );
 
@@ -326,6 +333,15 @@ export async function initDb(): Promise<void> {
       is_banned     BOOLEAN NOT NULL DEFAULT TRUE,
       reason        TEXT,
       PRIMARY KEY (user_id, platform_id, session_id, bot_thread_id)
+    );
+
+    -- ── System Admin — global platform-native admin IDs ──────────────────────────
+    -- admin_id is UNIQUE so duplicate insertions are rejected at the DB level,
+    -- avoiding an extra round-trip SELECT before INSERT in the repo layer.
+    CREATE TABLE IF NOT EXISTS system_admin (
+      id         TEXT PRIMARY KEY,
+      admin_id   TEXT NOT NULL UNIQUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
   `);
 }
