@@ -144,16 +144,9 @@ export default function SettingsPage() {
         </Card.Header>
 
         <div className="flex items-center justify-between gap-4 rounded-xl bg-surface-container-low border border-outline-variant/50 px-4 py-3.5">
-          <div className="flex items-center gap-3">
-            <div>
               <p className="text-body-md font-medium text-on-surface">
                 Dark mode
               </p>
-              <p className="text-body-sm text-on-surface-variant">
-                Switch between light and dark interface
-              </p>
-            </div>
-          </div>
           <Switch
             checked={theme === 'dark'}
             onChange={() => setTheme(toggleTheme(theme))}
