@@ -10,7 +10,8 @@
     "format": "prettier --write .",
     "start": "node dist/engine/app.js",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "seed:admin": "tsx scripts/seed-admin.ts"
   },
   "keywords": [],
   "author": "",
