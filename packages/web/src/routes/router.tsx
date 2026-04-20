@@ -21,7 +21,11 @@ const SignupPage = lazy(() => import('@/pages/Signup'))
 const SettingsPage = lazy(() => import('@/pages/dashboard/settings'))
 const BotManagerPage = lazy(() => import('@/pages/dashboard'))
 const NewBotPage = lazy(() => import('@/pages/dashboard/create-new-bot'))
-const BotPage = lazy(() => import('@/pages/dashboard/bot'))
+const BotLayout = lazy(() => import('@/features/users/components/DashboardBotLayout'))
+const BotConsolePage = lazy(() => import('@/pages/dashboard/bot/index'))
+const BotCommandsPage = lazy(() => import('@/pages/dashboard/bot/commands'))
+const BotEventsPage = lazy(() => import('@/pages/dashboard/bot/events'))
+const BotSettingsPage = lazy(() => import('@/pages/dashboard/bot/settings'))
 const AdminLoginPage = lazy(() => import('@/pages/admin'))
 const AdminDashboardPage = lazy(() => import('@/pages/admin/dashboard'))
 const AdminUsersPage = lazy(() => import('@/pages/admin/dashboard/users'))
@@ -114,7 +118,16 @@ export const router = createBrowserRouter([
             path: ROUTE_SEGMENTS.CREATE_NEW_BOT,
             element: withSuspense(<NewBotPage />),
           },
-          { path: ROUTE_SEGMENTS.BOT, element: withSuspense(<BotPage />) },
+          { 
+            path: ROUTE_SEGMENTS.BOT, 
+            element: withSuspense(<BotLayout />),
+            children: [
+              { index: true, element: withSuspense(<BotConsolePage />) },
+              { path: ROUTE_SEGMENTS.COMMANDS, element: withSuspense(<BotCommandsPage />) },
+              { path: ROUTE_SEGMENTS.EVENTS, element: withSuspense(<BotEventsPage />) },
+              { path: ROUTE_SEGMENTS.SETTINGS, element: withSuspense(<BotSettingsPage />) },
+            ]
+          },
         ],
       },
     ],
