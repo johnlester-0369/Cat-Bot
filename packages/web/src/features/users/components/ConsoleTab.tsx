@@ -8,7 +8,7 @@ import Status from '@/components/ui/data-display/Status'
 import Stat from '@/components/ui/data-display/Stat'
 import { cn } from '@/utils/cn.util'
 import Button from '@/components/ui/buttons/Button'
-import type { GetBotDetailResponseDto } from '@/dtos/bot.dto'
+import type { GetBotDetailResponseDto } from '@/features/users/dtos/bot.dto'
 import { getPlatformLabel } from '@/utils/bot.util'
 
 // ansi-to-react ships as CommonJS; Vite's ESM interop wraps it so the default

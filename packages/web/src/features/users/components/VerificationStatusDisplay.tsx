@@ -2,7 +2,7 @@ import { CheckCircle2 } from 'lucide-react'
 import Alert from '@/components/ui/feedback/Alert'
 import { Field } from '@/components/ui/forms/Field'
 import Input from '@/components/ui/forms/Input'
-import type { ValidationStatus } from '@/hooks/useBotValidation'
+import type { ValidationStatus } from '@/features/users/hooks/useBotValidation'
 
 export interface VerificationStatusDisplayProps {
   status: ValidationStatus

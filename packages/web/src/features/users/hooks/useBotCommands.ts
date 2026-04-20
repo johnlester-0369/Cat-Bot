@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { botService } from '@/services/bot.service'
-import type { BotCommandItemDto } from '@/dtos/bot.dto'
+import { botService } from '@/features/users/services/bot.service'
+import type { BotCommandItemDto } from '@/features/users/dtos/bot.dto'
 
 interface UseBotCommandsReturn {
   commands: BotCommandItemDto[]

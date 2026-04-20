@@ -8,16 +8,16 @@ import Input from '@/components/ui/forms/Input'
 import Divider from '@/components/ui/layout/Divider'
 import Dialog from '@/components/ui/overlay/Dialog'
 import Alert from '@/components/ui/feedback/Alert'
-import { useBotUpdate } from '@/hooks/useBotUpdate'
-import { useBotValidation } from '@/hooks/useBotValidation'
+import { useBotUpdate } from '@/features/users/hooks/useBotUpdate'
+import { useBotValidation } from '@/features/users/hooks/useBotValidation'
 import type {
   GetBotDetailResponseDto,
   PlatformCredentials,
-} from '@/dtos/bot.dto'
+} from '@/features/users/dtos/bot.dto'
 import { PlatformFieldInputs, type PlatformFields } from './PlatformFieldInputs'
 import { VerificationStatusDisplay } from './VerificationStatusDisplay'
 import { getPlatformLabel } from '@/utils/bot.util'
-import { botService } from '@/services/bot.service'
+import { botService } from '@/features/users/services/bot.service'
 import { useSnackbar } from '@/contexts/SnackbarContext'
 import { Platforms } from '@/constants/platform.constants'
 

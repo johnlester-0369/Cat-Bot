@@ -1,7 +1,7 @@
 import { Field } from '@/components/ui/forms/Field'
 import Input from '@/components/ui/forms/Input'
 import Textarea from '@/components/ui/forms/Textarea'
-import type { Platform } from '@/dtos/bot.dto'
+import type { Platform } from '@/features/users/dtos/bot.dto'
 import { Platforms } from '@/constants/platform.constants'
 
 // Unified schema covering all platform credentials required during both creation and edits

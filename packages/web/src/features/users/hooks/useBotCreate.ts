@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { botService } from '@/services/bot.service'
-import type { CreateBotRequestDto } from '@/dtos/bot.dto'
+import { botService } from '@/features/users/services/bot.service'
+import type { CreateBotRequestDto } from '@/features/users/dtos/bot.dto'
 import { ROUTES } from '@/constants/routes.constants'
 
 interface UseBotCreateReturn {

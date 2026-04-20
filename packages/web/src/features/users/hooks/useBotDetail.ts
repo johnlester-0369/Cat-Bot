@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { botService } from '@/services/bot.service'
-import type { GetBotDetailResponseDto } from '@/dtos/bot.dto'
+import { botService } from '@/features/users/services/bot.service'
+import type { GetBotDetailResponseDto } from '@/features/users/dtos/bot.dto'
 
 interface UseBotDetailReturn {
   bot: GetBotDetailResponseDto | null

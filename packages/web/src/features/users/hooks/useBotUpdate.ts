@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { botService } from '@/services/bot.service'
+import { botService } from '@/features/users/services/bot.service'
 import type {
   UpdateBotRequestDto,
   GetBotDetailResponseDto,
-} from '@/dtos/bot.dto'
+} from '@/features/users/dtos/bot.dto'
 
 interface UseBotUpdateReturn {
   isLoading: boolean

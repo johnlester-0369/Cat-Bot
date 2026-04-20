@@ -6,7 +6,7 @@ import Alert from '@/components/ui/feedback/Alert'
 import Progress from '@/components/ui/feedback/Progress'
 import Switch from '@/components/ui/forms/Switch'
 import Input from '@/components/ui/forms/Input'
-import type { BotEventItemDto } from '@/dtos/bot.dto'
+import type { BotEventItemDto } from '@/features/users/dtos/bot.dto'
 
 export interface EventsTabProps {
   events: BotEventItemDto[]

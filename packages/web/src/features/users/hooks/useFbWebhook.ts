@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import {
   webhookService,
   type FbWebhookInfoDto,
-} from '@/services/webhook.service'
+} from '@/features/users/services/webhook.service'
 
 interface UseFbWebhookReturn {
   data: FbWebhookInfoDto | null

@@ -15,8 +15,8 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { io as socketIOConnect } from 'socket.io-client'
 import type { Socket } from 'socket.io-client'
-import { validationService } from '@/services/validation.service'
-import type { PlatformCredentials } from '@/dtos/bot.dto'
+import { validationService } from '@/features/users/services/validation.service'
+import type { PlatformCredentials } from '@/features/users/dtos/bot.dto'
 import { Platforms } from '@/constants/platform.constants'
 
 // ── Status union — discriminated on `phase` ────────────────────────────────────

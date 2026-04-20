@@ -7,7 +7,7 @@ import type {
   UpdateBotRequestDto,
   GetBotCommandsResponseDto,
   GetBotEventsResponseDto,
-} from '@/dtos/bot.dto'
+} from '@/features/users/dtos/bot.dto'
 
 export class BotService {
   async createBot(dto: CreateBotRequestDto): Promise<CreateBotResponseDto> {

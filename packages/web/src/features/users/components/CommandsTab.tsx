@@ -6,7 +6,7 @@ import Alert from '@/components/ui/feedback/Alert'
 import Progress from '@/components/ui/feedback/Progress'
 import Switch from '@/components/ui/forms/Switch'
 import Input from '@/components/ui/forms/Input'
-import type { BotCommandItemDto } from '@/dtos/bot.dto'
+import type { BotCommandItemDto } from '@/features/users/dtos/bot.dto'
 
 const ROLE_LABEL: Record<number, string> = {
   0: 'Anyone',
