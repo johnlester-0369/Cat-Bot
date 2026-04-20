@@ -50,6 +50,16 @@ export class AdminService {
   async removeSystemAdmin(adminId: string): Promise<void> {
     await apiClient.delete(`/api/v1/admin/system-admins/${encodeURIComponent(adminId)}`)
   }
+
+  /** Stops all bot sessions for a banned user — call fire-and-forget after better-auth banUser succeeds. */
+  async stopUserSessions(userId: string): Promise<void> {
+    await apiClient.post(`/api/v1/admin/users/${encodeURIComponent(userId)}/ban-sessions`)
+  }
+
+  /** Restarts all bot sessions for an unbanned user — call fire-and-forget after better-auth unbanUser succeeds. */
+  async startUserSessions(userId: string): Promise<void> {
+    await apiClient.post(`/api/v1/admin/users/${encodeURIComponent(userId)}/unban-sessions`)
+  }
 }
 
 export const adminService = new AdminService()

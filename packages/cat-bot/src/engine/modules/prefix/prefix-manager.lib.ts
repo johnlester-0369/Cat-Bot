@@ -73,6 +73,18 @@ class PrefixManager {
       `[prefix-manager] Thread prefix cleared for ${threadId} — reverting to session default`,
     );
   }
+
+  /**
+   * Evicts all session-level prefix entries for a userId.
+   * Called on account ban so memory is not leaked by stopped sessions.
+   * Thread prefixes are keyed by platform threadId (userId is not encoded), so they
+   * are intentionally left intact — they will be overwritten on the next message event.
+   */
+  clearAllByUserId(userId: string): void {
+    for (const key of [...this.prefixes.keys()]) {
+      if (key.startsWith(`${userId}:`)) this.prefixes.delete(key);
+    }
+  }
 }
 
 export const prefixManager = new PrefixManager();

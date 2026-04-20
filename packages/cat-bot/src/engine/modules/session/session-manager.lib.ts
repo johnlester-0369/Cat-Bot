@@ -143,6 +143,43 @@ class SessionManager extends EventEmitter {
   }
 
   /**
+   * Stops every transport session owned by a specific userId, run in parallel.
+   * Called immediately when an account is banned so live bot transports halt before
+   * any DB writes land — prevents in-flight events from executing on stale credentials.
+   * Keys follow `userId:platform:sessionId`; prefix match is O(registered sessions).
+   */
+  async stopAllByUserId(userId: string, signal?: string): Promise<void> {
+    const promises: Promise<void>[] = [];
+    for (const [key, session] of this.#sessions.entries()) {
+      if (key.startsWith(`${userId}:`)) {
+        promises.push(
+          session.stop(signal).catch((err) =>
+            console.error(
+              `[session-manager] Failed to stop ${key} on user ban:`,
+              err,
+            ),
+          ),
+        );
+      }
+    }
+    await Promise.all(promises);
+  }
+
+  /**
+   * Removes all session registrations for a userId after stopAllByUserId completes.
+   * Prevents stale closures from accumulating for banned accounts — the unban path
+   * calls spawnDynamicSession which re-registers fresh lifecycle handles.
+   */
+  unregisterAllByUserId(userId: string): void {
+    for (const key of [...this.#sessions.keys()]) {
+      if (key.startsWith(`${userId}:`)) {
+        this.#sessions.delete(key);
+        if (this.#active.has(key)) this.markInactive(key);
+      }
+    }
+  }
+
+  /**
    * Stops all active sessions. Used gracefully during process shutdown (SIGINT/SIGTERM).
    */
   async stopAll(signal?: string): Promise<void> {

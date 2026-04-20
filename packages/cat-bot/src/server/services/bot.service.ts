@@ -367,6 +367,69 @@ export class BotService {
     await botRepo.deleteById(userId, sessionId);
     logger.info(`[bot.service] Deleted bot session ${key}`);
   }
+
+  /**
+   * Ban-path orchestrator: tears down every live transport for a userId, updates
+   * isRunning=false in the DB for all their sessions, and prunes all in-memory state.
+   *
+   * Order matters:
+   *   1. Stop transports first — prevents in-flight messages from landing after DB writes.
+   *   2. Set isRunning=false — session-loader skips these on the next boot.
+   *   3. Unregister closures — stale lifecycle handles are removed from the manager.
+   *   4. Clear LRU cache — ensures subsequent reads see the updated DB state.
+   *   5. Clear prefix map — frees memory; entries are re-populated on unban/next message.
+   */
+  async stopAllUserSessions(userId: string): Promise<void> {
+    const { bots } = await botRepo.list(userId);
+    if (bots.length === 0) return;
+
+    // Halt all live transports in parallel before touching the DB
+    await sessionManager.stopAllByUserId(userId);
+
+    // Persist the stopped state so session-loader never boots these sessions while banned
+    await Promise.all(
+      bots.map((bot) =>
+        botRepo.updateIsRunning(userId, bot.sessionId, false).catch((err) =>
+          logger.error(
+            `[bot.service] Failed to set isRunning=false for ${bot.sessionId} on ban`,
+            { error: err },
+          ),
+        ),
+      ),
+    );
+
+    // Remove stale closures and all LRU / prefix memory for this user
+    sessionManager.unregisterAllByUserId(userId);
+    botRepo.clearUserCache(userId);
+    prefixManager.clearAllByUserId(userId);
+
+    logger.info(`[bot.service] Stopped ${bots.length} session(s) for banned user ${userId}`);
+  }
+
+  /**
+   * Unban-path orchestrator: sets isRunning=true and boots a fresh transport for every
+   * session that belonged to the user, exactly as if the process had just restarted.
+   * startBot handles credential lookup, DB flag update, and spawnDynamicSession internally.
+   */
+  async startAllUserSessions(userId: string): Promise<void> {
+    const { bots } = await botRepo.list(userId);
+    if (bots.length === 0) return;
+
+    await Promise.all(
+      bots.map(async (bot) => {
+        try {
+          await this.startBot(userId, bot.sessionId);
+        } catch (err) {
+          logger.error(
+            `[bot.service] Failed to start session ${bot.sessionId} on unban`,
+            { error: err },
+          );
+        }
+      }),
+    );
+
+    logger.info(`[bot.service] Started ${bots.length} session(s) for unbanned user ${userId}`);
+  }
 }
 
 export const botService = new BotService();

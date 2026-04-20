@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { adminAuth } from '@/server/lib/better-auth.lib.js';
 import { botRepo } from '@/server/repos/bot.repo.js';
+import { botService } from '@/server/services/bot.service.js';
 import {
   listSystemAdmins,
   addSystemAdmin,
@@ -94,6 +95,45 @@ export class AdminController {
     } catch (error) {
       console.error('[AdminController.removeSystemAdmin]', error);
       res.status(500).json({ error: 'Failed to remove system admin' });
+    }
+  }
+
+  /**
+   * POST /api/v1/admin/users/:userId/ban-sessions
+   * Stops all live bot transports for the given user and sets isRunning=false in the DB.
+   * Called alongside better-auth's banUser so the session teardown is synchronised with
+   * the auth-level ban — the client fires both requests after a successful better-auth response.
+   */
+  async stopUserSessions(req: Request, res: Response): Promise<void> {
+    if (!(await requireAdmin(req, res))) return;
+    const userId = String(req.params['userId'] ?? '');
+    if (!userId) {
+      res.status(400).json({ error: 'Missing userId param' });
+      return;
+    }
+    try {
+      await botService.stopAllUserSessions(userId);
+      res.status(200).json({ status: 'sessions stopped' });
+    } catch (error) {
+      console.error('[AdminController.stopUserSessions]', error);
+      res.status(500).json({ error: 'Failed to stop user sessions' });
+    }
+  }
+
+  /** POST /api/v1/admin/users/:userId/unban-sessions — restarts all sessions for an unbanned user. */
+  async startUserSessions(req: Request, res: Response): Promise<void> {
+    if (!(await requireAdmin(req, res))) return;
+    const userId = String(req.params['userId'] ?? '');
+    if (!userId) {
+      res.status(400).json({ error: 'Missing userId param' });
+      return;
+    }
+    try {
+      await botService.startAllUserSessions(userId);
+      res.status(200).json({ status: 'sessions started' });
+    } catch (error) {
+      console.error('[AdminController.startUserSessions]', error);
+      res.status(500).json({ error: 'Failed to start user sessions' });
     }
   }
 }
