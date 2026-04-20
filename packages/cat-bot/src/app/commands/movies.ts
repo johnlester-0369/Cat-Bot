@@ -19,7 +19,7 @@ export const config = {
   aliases: ['mov'] as string[],
   version: '1.0.1',
   role: Role.ANYONE,
-  author: 'AjiroDesu',
+  author: 'rifat, fixed by liane and symer and convert by AjiroDesu',
   description: 'Search movie details using the OMDB API.',
   category: 'Media',
   usage: '<movie title>',
