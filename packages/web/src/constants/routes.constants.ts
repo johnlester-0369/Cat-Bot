@@ -19,6 +19,8 @@ export const ROUTES = {
     SETTINGS: '/dashboard/settings',
     CREATE_NEW_BOT: '/dashboard/create-new-bot',
     BOT: '/dashboard/bot',
+    BOT_COMMANDS: '/dashboard/bot/commands',
+    BOT_EVENTS: '/dashboard/bot/events',
     BOT_SETTINGS: '/dashboard/bot/settings',
   },
   ADMIN: {
@@ -40,6 +42,8 @@ export const ROUTE_SEGMENTS = {
   SIGNUP: 'signup',
   DASHBOARD: 'dashboard',
   BOTS: 'bots',
+  COMMANDS: 'commands',
+  EVENTS: 'events',
   SETTINGS: 'settings',
   CREATE_NEW_BOT: 'create-new-bot',
   BOT: 'bot',
