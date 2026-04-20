@@ -7,6 +7,7 @@ import type {
   GetBotDetailResponseDto,
   UpdateBotRequestDto,
 } from '@cat-bot/server/dtos/bot.dto.js';
+import type { GetAdminBotListResponseDto } from '@cat-bot/server/dtos/admin.dto.js';
 import { encrypt, decrypt } from '@cat-bot/engine/utils/crypto.util.js';
 
 export class BotRepo {
@@ -294,6 +295,37 @@ export class BotRepo {
       [userId, sessionId],
     );
     return res.rows[0]?.platform_id ?? null;
+  }
+
+  // Returns every bot session regardless of owner — admin-only view.
+  async listAll(): Promise<GetAdminBotListResponseDto> {
+    const res = await pool.query<{
+      user_id: string; session_id: string; platform_id: number;
+      nickname: string | null; prefix: string | null; is_running: boolean;
+      user_name: string | null; user_email: string | null;
+    }>(`
+      SELECT bs.user_id, bs.session_id, bs.platform_id, bs.nickname, bs.prefix, bs.is_running,
+             u.name  AS user_name,
+             u.email AS user_email
+      FROM bot_session bs
+      LEFT JOIN "user" u ON u.id = bs.user_id
+      ORDER BY bs.user_id
+    `);
+    return {
+      bots: res.rows.map((r) => ({
+        sessionId: r.session_id,
+        userId: r.user_id,
+        platformId: r.platform_id,
+        platform: (ID_TO_PLATFORM as Record<number, string>)[r.platform_id] ?? '',
+        nickname: r.nickname ?? '',
+                prefix: r.prefix ?? '',
+                isRunning: r.is_running,
+                // Use ?? undefined to ensure empty strings are preserved,
+                // preventing the frontend from rendering raw IDs if a user's name is saved as an empty string.
+                userName: r.user_name ?? undefined,
+                userEmail: r.user_email ?? undefined,
+              })),
+            };
   }
 
   /**

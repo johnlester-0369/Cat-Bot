@@ -1,6 +1,7 @@
 import { prisma } from '../index.js';
 import { PLATFORM_TO_ID, ID_TO_PLATFORM, Platforms } from '@cat-bot/engine/modules/platform/platform.constants.js';
 import type { CreateBotRequestDto, CreateBotResponseDto, GetBotListItemDto, GetBotListResponseDto, GetBotDetailResponseDto, UpdateBotRequestDto } from '@cat-bot/server/dtos/bot.dto.js';
+import type { GetAdminBotListItemDto, GetAdminBotListResponseDto } from '@cat-bot/server/dtos/admin.dto.js';
 import { encrypt, decrypt } from '@cat-bot/engine/utils/crypto.util.js';
 
 export class BotRepo {
@@ -90,6 +91,32 @@ export class BotRepo {
   async getPlatformId(userId: string, sessionId: string): Promise<number | null> {
     const botSessionInfo = await prisma.botSession.findFirst({ where: { userId, sessionId }, select: { platformId: true } });
     return botSessionInfo?.platformId ?? null;
+  }
+
+  // Returns every bot session across all owners — used only by admin dashboard endpoints.
+  // No userId filter intentional: admin needs a global view of platform health.
+  async listAll(): Promise<GetAdminBotListResponseDto> {
+    // Include the owning user's name and email in a single query via the existing
+    // BotSession → user relation — avoids a separate lookup for every session row.
+    const rows = await prisma.botSession.findMany({
+      orderBy: { userId: 'asc' },
+      include: { user: true },
+    });
+    return {
+      bots: rows.map((row) => ({
+        sessionId: row.sessionId,
+        userId: row.userId,
+        platformId: row.platformId,
+        platform: (ID_TO_PLATFORM as Record<number, string>)[row.platformId] ?? '',
+        nickname: row.nickname ?? '',
+                prefix: row.prefix ?? '',
+                isRunning: row.isRunning,
+                // Safe navigation guards against orphaned sessions. Use ?? undefined to ensure empty 
+                // strings are preserved, preventing the frontend from rendering raw IDs when name is blank.
+                userName: row.user?.name ?? undefined,
+                userEmail: row.user?.email ?? undefined,
+              })),
+            };
   }
 
   /**

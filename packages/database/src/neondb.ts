@@ -100,3 +100,11 @@ export { botRepo } from '../adapters/neondb/src/server/bot.repo.js';
 // to betterAuth({ database: pool }) without any additional adapter configuration.
 // dbReady is the Promise<void> that resolves when initDb() DDL has completed.
 export { pool, initDb, dbReady } from '../adapters/neondb/src/client.js';
+
+// --- SYSTEM ADMIN ---
+export {
+  listSystemAdmins,
+  addSystemAdmin,
+  removeSystemAdmin,
+  isSystemAdmin,
+} from '../adapters/neondb/src/server/system-admin.repo.js';

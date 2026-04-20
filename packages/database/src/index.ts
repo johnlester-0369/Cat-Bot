@@ -173,6 +173,17 @@ export const pool    = m.pool;
 export const initDb  = m.initDb;
 
 // dbReady resolves when the NeonDB schema DDL has completed; undefined for all other adapters.
-// Consumers await it before issuing the first query when DATABASE_TYPE=neondb.
+// dbReady resolves when the NeonDB schema DDL has completed; undefined for all other adapters.
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 export const dbReady = m.dbReady as Promise<void> | undefined;
+
+// --- SYSTEM ADMIN ---
+// Global privileged user IDs stored in system_admin — adapter-agnostic interface.
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+export const listSystemAdmins  = m.listSystemAdmins;
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+export const addSystemAdmin    = m.addSystemAdmin;
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+export const removeSystemAdmin = m.removeSystemAdmin;
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+export const isSystemAdmin     = m.isSystemAdmin;

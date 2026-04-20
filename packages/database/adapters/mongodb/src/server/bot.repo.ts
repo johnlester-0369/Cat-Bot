@@ -1,4 +1,5 @@
 import { getMongoDb } from '../client.js';
+import { ObjectId } from 'mongodb';
 import { PLATFORM_TO_ID, ID_TO_PLATFORM, Platforms } from '@cat-bot/engine/modules/platform/platform.constants.js';
 import type {
   CreateBotRequestDto,
@@ -7,6 +8,7 @@ import type {
   GetBotDetailResponseDto,
   UpdateBotRequestDto,
 } from '@cat-bot/server/dtos/bot.dto.js';
+import type { GetAdminBotListResponseDto } from '@cat-bot/server/dtos/admin.dto.js';
 import { encrypt, decrypt } from '@cat-bot/engine/utils/crypto.util.js';
 
 // NOTE: MongoDB transactions require a replica set. Atlas M0/M2/M5 free-tier clusters do
@@ -229,6 +231,67 @@ export class BotRepo {
       .collection<{ platformId: number }>('botSessions')
       .findOne({ userId, sessionId }, { projection: { platformId: 1, _id: 0 } });
     return rec?.platformId ?? null;
+  }
+
+  // Returns every bot session across all owners — used only by admin dashboard endpoints.
+  async listAll(): Promise<GetAdminBotListResponseDto> {
+    const db = getMongoDb();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rows = await db.collection<any>('botSessions').find({}).sort({ userId: 1 }).toArray();
+    // Batch-fetch owners by unique userId to avoid N queries against the user collection.
+    // better-auth stores the user's `id` field as a plain document field (not MongoDB _id).
+    const uniqueUserIds = [...new Set(rows.map((r) => r.userId as string))];
+
+    // Handle potential ObjectId conversion for the `_id` lookup in case better-auth used native ObjectIds
+    const objectIds = uniqueUserIds.filter(id => ObjectId.isValid(id)).map(id => new ObjectId(id));
+    const queryOr: any[] = [
+      { _id: { $in: uniqueUserIds } },
+      { id: { $in: uniqueUserIds } }
+    ];
+    // Only push the ObjectId clause if there are valid ObjectIds to prevent query errors
+    if (objectIds.length > 0) {
+      queryOr.push({ _id: { $in: objectIds } });
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let userDocs: any[] = [];
+    if (uniqueUserIds.length > 0) {
+      userDocs = await db.collection<any>('user').find({ $or: queryOr }).toArray();
+      // Fallback: Check 'users' collection if 'user' yielded no results. Some DB viewers or 
+      // custom better-auth setups automatically pluralize collection names.
+      if (userDocs.length === 0) {
+        userDocs = await db.collection<any>('users').find({ $or: queryOr }).toArray();
+      }
+    }
+
+    const userMap = new Map<string, { name: string; email: string }>(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      userDocs.map((u: any) => [
+        // Prefer `id` (cuid2 string from better-auth) over `_id` (ObjectId) for the map key
+        // so lookups via r.userId (also cuid2) succeed. _id.toString() yields a 24-char hex
+        // string that never matches a cuid2 userId, causing all owner lookups to return undefined.
+        u.id ?? u._id?.toString(),
+        { name: u.name as string, email: u.email as string }
+      ]),
+    );
+    return {
+      bots: rows.map((r) => {
+        const owner = userMap.get(r.userId as string);
+        return {
+          sessionId: r.sessionId as string,
+          userId: r.userId as string,
+          platformId: r.platformId as number,
+          platform: (ID_TO_PLATFORM as Record<number, string>)[r.platformId as number] ?? '',
+          nickname: (r.nickname as string | undefined) ?? '',
+                  prefix: (r.prefix as string | undefined) ?? '',
+                  isRunning: (r.isRunning as boolean | undefined) ?? false,
+                  // Use ?? undefined to ensure empty strings are preserved,
+                  // preventing the frontend from rendering raw user IDs when name is blank.
+                  userName: owner?.name ?? undefined,
+                  userEmail: owner?.email ?? undefined,
+                };
+              }),
+    };
   }
 
   /**

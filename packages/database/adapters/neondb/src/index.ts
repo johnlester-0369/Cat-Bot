@@ -79,3 +79,10 @@ export {
 } from './cat-bot/banned.repo.js';
 
 export { botRepo } from './server/bot.repo.js';
+
+export {
+  listSystemAdmins,
+  addSystemAdmin,
+  removeSystemAdmin,
+  isSystemAdmin,
+} from './server/system-admin.repo.js';

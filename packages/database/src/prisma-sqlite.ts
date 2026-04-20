@@ -102,3 +102,11 @@ export { botRepo } from '../adapters/prisma-sqlite/src/server/bot.repo.js';
 //   *       — every generated model type (BotUser, BotSession, PrismaClient class, ...)
 // Consumers of the 'database' package gain full Prisma type safety through this single line.
 export * from '../adapters/prisma-sqlite/src/index.js';
+
+// --- SYSTEM ADMIN ---
+export {
+  listSystemAdmins,
+  addSystemAdmin,
+  removeSystemAdmin,
+  isSystemAdmin,
+} from '../adapters/prisma-sqlite/src/server/system-admin.repo.js';

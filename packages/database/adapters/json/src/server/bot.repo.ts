@@ -1,6 +1,7 @@
 import { getDb, saveDb } from '../store.js';
 import { PLATFORM_TO_ID, ID_TO_PLATFORM, Platforms } from '@cat-bot/engine/modules/platform/platform.constants.js';
 import type { CreateBotRequestDto, CreateBotResponseDto, GetBotListItemDto, GetBotListResponseDto, GetBotDetailResponseDto, UpdateBotRequestDto } from '@cat-bot/server/dtos/bot.dto.js';
+import type { GetAdminBotListItemDto, GetAdminBotListResponseDto } from '@cat-bot/server/dtos/admin.dto.js';
 import { encrypt, decrypt } from '@cat-bot/engine/utils/crypto.util.js';
 
 export class BotRepo {
@@ -106,6 +107,34 @@ export class BotRepo {
     const db = await getDb();
     const session = db.botSession.find((s: any) => s.userId === userId && s.sessionId === sessionId);
     return session?.platformId ?? null;
+  }
+
+  // Returns every bot session stored in the flat-file DB — admin-only view.
+  async listAll(): Promise<GetAdminBotListResponseDto> {
+    const db = await getDb();
+    // Build a userId → {name, email} lookup map before iterating bot rows so the overall
+    // complexity stays O(users + sessions) rather than O(users × sessions).
+    const userMap = new Map<string, { name: string; email: string }>(
+      (db.user as any[]).map((u: any) => [u.id as string, { name: u.name as string, email: u.email as string }]),
+    );
+    return {
+      bots: (db.botSession as any[]).map((r: any): GetAdminBotListItemDto => {
+        const owner = userMap.get(r.userId as string);
+        return {
+          sessionId: r.sessionId as string,
+          userId: r.userId as string,
+          platformId: r.platformId as number,
+          platform: (ID_TO_PLATFORM as Record<number, string>)[r.platformId as number] ?? '',
+                  nickname: (r.nickname as string | undefined) ?? '',
+                  prefix: (r.prefix as string | undefined) ?? '',
+                  isRunning: (r.isRunning as boolean | undefined) ?? false,
+                  // Use ?? undefined to ensure empty strings are preserved,
+                  // preventing the frontend from rendering raw user IDs when name is blank.
+                  userName: owner?.name ?? undefined,
+                  userEmail: owner?.email ?? undefined,
+                };
+              }),
+    };
   }
 
   /**

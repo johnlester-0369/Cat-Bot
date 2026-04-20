@@ -96,3 +96,11 @@ export { botRepo } from '../adapters/json/src/server/bot.repo.js';
 
 // --- STORE (better-auth json adapter + direct consumers) ---
 export { getDb, saveDb } from '../adapters/json/src/store.js';
+
+// --- SYSTEM ADMIN ---
+export {
+  listSystemAdmins,
+  addSystemAdmin,
+  removeSystemAdmin,
+  isSystemAdmin,
+} from '../adapters/json/src/server/system-admin.repo.js';

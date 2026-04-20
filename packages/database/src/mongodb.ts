@@ -94,7 +94,12 @@ export {
 // --- SERVER ---
 export { botRepo } from '../adapters/mongodb/src/server/bot.repo.js';
 
-// --- DATABASE INSTANCES ---
-// mongoClient — the singleton MongoClient; used by better-auth.lib.ts to pass to mongodbAdapter.
+// --- SYSTEM ADMIN ---
+export {
+  listSystemAdmins,
+  addSystemAdmin,
+  removeSystemAdmin,
+  isSystemAdmin,
+} from '../adapters/mongodb/src/server/system-admin.repo.js';
 // getMongoDb  — factory returning the Db instance for MONGO_DATABASE_NAME.
 export { mongoClient, getMongoDb } from '../adapters/mongodb/src/client.js';
