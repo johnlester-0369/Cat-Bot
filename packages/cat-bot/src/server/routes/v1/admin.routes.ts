@@ -31,4 +31,14 @@ adminRouter.delete('/system-admins/:adminId', (req, res) => {
   void adminController.removeSystemAdmin(req, res);
 });
 
+// POST /api/v1/admin/users/:userId/ban-sessions — halt all bot transports for a banned user
+adminRouter.post('/users/:userId/ban-sessions', (req, res) => {
+  void adminController.stopUserSessions(req, res);
+});
+
+// POST /api/v1/admin/users/:userId/unban-sessions — restart all bot sessions for an unbanned user
+adminRouter.post('/users/:userId/unban-sessions', (req, res) => {
+  void adminController.startUserSessions(req, res);
+});
+
 export default adminRouter;
