@@ -13,6 +13,8 @@ const ROLE_LABEL: Record<number, string> = {
   0: 'Anyone',
   1: 'Group Admin',
   2: 'Bot Admin',
+  3: 'Premium',
+  4: 'System Admin'
 }
 
 /**
