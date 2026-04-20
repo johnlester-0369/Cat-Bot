@@ -140,4 +140,25 @@ export const botRepo = {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any
     return await (_botRepo as any).listAll() as GetAdminBotListResponseDto;
   },
+
+  /**
+   * Evicts every LRU cache entry associated with a userId in a single sweep.
+   * Called as part of the ban flow so subsequent reads go to the DB and reflect
+   * the updated isRunning=false state — stale cached credentials or session details
+   * must never be served after a ban.
+   *
+   * Key patterns covered:
+   *   bot:list:${userId}            — user's session list
+   *   bot:detail:${userId}:*        — per-session detail (credentials, admins, prefix)
+   *   bot:platformId:${userId}:*    — platformId lookups
+   *   ${userId}:*                   — credential/thread/user-session adapter cache keys
+   *   SESSIONS_ALL_KEY              — global session list used by session-loader
+   */
+  clearUserCache(userId: string): void {
+    lruCache.del(botListKey(userId));
+    lruCache.delByPrefix(`bot:detail:${userId}:`);
+    lruCache.delByPrefix(`bot:platformId:${userId}:`);
+    lruCache.delByPrefix(`${userId}:`);
+    lruCache.del(SESSIONS_ALL_KEY);
+  },
 };
