@@ -30,6 +30,9 @@ interface ApiEntry {
  * Add or remove entries here — `createUrl` resolves them by name automatically.
  */
 const APIs: Record<string, ApiEntry> = {
+  ajiro: {
+    baseURL: 'https://ajiro-apis.up.railway.app'
+  },
   betadash: {
     baseURL: 'https://betadash-api-swordslush-production.up.railway.app',
   },

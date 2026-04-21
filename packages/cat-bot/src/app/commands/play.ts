@@ -109,15 +109,26 @@ export const onCommand = async ({
 }: AppCtx): Promise<void> => {
   if (!args.length) return usage();
 
-  const query = args.join(' ');
+  const query = args.join(' ').trim();
 
   const waitId = await chat.replyMessage({
     style: MessageStyle.MARKDOWN,
-    message: `🔍 Searching for **${query}**...\n⏳ Please wait while I fetch the audio...`,
+    message: `🔍 Searching for **${query}**...\n⏳ Trying NexRay first...`,
   });
 
   // ── Try NexRay first, fall back to Kuroneko ───────────────────────────
-  const track = (await tryNexray(query)) ?? (await tryKuroneko(query));
+  let track = await tryNexray(query);
+  let source = 'NexRay';
+
+  if (!track) {
+    await chat.editMessage({
+      style: MessageStyle.MARKDOWN,
+      message_id_to_edit: waitId as string,
+      message: `🔄 NexRay unavailable, trying Kuroneko fallback...`,
+    });
+    track = await tryKuroneko(query);
+    source = 'Kuroneko';
+  }
 
   if (!track) {
     await chat.editMessage({
@@ -131,7 +142,9 @@ export const onCommand = async ({
   // ── Download the audio buffer ─────────────────────────────────────────
   let audioBuffer: Buffer;
   try {
-    const audioRes = await fetch(track.audioUrl);
+    const audioRes = await fetch(track.audioUrl, {
+      signal: AbortSignal.timeout(15000),
+    });
     if (!audioRes.ok)
       throw new Error(`Audio download failed (${audioRes.status})`);
     audioBuffer = Buffer.from(await audioRes.arrayBuffer());
@@ -140,7 +153,7 @@ export const onCommand = async ({
     await chat.editMessage({
       style: MessageStyle.MARKDOWN,
       message_id_to_edit: waitId as string,
-      message: `❌ **Failed to download audio**\n\`${error.message ?? 'Unknown error'}\``,
+      message: `❌ **Failed to download audio** (${source})\n\`${error.message ?? 'Unknown error'}\``,
     });
     return;
   }
@@ -150,7 +163,7 @@ export const onCommand = async ({
 
   await chat.reply({
     style: MessageStyle.MARKDOWN,
-    message: `🎵 **Now Playing**\n**${track.title}**`,
+    message: `🎵 **Now Playing** (${source})\n**${track.title}**`,
     attachment: [{ name: track.filename, stream: audioBuffer }],
   });
 };
