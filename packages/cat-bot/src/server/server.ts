@@ -38,7 +38,7 @@ export function startServer(): void {
 
     for (const uid of getAllUserIds()) {
       logger.info(
-        `GET/POST https://your-domain.com/api/v1/facebook-page/${uid}`,
+        `GET/POST https://${env.BETTER_AUTH_URL}/api/v1/facebook-page/${uid}`,
       );
     }
   });
