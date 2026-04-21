@@ -3,6 +3,7 @@ import { Role } from '@/engine/constants/role.constants.js';
 import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 import { ButtonStyle } from '@/engine/constants/button-style.constants.js';
 import { hasNativeButtons } from '@/engine/utils/ui-capabilities.util.js';
+import type { CommandConfig } from '@/engine/types/module-config.types.js';
 
 const FRUITS = ['🍒', '🍎', '🍓', '🍌', '🍊', '🍇', '🍐', '🍋'] as const;
 const HIGH_ROLL_LIMIT = 100_000;
@@ -21,7 +22,7 @@ type SlotButtonContext = {
   backId: string;
 };
 
-export const config = {
+export const config: CommandConfig = {
   name: 'slot',
   aliases: ['slots', 'slotmachine'],
   version: '1.0.0',
