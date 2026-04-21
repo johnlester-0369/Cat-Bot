@@ -24,6 +24,11 @@ import {
 import { isPlatformAllowed } from '@/engine/modules/platform/platform-filter.util.js';
 import { Platforms } from '@/engine/modules/platform/platform.constants.js';
 
+// Telegram Bot API hard cap: setMyCommands rejects a list longer than 100 commands with
+// 400 BOT_COMMANDS_TOO_MUCH. Named constant keeps both the guard and log messages in sync
+// with a single source of truth rather than a scattered magic number.
+const TELEGRAM_SLASH_COMMAND_LIMIT = 100;
+
 /** All four broadcast scopes that must be managed in lockstep to avoid stale menu entries. */
 const BROADCAST_SCOPES = [
   { type: 'default' as const },
@@ -125,6 +130,34 @@ export async function registerSlashMenu(
         );
       }
       slashCommands.push({ command: safeName, description: safeDesc });
+    }
+
+    // Telegram Bot API hard cap: setMyCommands with more than 100 entries returns
+    // 400 BOT_COMMANDS_TOO_MUCH and leaves the menu in its previous stale state.
+    // Pre-empt by clearing all four broadcast scopes and surfacing a loud warning so
+    // the developer knows to reduce command count or switch to a non-slash prefix.
+    // The error repeats every startup otherwise (confirmed behaviour in Bot API 7.x).
+    if (slashCommands.length > TELEGRAM_SLASH_COMMAND_LIMIT) {
+      sessionLogger.warn(
+        `[telegram] ⚠️  ${slashCommands.length} commands exceed Telegram's setMyCommands limit of ${TELEGRAM_SLASH_COMMAND_LIMIT} (BOT_COMMANDS_TOO_MUCH) — clearing all scopes. Reduce command count or use a non-'/' prefix.`,
+      );
+      try {
+        await Promise.all(
+          BROADCAST_SCOPES.map((scope) =>
+            bot.telegram.setMyCommands([], { scope }),
+          ),
+        );
+        await updateTelegramCredentialCommandHash(userId, sessionId, {
+          isCommandRegister: false,
+          commandHash: currentHash,
+        });
+      } catch (clearErr) {
+        sessionLogger.warn(
+          '[telegram] Failed to clear menu after limit exceeded (non-fatal)',
+          { error: clearErr },
+        );
+      }
+      return;
     }
 
     try {
