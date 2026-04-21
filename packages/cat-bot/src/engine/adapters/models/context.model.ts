@@ -39,6 +39,8 @@ export type {
   ButtonContext,
 } from './interfaces/index.js';
 
+import { Platforms } from '@/engine/modules/platform/platform.constants.js';
+
 // ============================================================================
 // FACTORIES
 // ============================================================================
@@ -414,7 +416,7 @@ export function createChatContext(
       // text menu and auto-register an onReply state so user selections route to button[id].onClick().
       // The state is never deleted so the menu remains re-selectable like native button platforms.
       if (
-        api.platform === 'facebook-messenger' &&
+        api.platform === Platforms.FacebookMessenger &&
         button.length > 0 &&
         commandName &&
         buttonDef
@@ -463,7 +465,7 @@ export function createChatContext(
       // Same FB Messenger fallback as chat.reply() — preserves reply_to_message_id so
       // the numbered menu is threaded to the triggering message for clearer context
       if (
-        api.platform === 'facebook-messenger' &&
+        api.platform === Platforms.FacebookMessenger &&
         button.length > 0 &&
         commandName &&
         buttonDef
@@ -536,7 +538,7 @@ export function createChatContext(
 
       let finalMessage = options.message;
       if (
-        api.platform === 'facebook-messenger' &&
+        api.platform === Platforms.FacebookMessenger &&
         options.button &&
         options.button.length > 0 &&
         commandName &&
