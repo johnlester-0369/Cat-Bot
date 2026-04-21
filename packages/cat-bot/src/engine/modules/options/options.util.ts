@@ -7,7 +7,7 @@
  * without pulling in the runtime data structure.
  */
 
-import type { OptionDef } from '@/engine/modules/options/options-map.lib.js';
+import type { OptionDef, OptionsMap } from '@/engine/modules/options/options-map.lib.js';
 
 /** Escapes all RegExp special chars in a literal string for safe interpolation. */
 function escapeRegex(s: string): string {
@@ -55,4 +55,22 @@ export function parseTextOptions(
     if (value) result[key] = value;
   }
   return result;
+}
+
+/**
+ * Validates an OptionsMap against a command's option definitions.
+ * Returns a formatted error string with usage instructions if required options
+ * are missing, or null if validation passes.
+ */
+export function validateOptions(
+  options: OptionsMap,
+  optionDefs: OptionDef[],
+  commandName: string,
+  prefix: string,
+): string | null {
+  const missing = optionDefs.filter((def) => def.required && !options.has(def.name));
+  if (missing.length === 0) return null;
+
+  const missingList = missing.map((m) => `${m.name} (required)`).join(', ');
+  return `Missing required input: ${missingList}\nUsage: ${prefix}${commandName}`;
 }
