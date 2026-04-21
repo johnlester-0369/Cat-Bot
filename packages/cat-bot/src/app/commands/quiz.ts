@@ -10,23 +10,18 @@
  *     2. button.createContext() stores the answer so each onClick handler
  *        can evaluate the user's choice without re-fetching.
  *     3. On click, the message is edited in-place to reveal the result
- *        and the buttons are removed.
- *     4. A setTimeout reveals the answer if no button is pressed within
- *        TIMEOUT_MS, editing the message and clearing the button context.
+ *        and a 🔄 Play Again button replaces the answer buttons.
+ *     4. Clicking Play Again re-edits the SAME message in-place with a
+ *        brand-new question (and fresh True/False buttons), preserving the
+ *        same difficulty. (Matches the RPS command pattern for cleaner chat.)
+ *     5. A setTimeout reveals the answer if no button is pressed within
+ *        TIMEOUT_MS, editing the message and stripping all buttons.
  *
  *   Facebook Messenger & Facebook Page  → emoji reactions (original flow)
- *     1. onCommand sends the question and registers a state entry.
- *     2. The user reacts with ❤ (True) or 😢 (False).
- *     3. onReact handlers evaluate the answer and reply.
- *     4. A setTimeout sends a time-up reply if no reaction fires in time.
  *
  * ── Difficulty ───────────────────────────────────────────────────────────────
  * Accepts an optional argument: easy | medium | hard. Any other value (or none)
- * selects a difficulty at random.
- *
- * ── API ──────────────────────────────────────────────────────────────────────
- * Open Trivia DB: https://opentdb.com/api.php
- *   ?amount=1&encode=url3986&type=boolean&difficulty={easy|medium|hard}
+ * selects a difficulty at random. Play Again preserves the previous difficulty.
  */
 
 import axios from 'axios';
@@ -40,7 +35,7 @@ import { Platforms } from '@/engine/modules/platform/platform.constants.js';
 export const config = {
   name: 'quiz',
   aliases: ['trivia'] as string[],
-  version: '1.1.0',
+  version: '1.3.1',
   role: Role.ANYONE,
   author: 'John Lester',
   description:
@@ -65,21 +60,17 @@ export const config = {
 const DIFFICULTIES = ['easy', 'medium', 'hard'] as const;
 type Difficulty = (typeof DIFFICULTIES)[number];
 
-/**
- * Reaction emoji constants — used as onReact map keys for the FB flow.
- * Discord normalises ❤ to ❤️ (U+2764 + U+FE0F Variation Selector-16);
- * both variants are registered so the same handler fires on all FB platforms.
- */
 const REACT = {
   TRUE:         '❤',
   TRUE_DISCORD: '❤️',
   FALSE:        '😢',
 } as const;
 
-/** Local IDs for the True/False answer buttons (Discord & Telegram only). */
+/** Local IDs for the answer + play-again buttons (Discord & Telegram only). */
 const BUTTON_ID = {
-  true:  'true',
-  false: 'false',
+  true:      'true',
+  false:     'false',
+  playAgain: 'play_again',
 } as const;
 
 interface TriviaResult {
@@ -94,23 +85,14 @@ interface TriviaResponse {
   results:       TriviaResult[];
 }
 
-/**
- * Stored in button context so onClick handlers know the correct answer.
- * Extends Record<string, unknown> to satisfy button.createContext()'s
- * { context: Record<string, unknown> } parameter constraint.
- */
 interface ButtonQuizContext extends Record<string, unknown> {
   answer:     string;
+  question:   string;
   messageID:  string;
-  difficulty: string;
+  difficulty: Difficulty;
   category:   string;
 }
 
-/**
- * Stored in state so onReact handlers know the correct answer (FB flow).
- * Extends Record<string, unknown> to satisfy state.create()'s
- * { context: Record<string, unknown> } parameter constraint.
- */
 interface ReactQuizContext extends Record<string, unknown> {
   answer:     string;
   question:   string;
@@ -119,95 +101,25 @@ interface ReactQuizContext extends Record<string, unknown> {
   category:   string;
 }
 
-// ── Module-level answered tracker ─────────────────────────────────────────────
-// Maps quiz messageID → answered boolean.
-// Shared by both the setTimeout closure and the button/react handlers so the
-// timeout never fires a double-reveal after the user has already answered.
+// ── Module-level trackers ─────────────────────────────────────────────────────
 const pendingAnswers = new Map<string, boolean>();
+const timeouts = new Map<string, ReturnType<typeof setTimeout>>();
 
-/** Seconds the user has to answer before the reveal fires automatically. */
 const TIMEOUT_MS = 20_000;
 
 // ── Platform helper ───────────────────────────────────────────────────────────
-
-/** Returns true when the platform supports inline buttons and should use the button flow. */
 function isButtonPlatform(platform: string): boolean {
   return platform === Platforms.Discord || platform === Platforms.Telegram;
 }
 
-// ── Button definitions (Discord & Telegram only) ──────────────────────────────
+// ── Core quiz runner (shared by onCommand and Play Again) ─────────────────────
+async function runButtonQuiz(
+  ctx: AppCtx,
+  difficulty: Difficulty,
+): Promise<void> {
+  const { chat, button: btn, event } = ctx;
 
-export const button = {
-  // ── ✅ True button ──────────────────────────────────────────────────────────
-  [BUTTON_ID.true]: {
-    label: '✅ True',
-    style: ButtonStyle.SUCCESS,
-    onClick: async ({ chat, event, session, button: btn }: AppCtx) => {
-      const ctx   = session.context as Partial<ButtonQuizContext>;
-      const msgId = ctx.messageID ?? (event['messageID'] as string);
-      const answer = ctx.answer   ?? '';
-
-      // Ignore stale clicks after the quiz has already been resolved
-      if (pendingAnswers.get(msgId) === true) return;
-      pendingAnswers.set(msgId, true);
-
-      // Clean up button context so it stops responding to further clicks
-      btn.deleteContext(session.id);
-
-      const isCorrect = 'True' === answer;
-      await chat.editMessage({
-        style:              MessageStyle.MARKDOWN,
-        message_id_to_edit: msgId,
-        message: isCorrect
-          ? `✅ **Correct!** The answer was **True**. Well done! 🎉`
-          : `❌ **Wrong!** You answered **True**, but the correct answer was **False**. 😔`,
-      });
-    },
-  },
-
-  // ── ❌ False button ─────────────────────────────────────────────────────────
-  [BUTTON_ID.false]: {
-    label: '❌ False',
-    style: ButtonStyle.DANGER,
-    onClick: async ({ chat, event, session, button: btn }: AppCtx) => {
-      const ctx    = session.context as Partial<ButtonQuizContext>;
-      const msgId  = ctx.messageID ?? (event['messageID'] as string);
-      const answer = ctx.answer    ?? '';
-
-      if (pendingAnswers.get(msgId) === true) return;
-      pendingAnswers.set(msgId, true);
-
-      btn.deleteContext(session.id);
-
-      const isCorrect = 'False' === answer;
-      await chat.editMessage({
-        style:              MessageStyle.MARKDOWN,
-        message_id_to_edit: msgId,
-        message: isCorrect
-          ? `✅ **Correct!** The answer was **False**. Well done! 🎉`
-          : `❌ **Wrong!** You answered **False**, but the correct answer was **True**. 😔`,
-      });
-    },
-  },
-};
-
-// ── Command entry point ───────────────────────────────────────────────────────
-
-export const onCommand = async ({
-  chat,
-  state,
-  args,
-  native,
-  button: btn,
-}: AppCtx): Promise<void> => {
-  // Resolve difficulty from arg or pick randomly
-  const rawArg = (args[0] ?? '').toLowerCase();
-  const difficulty: Difficulty =
-    (DIFFICULTIES as readonly string[]).includes(rawArg)
-      ? (rawArg as Difficulty)
-      : (DIFFICULTIES[Math.floor(Math.random() * DIFFICULTIES.length)] ?? 'medium');
-
-  // Fetch question — url3986 encoding preserves special chars (ampersands, curly quotes)
+  // Fetch question
   let result: TriviaResult;
   try {
     const response = await axios.get<TriviaResponse>(
@@ -229,18 +141,30 @@ export const onCommand = async ({
   const question = decodeURIComponent(result.question);
   const category = decodeURIComponent(result.category);
   const answer   = result.correct_answer;
-  const platform = native.platform;
 
-  // ════════════════════════════════════════════════════════════════════════════
-  // BRANCH A — Discord & Telegram: native inline buttons
-  // ════════════════════════════════════════════════════════════════════════════
-  if (isButtonPlatform(platform)) {
-    // Generate public button IDs so any user in the thread can answer
-    const trueId  = btn.generateID({ id: BUTTON_ID.true,  public: true });
-    const falseId = btn.generateID({ id: BUTTON_ID.false, public: true });
+  const trueId  = btn.generateID({ id: BUTTON_ID.true,  public: true });
+  const falseId = btn.generateID({ id: BUTTON_ID.false, public: true });
 
-    const messageID = await chat.replyMessage({
+  const isFromButtonAction = event?.['type'] === 'button_action';
+  let messageID: string | number | null = null;
+
+  if (isFromButtonAction) {
+    // Play Again: edit the existing message in-place (RPS-style)
+    const currentMsgID = event['messageID'];
+
+    if (typeof currentMsgID !== 'string' && typeof currentMsgID !== 'number') {
+      await chat.replyMessage({
+        style:   MessageStyle.MARKDOWN,
+        message: '❌ Could not restart quiz: missing message ID.',
+      });
+      return;
+    }
+
+    messageID = currentMsgID;
+
+    await chat.editMessage({
       style: MessageStyle.MARKDOWN,
+      message_id_to_edit: String(messageID),
       message: [
         `🧠 **Trivia Quiz** — _${difficulty}_ · ${category}`,
         ``,
@@ -250,49 +174,212 @@ export const onCommand = async ({
       ].join('\n'),
       button: [trueId, falseId],
     });
+  } else {
+    // Initial command: send a brand-new message
+    messageID = await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
+      message: [
+        `🧠 **Trivia Quiz** — _${difficulty}_ · ${category}`,
+        ``,
+        question,
+        ``,
+        `_You have ${TIMEOUT_MS / 1000} seconds to answer!_`,
+      ].join('\n'),
+      button: [trueId, falseId],
+    }) as string | number | null;
+  }
 
-    if (!messageID) {
-      await chat.replyMessage({
-        style:   MessageStyle.MARKDOWN,
-        message: '❌ Button quiz unavailable: this platform did not return a message ID.',
-      });
-      return;
-    }
+  if (!messageID) {
+    await chat.replyMessage({
+      style:   MessageStyle.MARKDOWN,
+      message: '❌ Button quiz unavailable: this platform did not return a message ID.',
+    });
+    return;
+  }
 
-    const msgIdStr = String(messageID);
-    pendingAnswers.set(msgIdStr, false);
+  const msgIdStr = String(messageID);
 
-    // Store the quiz answer in each button's context so onClick can evaluate it.
-    // Both buttons share the same payload — only the label/style differs.
-    const ctx: ButtonQuizContext = { answer, messageID: msgIdStr, difficulty, category };
-    btn.createContext({ id: trueId,  context: ctx });
-    btn.createContext({ id: falseId, context: ctx });
+  // Cancel any previous timeout for this message (prevents overlap on Play Again)
+  if (timeouts.has(msgIdStr)) {
+    clearTimeout(timeouts.get(msgIdStr)!);
+    timeouts.delete(msgIdStr);
+  }
 
-    // Timeout: edit the message to reveal the answer and strip the buttons
-    setTimeout(() => {
-      if (pendingAnswers.get(msgIdStr) === true) return;
-      pendingAnswers.delete(msgIdStr);
+  pendingAnswers.set(msgIdStr, false);
 
-      void chat.editMessage({
-        style:              MessageStyle.MARKDOWN,
-        message_id_to_edit: msgIdStr,
-        message: [
-          `🧠 **Trivia Quiz** — _${difficulty}_ · ${category}`,
-          ``,
-          question,
-          ``,
-          `⏰ **Time's up!** The correct answer was **${answer}**.`,
-        ].join('\n'),
-        // Omitting `button` removes the inline keyboard on edit
-      });
-    }, TIMEOUT_MS);
+  // Store full context so onClick handlers know the correct answer
+  const quizCtx: ButtonQuizContext = {
+    answer,
+    question,
+    messageID: msgIdStr,
+    difficulty,
+    category,
+  };
+  btn.createContext({ id: trueId,  context: quizCtx });
+  btn.createContext({ id: falseId, context: quizCtx });
 
-    return; // Button branch complete — do not fall through to react flow
+  // Timeout: reveal the answer and strip all buttons
+  const timeoutHandle = setTimeout(() => {
+    if (pendingAnswers.get(msgIdStr) === true) return;
+    pendingAnswers.delete(msgIdStr);
+    timeouts.delete(msgIdStr);
+
+    void chat.editMessage({
+      style:              MessageStyle.MARKDOWN,
+      message_id_to_edit: msgIdStr,
+      message: [
+        `🧠 **Trivia Quiz** — _${difficulty}_ · ${category}`,
+        ``,
+        question,
+        ``,
+        `⏰ **Time's up!** The correct answer was **${answer}**.`,
+      ].join('\n'),
+      // Omitting `button` removes the inline keyboard on edit
+    });
+  }, TIMEOUT_MS);
+
+  timeouts.set(msgIdStr, timeoutHandle);
+}
+
+// ── Shared result editor (button flow) ────────────────────────────────────────
+async function showButtonResult(
+  ctx: AppCtx,
+  userAnswer: 'True' | 'False',
+): Promise<void> {
+  const { chat, event, session, button: btn } = ctx;
+  const quizCtx    = session.context as Partial<ButtonQuizContext>;
+  const msgId      = quizCtx.messageID ?? (event['messageID'] as string);
+  const answer     = quizCtx.answer    ?? '';
+  const difficulty = (quizCtx.difficulty ?? 'medium') as Difficulty;
+  const question   = quizCtx.question   ?? '';
+  const category   = quizCtx.category   ?? '';
+
+  // Guard against double-resolution (stale click after timeout or another user)
+  if (pendingAnswers.get(msgId) === true) return;
+  pendingAnswers.set(msgId, true);
+
+  // Cancel the active timeout for this message
+  if (timeouts.has(msgId)) {
+    clearTimeout(timeouts.get(msgId)!);
+    timeouts.delete(msgId);
+  }
+
+  // Clean up the answer button contexts — they are no longer needed
+  btn.deleteContext(session.id);
+
+  const isCorrect   = userAnswer === answer;
+  const resultLine  = isCorrect
+    ? `✅ **Correct!** The answer was **${answer}**. Well done! 🎉`
+    : `❌ **Wrong!** You answered **${userAnswer}**, but the correct answer was **${answer}**. 😔`;
+
+  // Generate Play Again button and store the difficulty
+  const playAgainId = btn.generateID({ id: BUTTON_ID.playAgain, public: true });
+  btn.createContext({
+    id:      playAgainId,
+    context: { difficulty } satisfies Record<string, unknown>,
+  });
+
+  await chat.editMessage({
+    style:              MessageStyle.MARKDOWN,
+    message_id_to_edit: msgId,
+    message: [
+      `🧠 **Trivia Quiz** — _${difficulty}_ · ${category}`,
+      ``,
+      question,
+      ``,
+      resultLine,
+    ].join('\n'),
+    button: [playAgainId],
+  });
+}
+
+// ── Button definitions ────────────────────────────────────────────────────────
+export const button = {
+  // ── ✅ True ─────────────────────────────────────────────────────────────────
+  [BUTTON_ID.true]: {
+    label: '✅ True',
+    style: ButtonStyle.SUCCESS,
+    onClick: async (ctx: AppCtx) => showButtonResult(ctx, 'True'),
+  },
+
+  // ── ❌ False ────────────────────────────────────────────────────────────────
+  [BUTTON_ID.false]: {
+    label: '❌ False',
+    style: ButtonStyle.DANGER,
+    onClick: async (ctx: AppCtx) => showButtonResult(ctx, 'False'),
+  },
+
+  // ── 🔄 Play Again ───────────────────────────────────────────────────────────
+  [BUTTON_ID.playAgain]: {
+    label: '🔄 Play Again',
+    style: ButtonStyle.PRIMARY,
+    onClick: async (ctx: AppCtx) => {
+      const { button: btn, session } = ctx;
+
+      const storedDifficulty = session.context['difficulty'] as Difficulty | undefined;
+      const difficulty: Difficulty =
+        storedDifficulty && (DIFFICULTIES as readonly string[]).includes(storedDifficulty)
+          ? storedDifficulty
+          : (DIFFICULTIES[Math.floor(Math.random() * DIFFICULTIES.length)] ?? 'medium');
+
+      // Clean up the Play Again button context
+      btn.deleteContext(session.id);
+
+      await runButtonQuiz(ctx, difficulty);
+    },
+  },
+};
+
+// ── Command entry point ───────────────────────────────────────────────────────
+export const onCommand = async ({
+  chat,
+  state,
+  args,
+  native,
+  button: btn,
+}: AppCtx): Promise<void> => {
+  // Resolve difficulty from arg or pick randomly
+  const rawArg = (args[0] ?? '').toLowerCase();
+  const difficulty: Difficulty =
+    (DIFFICULTIES as readonly string[]).includes(rawArg)
+      ? (rawArg as Difficulty)
+      : (DIFFICULTIES[Math.floor(Math.random() * DIFFICULTIES.length)] ?? 'medium');
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // BRANCH A — Discord & Telegram: native inline buttons
+  // ════════════════════════════════════════════════════════════════════════════
+  if (isButtonPlatform(native.platform)) {
+    await runButtonQuiz({ chat, state, native, button: btn } as AppCtx, difficulty);
+    return;
   }
 
   // ════════════════════════════════════════════════════════════════════════════
   // BRANCH B — Facebook Messenger & Facebook Page: emoji reaction flow
   // ════════════════════════════════════════════════════════════════════════════
+
+  // Fetch question
+  let result: TriviaResult;
+  try {
+    const response = await axios.get<TriviaResponse>(
+      `https://opentdb.com/api.php?amount=1&encode=url3986&type=boolean&difficulty=${difficulty}`,
+    );
+    const first = response.data.results[0];
+    if (response.data.response_code !== 0 || !first) {
+      throw new Error(`API response_code=${response.data.response_code}`);
+    }
+    result = first;
+  } catch {
+    await chat.replyMessage({
+      style:   MessageStyle.MARKDOWN,
+      message: '❌ Could not fetch a trivia question — the server may be busy. Please try again!',
+    });
+    return;
+  }
+
+  const question = decodeURIComponent(result.question);
+  const category = decodeURIComponent(result.category);
+  const answer   = result.correct_answer;
+
   const messageID = await chat.replyMessage({
     style: MessageStyle.MARKDOWN,
     message: [
@@ -305,7 +392,6 @@ export const onCommand = async ({
     ].join('\n'),
   });
 
-  // Guard: onReact requires a stable messageID key from the platform
   if (!messageID) {
     await chat.replyMessage({
       style:   MessageStyle.MARKDOWN,
@@ -344,7 +430,6 @@ export const onCommand = async ({
 };
 
 // ── Shared reaction evaluator (FB flow) ───────────────────────────────────────
-
 async function handleReact(
   { chat, session, state }: AppCtx,
   userAnswer: 'True' | 'False',
@@ -353,8 +438,6 @@ async function handleReact(
   const msgId         = ctx.messageID  ?? '';
   const correctAnswer = ctx.answer     ?? '';
 
-  // Mark answered BEFORE state.delete() so the setTimeout closure sees true
-  // and skips the auto-reveal even if it fires between this line and the reply
   pendingAnswers.set(msgId, true);
   state.delete(session.id);
 
@@ -369,7 +452,6 @@ async function handleReact(
 }
 
 // ── Reaction handlers (FB Messenger & FB Page only) ───────────────────────────
-
 export const onReact = {
   /** ❤  (U+2764)       — "True" on FB Messenger & FB Page */
   [REACT.TRUE]:         async (ctx: AppCtx) => handleReact(ctx, 'True'),
