@@ -3,13 +3,13 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-import { createTelegramApi } from '../../../src/adapters/platform/telegram/wrapper.js';
+import { createTelegramApi } from '@/engine/adapters/platform/telegram/wrapper.js';
 import {
   createThreadContext,
   createChatContext,
   createBotContext,
   createUserContext,
-} from '../../../src/adapters/models/context.model.js';
+} from '@/engine/adapters/models/context.model.js';
 import {
   TELEGRAM_CHAT_ID,
   TELEGRAM_BOT_ID,

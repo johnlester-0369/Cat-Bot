@@ -7,7 +7,7 @@ import {
   TINY_MP3,
   isProgrammingError,
 } from './test-assets.js';
-import { createChatContext } from '../../../src/adapters/models/context.model.js';
+import { createChatContext } from '@/engine/adapters/models/context.model.js';
 
 /**
  * Validates message sending mechanics, unsending, replying, and attachments.

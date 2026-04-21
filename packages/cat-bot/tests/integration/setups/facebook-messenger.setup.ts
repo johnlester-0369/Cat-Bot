@@ -2,14 +2,14 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-import { startBot } from '../../../src/adapters/platform/facebook-messenger/index.js';
-import { createFacebookApi } from '../../../src/adapters/platform/facebook-messenger/wrapper.js';
+import { startBot } from '@/engine/adapters/platform/facebook-messenger/index.js';
+import { createFacebookApi } from '@/engine/adapters/platform/facebook-messenger/wrapper.js';
 import {
   createThreadContext,
   createChatContext,
   createBotContext,
   createUserContext,
-} from '../../../src/adapters/models/context.model.js';
+} from '@/engine/adapters/models/context.model.js';
 import {
   FB_MESSENGER_TID,
   FB_MESSENGER_MESSAGE_ID,

@@ -4,13 +4,13 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-import { createDiscordChannelApi } from '../../../src/adapters/platform/discord/wrapper.js';
+import { createDiscordChannelApi } from '@/engine/adapters/platform/discord/wrapper.js';
 import {
   createThreadContext,
   createChatContext,
   createBotContext,
   createUserContext,
-} from '../../../src/adapters/models/context.model.js';
+} from '@/engine/adapters/models/context.model.js';
 import {
   DISCORD_GUILD_ID,
   DISCORD_CHANNEL_ID,
