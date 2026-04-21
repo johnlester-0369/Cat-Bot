@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import type { UnifiedApi } from '@/adapters/models/api.model.js';
+import type { UnifiedApi } from '@/engine/adapters/models/api.model.js';
 
 /**
  * WHY: Centralizing mock generation prevents duplicating vi.fn() boilerplate

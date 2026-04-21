@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { stateStore } from '@/lib/reply-state.lib.js';
+import { stateStore } from '@/engine/lib/state.lib.js';
 
 describe('Reply State Store Library', () => {
   const ID = 'msg-123:user-456';

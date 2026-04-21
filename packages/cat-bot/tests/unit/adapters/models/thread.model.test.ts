@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createUnifiedThreadInfo } from '@/adapters/models/thread.model.js';
+import { createUnifiedThreadInfo } from '@/engine/adapters/models/thread.model.js';
 
 describe('Unified Thread Model', () => {
   it('should create default populated thread info when data is missing', () => {

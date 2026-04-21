@@ -1,10 +1,10 @@
-import type { UnifiedApi } from '../../../src/adapters/models/api.model.js';
+import type { UnifiedApi } from '@/engine/adapters/models/api.model.js';
 import type {
   ChatContext,
   ThreadContext,
   UserContext,
   BotContext,
-} from '../../../src/adapters/models/context.model.js';
+} from '@/engine/adapters/models/context.model.js';
 
 /**
  * Standardized Context Map emitted by each platform setup layer.

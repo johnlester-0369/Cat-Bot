@@ -2,14 +2,14 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-import { createFbPageApi } from '../../../src/adapters/platform/facebook-page/wrapper.js';
-import { createPageApi } from '../../../src/adapters/platform/facebook-page/pageApi.js';
+import { createFbPageApi } from '@/engine/adapters/platform/facebook-page/wrapper.js';
+import { createPageApi } from '@/engine/adapters/platform/facebook-page/pageApi.js';
 import {
   createThreadContext,
   createChatContext,
   createBotContext,
   createUserContext,
-} from '../../../src/adapters/models/context.model.js';
+} from '@/engine/adapters/models/context.model.js';
 import { FB_PAGE_TID, FB_PAGE_MESSAGE_ID } from '../shared/test-ids.js';
 import type { PlatformTestContext } from '../shared/test-types.js';
 

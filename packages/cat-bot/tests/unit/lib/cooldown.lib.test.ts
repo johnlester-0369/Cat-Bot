@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { cooldownStore } from '@/lib/cooldown.lib.js';
+import { cooldownStore } from '@/engine/lib/cooldown.lib.js';
 
 describe('Cooldown Store Library', () => {
   const SENDER = 'user-123';

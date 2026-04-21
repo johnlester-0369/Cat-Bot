@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { dispatchEvent } from '@/controllers/dispatchers/event.dispatcher.js';
+import { dispatchEvent } from '@/engine/controllers/dispatchers/event.dispatcher.js';
 
 describe('Event Dispatcher', () => {
   it('should route events to registered handlers for matching event type', async () => {
@@ -22,7 +22,7 @@ describe('Event Dispatcher', () => {
     const eventModules = new Map();
 
     // No throw
-    await dispatchEvent(eventModules, 'unknown_event_type', {});
+    await dispatchEvent(eventModules, 'unknown_event_type', { native: { platform: 'discord' } } as any);
   });
 
   it('should skip modules if platform is explicitly filtered out', async () => {

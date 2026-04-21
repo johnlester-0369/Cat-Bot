@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseCommand } from '@/utils/command-parser.util.js';
+import { parseCommand } from '@/engine/modules/command/command-parser.util.js';
 
 describe('Command Parser Utility', () => {
   it('should parse a standard prefixed command', () => {

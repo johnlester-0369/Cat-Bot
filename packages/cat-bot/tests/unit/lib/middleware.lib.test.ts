@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { runMiddlewareChain } from '@/lib/middleware.lib.js';
-import type { MiddlewareFn } from '@/types/middleware.types.js';
+import { runMiddlewareChain } from '@/engine/lib/middleware.lib.js';
+import type { MiddlewareFn } from '@/engine/types/middleware.types.js';
 
 describe('Middleware Library Chain Runner', () => {
   it('should execute middleware in sequential order and call final handler', async () => {

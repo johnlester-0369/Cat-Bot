@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { enforceCooldown } from '@/middleware/on-command.middleware.js';
-import { cooldownStore } from '@/lib/cooldown.lib.js';
+import { enforceCooldown } from '@/engine/middleware/on-command.middleware.js';
+import { cooldownStore } from '@/engine/lib/cooldown.lib.js';
 import { createMockEvent } from '../mocks/mock-data.js';
 
 describe('On-Command Middleware: Cooldown Enforcement', () => {
@@ -14,7 +14,7 @@ describe('On-Command Middleware: Cooldown Enforcement', () => {
       event: createMockEvent(),
       mod: { config: {} }, // No cooldown
       parsed: { name: 'ping' },
-    } as unknown as import('@/types/middleware.types.js').OnCommandCtx;
+    } as unknown as import('@/engine/types/middleware.types.js').OnCommandCtx;
     const next = vi.fn();
 
     await enforceCooldown(ctx, next);
@@ -27,7 +27,7 @@ describe('On-Command Middleware: Cooldown Enforcement', () => {
       event: createMockEvent({ senderID: 'user-1' }),
       mod: { config: { cooldown: 5 } },
       parsed: { name: 'ping' },
-    } as unknown as import('@/types/middleware.types.js').OnCommandCtx;
+    } as unknown as import('@/engine/types/middleware.types.js').OnCommandCtx;
     const next = vi.fn();
 
     await enforceCooldown(ctx, next);
@@ -44,7 +44,7 @@ describe('On-Command Middleware: Cooldown Enforcement', () => {
       mod: { config: { cooldown: 5 } },
       parsed: { name: 'heavycmd' },
       chat: chatMock,
-    } as unknown as import('@/types/middleware.types.js').OnCommandCtx;
+    } as unknown as import('@/engine/types/middleware.types.js').OnCommandCtx;
 
     const next = vi.fn();
 

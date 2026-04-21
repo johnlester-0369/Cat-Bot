@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isPlatformAllowed } from '@/utils/platform-filter.util.js';
+import { isPlatformAllowed } from '@/engine/modules/platform/platform-filter.util.js';
 
 describe('Platform Filter Utility', () => {
   it('should allow all platforms if config.platform is absent', () => {

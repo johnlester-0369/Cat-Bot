@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createUnifiedUserInfo } from '@/adapters/models/user.model.js';
+import { createUnifiedUserInfo } from '@/engine/adapters/models/user.model.js';
 
 describe('Unified User Model', () => {
   it('should create default populated user info when data is missing', () => {

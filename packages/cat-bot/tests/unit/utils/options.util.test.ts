@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { parseTextOptions, validateOptions } from '@/utils/options.util.js';
-import { OptionsMap } from '@/lib/options-map.lib.js';
-import type { OptionDef } from '@/lib/options-map.lib.js';
+import { parseTextOptions, validateOptions } from '@/engine/modules/options/options.util.js';
+import { OptionsMap } from '@/engine/modules/options/options-map.lib.js';
+import type { OptionDef } from '@/engine/modules/options/options-map.lib.js';
 
 describe('Options Utility', () => {
   const defs: OptionDef[] = [

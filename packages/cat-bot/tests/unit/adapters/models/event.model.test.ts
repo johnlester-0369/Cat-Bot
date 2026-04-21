@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatEvent, EventType } from '@/adapters/models/event.model.js';
+import { formatEvent, EventType } from '@/engine/adapters/models/event.model.js';
 
 describe('Unified Event Model Formatter', () => {
   it('should securely normalize a basic message event', () => {
