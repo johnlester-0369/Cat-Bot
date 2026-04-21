@@ -28,6 +28,13 @@ import type { OptionTypeValue } from '@/engine/modules/command/command-option.co
 import { isPlatformAllowed } from '@/engine/modules/platform/platform-filter.util.js';
 import { Platforms } from '@/engine/modules/platform/platform.constants.js';
 
+// 🔧 Centralized safe truncation utility
+function truncate(value: string, max: number): string {
+  if (!value) return '';
+  if (value.length <= max) return value;
+  return value.slice(0, max - 1) + '…'; // keep within limit with ellipsis
+}
+
 // Shape of each option entry in a command module's config.options array
 interface SlashOption {
   type: OptionTypeValue;
@@ -83,15 +90,15 @@ function buildSlashCommandPayloads(
     if (disabledNames?.has(cfg.name.toLowerCase())) continue;
 
     const builder = new SlashCommandBuilder()
-      .setName(key)
-      .setDescription(cfg.description);
+      .setName(truncate(key, 32)) // Discord hard limit safety
+      .setDescription(truncate(cfg.description, 100));
 
     for (const opt of cfg.options ?? []) {
       if (opt.type === OptionType.string) {
         builder.addStringOption((o) =>
           o
-            .setName(opt.name)
-            .setDescription(opt.description)
+            .setName(truncate(opt.name, 32))
+            .setDescription(truncate(opt.description, 100))
             .setRequired(opt.required ?? false),
         );
       } else if (opt.type === OptionType.user) {
@@ -100,8 +107,8 @@ function buildSlashCommandPayloads(
         // whose .id is extracted downstream in event-handlers.ts via getUser()
         builder.addUserOption((o) =>
           o
-            .setName(opt.name)
-            .setDescription(opt.description)
+            .setName(truncate(opt.name, 32))
+            .setDescription(truncate(opt.description, 100))
             .setRequired(opt.required ?? false),
         );
       }
@@ -143,21 +150,11 @@ export async function registerSlashCommands(
     return;
   }
 
-  // Fingerprint the current slash-eligible command configs so we can detect
-  // whether anything has changed since the last registered deployment.
   const currentHash = computeCommandHash(commands);
-
-  // Read the stored registration state for this specific session credential.
-  // Returns null only when the credential row is absent — should not happen in
-  // normal operation, but we handle it gracefully by treating it as "not registered".
   const credential = await findDiscordCredentialState(userId, sessionId);
-
   const rest = new REST().setToken(token);
 
   if (prefix === '/') {
-    // Skip the REST call when already registered AND the command set is identical.
-    // Hash mismatch means a command was added, removed, or reconfigured since last deploy.
-    // forceRegister overrides the skip — a dashboard toggle changes the enabled-set without altering the hash.
     if (
       !forceRegister &&
       credential?.isCommandRegister &&
@@ -172,7 +169,6 @@ export async function registerSlashCommands(
     const slashCommands = buildSlashCommandPayloads(commands, disabledNames);
 
     try {
-      // Step 1 — wipe per-guild commands to eliminate duplicate menus
       const guildIds = [...client.guilds.cache.keys()];
       if (guildIds.length > 0) {
         await Promise.all(
@@ -186,7 +182,7 @@ export async function registerSlashCommands(
           `[discord] Cleared guild-scoped commands from ${guildIds.length} guild(s)`,
         );
       }
-      // Step 2 — publish globally; single source of truth for all guilds and DMs
+
       await rest.put(Routes.applicationCommands(clientId), {
         body: slashCommands,
       });
@@ -194,7 +190,6 @@ export async function registerSlashCommands(
         `[discord] Deployed ${slashCommands.length} global command(s)`,
       );
 
-      // Persist registration state — next restart skips the REST call when nothing changed
       await updateDiscordCredentialCommandHash(userId, sessionId, {
         isCommandRegister: true,
         commandHash: currentHash,
@@ -202,16 +197,10 @@ export async function registerSlashCommands(
     } catch (err) {
       sessionLogger.warn(
         '[discord] Slash command registration failed (non-fatal)',
-        {
-          error: err,
-        },
+        { error: err },
       );
     }
   } else {
-    // Skip when already cleared AND the fingerprint matches — hash equality is the gate,
-    // not a null check. Storing currentHash on clear means this guard fires correctly on
-    // every subsequent restart without an unnecessary REST round-trip.
-    // forceRegister overrides so a toggle re-confirms the cleared state even without a hash change.
     if (
       !forceRegister &&
       !credential?.isCommandRegister &&
@@ -229,8 +218,6 @@ export async function registerSlashCommands(
         `[discord] Cleared global slash commands (prefix "${prefix}" ≠ "/"; slash menu disabled)`,
       );
 
-      // Mark as cleared so the next restart does not repeat the REST call
-      // Store currentHash (not null) so the skip guard above fires correctly next restart
       await updateDiscordCredentialCommandHash(userId, sessionId, {
         isCommandRegister: false,
         commandHash: currentHash,
@@ -238,9 +225,7 @@ export async function registerSlashCommands(
     } catch (err) {
       sessionLogger.warn(
         '[discord] Failed to clear global commands (non-fatal)',
-        {
-          error: err,
-        },
+        { error: err },
       );
     }
   }
@@ -268,9 +253,7 @@ export async function clearGuildCommands(
   } catch (err) {
     sessionLogger.warn(
       `[discord] Failed to clear commands in new guild ${guildId}`,
-      {
-        error: err,
-      },
+      { error: err },
     );
   }
 }
