@@ -41,13 +41,6 @@ const discordStateKey = (userId: string, sessionId: string): string =>
 const telegramStateKey = (userId: string, sessionId: string): string =>
   `${userId}:telegram:${sessionId}:cred:state`;
 
-const adminCheckKey = (
-  userId: string,
-  platform: string,
-  sessionId: string,
-  adminId: string,
-): string => `${userId}:${platform}:${sessionId}:admin:check:${adminId}`;
-
 const adminListKey = (
   userId: string,
   platform: string,
@@ -194,12 +187,10 @@ export async function isBotAdmin(
   sessionId: string,
   adminId: string,
 ): Promise<boolean> {
-  const key = adminCheckKey(userId, platform, sessionId, adminId);
-  const cached = lruCache.get<boolean>(key);
-  if (cached !== undefined) return cached;
-  const result = await _isBotAdmin(userId, platform, sessionId, adminId);
-  lruCache.set(key, result);
-  return result;
+  // Delegate to the O(sessions) list cache instead of creating O(unique_senders)
+  // per-user boolean entries. Bot admins are a small fixed set per session.
+  const admins = await listBotAdmins(userId, platform, sessionId);
+  return admins.includes(adminId);
 }
 
 export async function addBotAdmin(
@@ -209,20 +200,15 @@ export async function addBotAdmin(
   adminId: string,
 ): Promise<void> {
   await _addBotAdmin(userId, platform, sessionId, adminId);
-  // Write true to the check cache so immediately-following permission checks don't
-  // go to DB before the TTL window expires on the old false value.
-  lruCache.set(adminCheckKey(userId, platform, sessionId, adminId), true);
-  // Write-through: append to the cached list rather than evicting it — avoids a cold
-  // DB hit on the listBotAdmins call that immediately follows from the dashboard.
-  // Only mutate if already populated; an absent cache entry is left for lazy hydration.
+  // Write-through the list so isBotAdmin (which delegates to listBotAdmins)
+  // sees the new member without a cold DB hit.
   const listKey = adminListKey(userId, platform, sessionId);
   const cachedList = lruCache.get<string[]>(listKey);
-  if (cachedList !== undefined) {
+  if (cachedList !== undefined && !cachedList.includes(adminId)) {
     lruCache.set(listKey, [...cachedList, adminId]);
   }
-  // bot.repo.ts caches admin data inside bot:detail and bot:list responses using its
-  // own separate keys — clear both so the dashboard reflects the new member immediately
-  // rather than waiting for those TTLs to expire independently.
+  // bot.repo.ts caches admin data inside bot:detail and bot:list — clear both so
+  // the dashboard reflects the new member immediately.
   lruCache.del(`bot:detail:${userId}:${sessionId}`);
   lruCache.del(`bot:list:${userId}`);
 }
@@ -234,13 +220,8 @@ export async function removeBotAdmin(
   adminId: string,
 ): Promise<void> {
   await _removeBotAdmin(userId, platform, sessionId, adminId);
-  lruCache.set(adminCheckKey(userId, platform, sessionId, adminId), false);
-  // Write-through: filter the removed admin from the cached list rather than evicting.
-  // Root cause of the "remove admin still shows 2" bug: evicting adminListKey forced a
-  // correct DB re-fetch via listBotAdmins, but bot.repo.ts caches the full admin array
-  // inside bot:detail:{userId}:{sessionId} and bot:list:{userId} under separate keys that
-  // were never cleared here, so dashboard calls to botRepo.getById kept returning stale
-  // 2-admin payloads until those entries expired by TTL.
+  // Write-through: filter the removed admin from the list cache so isBotAdmin
+  // (which delegates to listBotAdmins) reflects the removal immediately.
   const listKey = adminListKey(userId, platform, sessionId);
   const cachedList = lruCache.get<string[]>(listKey);
   if (cachedList !== undefined) {
