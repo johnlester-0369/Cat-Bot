@@ -268,13 +268,6 @@ export async function updateBotSessionPrefix(
 
 // ── Bot Premium ───────────────────────────────────────────────────────────────
 
-const premiumCheckKey = (
-  userId: string,
-  platform: string,
-  sessionId: string,
-  premiumId: string,
-): string => `${userId}:${platform}:${sessionId}:premium:check:${premiumId}`;
-
 const premiumListKey = (
   userId: string,
   platform: string,
@@ -287,12 +280,10 @@ export async function isBotPremium(
   sessionId: string,
   premiumId: string,
 ): Promise<boolean> {
-  const key = premiumCheckKey(userId, platform, sessionId, premiumId);
-  const cached = lruCache.get<boolean>(key);
-  if (cached !== undefined) return cached;
-  const result = await _isBotPremium(userId, platform, sessionId, premiumId);
-  lruCache.set(key, result);
-  return result;
+  // Delegate to the O(sessions) list cache instead of creating O(unique_senders)
+  // per-user boolean entries. Premium users are a small fixed set per session.
+  const premiums = await listBotPremiums(userId, platform, sessionId);
+  return premiums.includes(premiumId);
 }
 
 export async function addBotPremium(
@@ -302,18 +293,13 @@ export async function addBotPremium(
   premiumId: string,
 ): Promise<void> {
   await _addBotPremium(userId, platform, sessionId, premiumId);
-  // Write true immediately so subsequent isBotPremium calls in the same request
-  // see the correct value without a DB round-trip.
-  lruCache.set(premiumCheckKey(userId, platform, sessionId, premiumId), true);
-  // Write-through the list to avoid a cold DB hit on the immediately-following
-  // listBotPremiums call from the chat response.
+  // Write-through the list so isBotPremium (which delegates to listBotPremiums)
+  // sees the new member without a cold DB hit.
   const listKey = premiumListKey(userId, platform, sessionId);
   const cachedList = lruCache.get<string[]>(listKey);
-  if (cachedList !== undefined) {
+  if (cachedList !== undefined && !cachedList.includes(premiumId)) {
     lruCache.set(listKey, [...cachedList, premiumId]);
   }
-  // bot.repo.ts caches detail/list responses — clear them so the dashboard reflects
-  // the new premium member immediately without waiting for TTL expiry.
   lruCache.del(`bot:detail:${userId}:${sessionId}`);
   lruCache.del(`bot:list:${userId}`);
 }
@@ -325,7 +311,6 @@ export async function removeBotPremium(
   premiumId: string,
 ): Promise<void> {
   await _removeBotPremium(userId, platform, sessionId, premiumId);
-  lruCache.set(premiumCheckKey(userId, platform, sessionId, premiumId), false);
   // Write-through: filter removed member from the list cache to avoid a stale read.
   const listKey = premiumListKey(userId, platform, sessionId);
   const cachedList = lruCache.get<string[]>(listKey);
