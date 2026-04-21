@@ -48,7 +48,6 @@ jobs:
         with:
           node-version: '22'   # Node 20 reached EOL April 2026; 22 is current LTS
           cache: 'npm'
-          cache-dependency-path: packages/cat-bot/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -82,7 +81,6 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
-          cache-dependency-path: packages/web/package-lock.json
 
       - name: Install dependencies
         run: npm ci
