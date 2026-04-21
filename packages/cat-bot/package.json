@@ -11,7 +11,8 @@
     "start": "node dist/engine/app.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "seed:admin": "tsx scripts/seed-admin.ts"
+    "seed:admin": "tsx scripts/seed-admin.ts",
+    "reset:password": "tsx scripts/reset-password.ts"
   },
   "keywords": [],
   "author": "",
