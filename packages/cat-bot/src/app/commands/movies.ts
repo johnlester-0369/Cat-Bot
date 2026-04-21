@@ -11,10 +11,11 @@
 import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
 import { MessageStyle } from '@/engine/constants/message-style.constants.js';
+import type { CommandConfig } from '@/engine/types/module-config.types.js';
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
-export const config = {
+export const config: CommandConfig = {
   name: 'movies',
   aliases: ['mov'] as string[],
   version: '1.0.1',

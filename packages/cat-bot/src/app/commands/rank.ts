@@ -24,6 +24,7 @@ import { OptionType } from '@/engine/modules/command/command-option.constants.js
 import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 import { ButtonStyle } from '@/engine/constants/button-style.constants.js';
 import { hasNativeButtons } from '@/engine/utils/ui-capabilities.util.js';
+import type { CommandConfig } from '@/engine/types/module-config.types.js';
 
 /** Controls how quickly users level up — higher = slower progression. */
 const DELTA_NEXT = 5;
@@ -40,7 +41,7 @@ function levelToExp(level: number): number {
   return Math.floor(((level * level - level) * DELTA_NEXT) / 2);
 }
 
-export const config = {
+export const config: CommandConfig = {
   name: 'rank',
   aliases: [] as string[],
   version: '1.0.0',

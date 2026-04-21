@@ -31,6 +31,7 @@ import { Role } from '@/engine/constants/role.constants.js';
 import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 import { ButtonStyle } from '@/engine/constants/button-style.constants.js';
 import { hasNativeButtons } from '@/engine/utils/ui-capabilities.util.js';
+import type { CommandConfig } from '@/engine/types/module-config.types.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -74,7 +75,7 @@ async function fetchCosplayVideo(): Promise<string | null> {
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
-export const config = {
+export const config: CommandConfig = {
   name: 'cosplay',
   aliases: ['cs'] as string[],
   version: '1.2.0',

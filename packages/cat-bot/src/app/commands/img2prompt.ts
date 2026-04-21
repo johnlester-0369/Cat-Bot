@@ -19,6 +19,7 @@ import { Role } from '@/engine/constants/role.constants.js';
 import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 import { AttachmentType } from '@/engine/adapters/models/enums/attachment-type.enum.js';
 import { createUrl } from '@/engine/utils/api.util.js';
+import type { CommandConfig } from '@/engine/types/module-config.types.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -36,7 +37,7 @@ interface TopPromptResponse {
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
-export const config = {
+export const config: CommandConfig = {
   name: 'image2prompt',
   aliases: [
     'imagetoprompt',

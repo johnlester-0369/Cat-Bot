@@ -1,7 +1,8 @@
 import type { AppCtx } from '@/engine/types/controller.types.js';
 import { MessageStyle } from '@/engine/constants/message-style.constants.js';
+import type { EventConfig } from '@/engine/types/module-config.types.js';
 
-export const config = {
+export const config: EventConfig = {
   name: 'leave',
   eventType: ['log:unsubscribe'],
   version: '1.0.0',

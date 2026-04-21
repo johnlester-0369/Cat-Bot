@@ -1,7 +1,8 @@
 import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
+import type { CommandConfig } from '@/engine/types/module-config.types.js';
 
-export const config = {
+export const config: CommandConfig = {
   name: 'example_on_chat',
   aliases: [] as string[],
   version: '1.0.0',

@@ -10,8 +10,9 @@ import { Role } from '@/engine/constants/role.constants.js';
 import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 import { Platforms } from '@/engine/modules/platform/platform.constants.js';
 import { listBotAdmins } from '@/engine/repos/credentials.repo.js';
+import type { CommandConfig } from '@/engine/types/module-config.types.js';
 
-export const config = {
+export const config: CommandConfig = {
   name: 'detect',
   aliases: [] as string[],
   version: '1.2.0',

@@ -4,8 +4,9 @@ import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 import { runAgent } from '@/engine/agent/agent.js';
 import { OptionType } from '@/engine/modules/command/command-option.constants.js';
 import { getBotNickname } from '@/engine/repos/session.repo.js';
+import type { CommandConfig } from '@/engine/types/module-config.types.js';
 
-export const config = {
+export const config: CommandConfig = {
   name: 'ai',
   version: '1.0.0',
   role: Role.ANYONE,

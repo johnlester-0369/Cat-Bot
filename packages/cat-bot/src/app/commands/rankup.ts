@@ -28,6 +28,7 @@ import { OptionType } from '@/engine/modules/command/command-option.constants.js
 import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 import { ButtonStyle } from '@/engine/constants/button-style.constants.js';
 import { hasNativeButtons } from '@/engine/utils/ui-capabilities.util.js';
+import type { CommandConfig } from '@/engine/types/module-config.types.js';
 
 /** Must match the constant in rank.ts — controls EXP-to-level curve. */
 const DELTA_NEXT = 5;
@@ -41,7 +42,7 @@ function expToLevel(exp: number): number {
   return Math.floor((1 + Math.sqrt(1 + (8 * exp) / DELTA_NEXT)) / 2);
 }
 
-export const config = {
+export const config: CommandConfig = {
   name: 'rankup',
   aliases: [] as string[],
   version: '1.0.0',

@@ -17,6 +17,7 @@ import { Role } from '@/engine/constants/role.constants.js';
 import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 import { ButtonStyle } from '@/engine/constants/button-style.constants.js';
 import { hasNativeButtons } from '@/engine/utils/ui-capabilities.util.js';
+import type { CommandConfig } from '@/engine/types/module-config.types.js';
 
 // ── Fetcher ───────────────────────────────────────────────────────────────────
 
@@ -45,7 +46,7 @@ async function fetchQuote(): Promise<QuoteData | null> {
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
-export const config = {
+export const config: CommandConfig = {
   name: 'quote',
   aliases: ['inspire', 'motivation'] as string[],
   version: '1.1.0',

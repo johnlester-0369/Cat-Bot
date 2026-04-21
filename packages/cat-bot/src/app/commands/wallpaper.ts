@@ -22,6 +22,7 @@ import { Role } from '@/engine/constants/role.constants.js';
 import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 import { ButtonStyle } from '@/engine/constants/button-style.constants.js';
 import { hasNativeButtons } from '@/engine/utils/ui-capabilities.util.js';
+import type { CommandConfig } from '@/engine/types/module-config.types.js';
 
 const TIMEOUT = 20000;
 const DEFAULT_WIDTH = 1920;
@@ -73,7 +74,7 @@ const PRESETS = {
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
-export const config = {
+export const config: CommandConfig = {
   name: 'wallpaper',
   aliases: ['wp', 'wall', 'background'] as string[],
   version: '1.5.0',

@@ -19,8 +19,9 @@ import { banUser, unbanUser } from '@/engine/repos/banned.repo.js';
 import { OptionType } from '@/engine/modules/command/command-option.constants.js';
 import { Platforms } from '@/engine/modules/platform/platform.constants.js';
 import { MessageStyle } from '@/engine/constants/message-style.constants.js';
+import type { CommandConfig } from '@/engine/types/module-config.types.js';
 
-export const config = {
+export const config: CommandConfig = {
   name: 'user',
   aliases: [] as string[],
   version: '1.0.0',

@@ -18,6 +18,7 @@ import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
 import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 import { createUrl } from '@/engine/utils/api.util.js';
+import type { CommandConfig } from '@/engine/types/module-config.types.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -29,7 +30,7 @@ interface EmojiMixResponse {
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
-export const config = {
+export const config: CommandConfig = {
   name: 'emojimix',
   aliases: ['emix'] as string[],
   version: '1.0.0',

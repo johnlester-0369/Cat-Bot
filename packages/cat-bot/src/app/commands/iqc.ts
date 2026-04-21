@@ -20,6 +20,7 @@ import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
 import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 import { createUrl } from '@/engine/utils/api.util.js';
+import type { CommandConfig } from '@/engine/types/module-config.types.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -28,7 +29,7 @@ const TIMEZONE = process.env['TZ'] ?? 'Asia/Jakarta';
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
-export const config = {
+export const config: CommandConfig = {
   name: 'iphonequotedchat',
   aliases: ['iqc'] as string[],
   version: '1.0.0',
@@ -36,7 +37,7 @@ export const config = {
   author: 'AjiroDesu',
   description: `Generate an iPhone iMessage-style chat bubble image from text (max ${MAX_LENGTH} chars). Type or reply to a message.`,
   category: 'Maker',
-  usage: ['<text>', '[reply to message]'] as string[],
+  usage: '<text | reply to message>',
   cooldown: 5,
   hasPrefix: true,
 };

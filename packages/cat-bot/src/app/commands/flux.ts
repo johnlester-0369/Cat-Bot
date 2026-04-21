@@ -16,6 +16,7 @@ import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 import { ButtonStyle } from '@/engine/constants/button-style.constants.js';
 import { hasNativeButtons } from '@/engine/utils/ui-capabilities.util.js';
 import { createUrl } from '@/engine/utils/api.util.js';
+import type { CommandConfig } from '@/engine/types/module-config.types.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -27,7 +28,7 @@ interface DeepImgResponse {
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
-export const config = {
+export const config: CommandConfig = {
   name: 'flux',
   aliases: ['deepimg', 'fluxai'] as string[],
   version: '1.0.0',

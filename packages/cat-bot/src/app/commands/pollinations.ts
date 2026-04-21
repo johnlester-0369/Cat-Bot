@@ -7,8 +7,9 @@ import axios from 'axios';
 import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
 import { MessageStyle } from '@/engine/constants/message-style.constants.js';
+import type { CommandConfig } from '@/engine/types/module-config.types.js';
 
-export const config = {
+export const config: CommandConfig = {
   name: 'pollinations',
   aliases: ['imagine', 'imggen', 'generate'] as string[],
   version: '1.0.0',

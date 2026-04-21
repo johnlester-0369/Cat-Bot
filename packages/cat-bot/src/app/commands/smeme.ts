@@ -24,6 +24,7 @@ import { Role } from '@/engine/constants/role.constants.js';
 import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 import { AttachmentType } from '@/engine/adapters/models/enums/attachment-type.enum.js';
 import { createUrl } from '@/engine/utils/api.util.js';
+import type { CommandConfig } from '@/engine/types/module-config.types.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -56,7 +57,7 @@ function resolveImageUrl(event: Record<string, unknown>): string | null {
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
-export const config = {
+export const config: CommandConfig = {
   name: 'stickermeme',
   aliases: ['smeme', 'stikermeme'] as string[],
   version: '1.0.0',
@@ -64,7 +65,7 @@ export const config = {
   author: 'AjiroDesu',
   description: 'Add meme captions to an image. Send or reply to an image with the caption text.',
   category: 'Maker',
-  usage: ['<bottom text>  (send/reply image)', '<top text>|<bottom text>  (send/reply image)'] as string[],
+  usage: '<bottom text> (send/reply image) or <top text>|<bottom text>  (send/reply image)',
   cooldown: 5,
   hasPrefix: true,
 };

@@ -13,6 +13,7 @@ import { Role } from '@/engine/constants/role.constants.js';
 import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 import { ButtonStyle } from '@/engine/constants/button-style.constants.js';
 import { hasNativeButtons } from '@/engine/utils/ui-capabilities.util.js';
+import type { CommandConfig } from '@/engine/types/module-config.types.js';
 
 interface MemeResult {
   url: string;
@@ -27,7 +28,7 @@ async function fetchMeme(): Promise<MemeResult> {
   return { url: data.url as string, title: data.title as string };
 }
 
-export const config = {
+export const config: CommandConfig = {
   name: 'meme',
   aliases: ['memes', 'randommeme'] as string[],
   version: '1.1.0',

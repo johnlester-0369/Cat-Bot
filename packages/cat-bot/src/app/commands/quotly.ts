@@ -23,6 +23,7 @@ import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
 import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 import { createUrl } from '@/engine/utils/api.util.js';
+import type { CommandConfig } from '@/engine/types/module-config.types.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -32,7 +33,7 @@ const FALLBACK_AVATAR =
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
-export const config = {
+export const config: CommandConfig = {
   name: 'quotlychat',
   aliases: ['qc', 'quotly'] as string[],
   version: '1.0.0',
@@ -40,7 +41,7 @@ export const config = {
   author: 'AjiroDesu',
   description: `Generate a Telegram-style quote card image from text (max ${MAX_LENGTH} chars). Type or reply to a message.`,
   category: 'Maker',
-  usage: ['<text>', '[reply to message]'] as string[],
+  usage: '<text | reply to message>',
   cooldown: 5,
   hasPrefix: true,
 };

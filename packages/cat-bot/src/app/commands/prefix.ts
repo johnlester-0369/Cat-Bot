@@ -31,8 +31,9 @@ import {
 import { OptionType } from '@/engine/modules/command/command-option.constants.js';
 import { triggerSlashSync } from '@/engine/modules/prefix/slash-sync.lib.js';
 import { MessageStyle } from '@/engine/constants/message-style.constants.js';
+import type { CommandConfig } from '@/engine/types/module-config.types.js';
 
-export const config = {
+export const config: CommandConfig = {
   name: 'prefix',
   aliases: [] as string[],
   version: '1.0.0',

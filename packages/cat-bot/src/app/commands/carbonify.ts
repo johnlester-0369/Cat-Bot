@@ -15,10 +15,11 @@ import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
 import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 import { createUrl } from '@/engine/utils/api.util.js';
+import type { CommandConfig } from '@/engine/types/module-config.types.js';
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
-export const config = {
+export const config: CommandConfig = {
   name: 'carbonify',
   aliases: ['carbon', 'codesnap'] as string[],
   version: '1.0.0',
@@ -26,7 +27,7 @@ export const config = {
   author: 'AjiroDesu',
   description: 'Generate a beautiful code snapshot image from your code. Type or reply to code.',
   category: 'Maker',
-  usage: ['<code>', '[reply to code message]'] as string[],
+  usage: '<code | reply to code message>',
   cooldown: 5,
   hasPrefix: true,
 };
