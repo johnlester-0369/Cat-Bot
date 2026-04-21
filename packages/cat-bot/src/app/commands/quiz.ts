@@ -31,8 +31,9 @@ import { OptionType } from '@/engine/modules/command/command-option.constants.js
 import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 import { ButtonStyle } from '@/engine/constants/button-style.constants.js';
 import { Platforms } from '@/engine/modules/platform/platform.constants.js';
+import type { CommandConfig } from '@/engine/types/module-config.types.js';
 
-export const config = {
+export const config: CommandConfig = {
   name: 'quiz',
   aliases: ['trivia'] as string[],
   version: '1.3.1',
