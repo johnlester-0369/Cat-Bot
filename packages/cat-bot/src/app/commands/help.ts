@@ -49,6 +49,7 @@ import { hasNativeButtons } from '@/engine/utils/ui-capabilities.util.js';
 import { Platforms } from '@/engine/modules/platform/platform.constants.js';
 import { isThreadAdmin } from '@/engine/repos/threads.repo.js';
 import { isBotAdmin, isBotPremium } from '@/engine/repos/credentials.repo.js';
+import { isSystemAdmin } from '@/engine/repos/system-admin.repo.js';
 
 export const config = {
   name: 'help',
@@ -85,6 +86,7 @@ const ROLE_LABEL: Record<number, string> = {
   [Role.THREAD_ADMIN]: '1 (Group administrators)',
   [Role.BOT_ADMIN]: '2 (Bot admin)',
   [Role.PREMIUM]: '3 (Premium)',
+  [Role.SYSTEM_ADMIN]: '4 (System admin)',
 };
 
 /** Thin horizontal rule used as a section separator. */
@@ -214,36 +216,49 @@ export const onCommand = async ({
   // but intentionally excludes BOT_ADMIN (2) — the levels are non-monotone. A Set is accurate
   // and automatically forward-safe when new roles are appended to Role in the future.
   const senderID = (event['senderID'] ?? event['userID'] ?? '') as string;
-  const threadID = (event['threadID'] ?? '') as string;
+  // and automatically forward-safe when new roles are appended to Role in the future.
   const accessibleRoles = new Set<number>([Role.ANYONE]);
   if (sessionUserId && sessionId && senderID) {
     try {
-      const isAdmin = await isBotAdmin(
-        sessionUserId,
-        native.platform,
-        sessionId,
-        senderID,
-      );
-      if (isAdmin) {
-        // Bot admins can run every command — include all known role levels.
+      // System admins hold global authority — checked first to avoid unnecessary
+      // isBotAdmin/isBotPremium DB calls. SYSTEM_ADMIN membership unlocks every
+      // privilege tier so /help surfaces all commands, including those gated at
+      // Role.SYSTEM_ADMIN which no sub-admin role can otherwise reach.
+      // Mirrors the short-circuit pattern in enforcePermission middleware.
+      const isSysAdmin = await isSystemAdmin(senderID);
+      if (isSysAdmin) {
         accessibleRoles.add(Role.THREAD_ADMIN);
         accessibleRoles.add(Role.BOT_ADMIN);
         accessibleRoles.add(Role.PREMIUM);
+        accessibleRoles.add(Role.SYSTEM_ADMIN);
       } else {
-        const isPremium = await isBotPremium(
+        const isAdmin = await isBotAdmin(
           sessionUserId,
           native.platform,
           sessionId,
           senderID,
         );
-        if (isPremium) {
-          // Premium users see ANYONE + THREAD_ADMIN + PREMIUM commands.
-          // BOT_ADMIN is intentionally absent — premium is a sub-admin tier.
+        if (isAdmin) {
+          // Bot admins can run every command — include all known role levels.
           accessibleRoles.add(Role.THREAD_ADMIN);
+          accessibleRoles.add(Role.BOT_ADMIN);
           accessibleRoles.add(Role.PREMIUM);
-        } else if (threadID) {
-          const isThreadAdm = await isThreadAdmin(threadID, senderID);
-          if (isThreadAdm) accessibleRoles.add(Role.THREAD_ADMIN);
+        } else {
+          const isPremium = await isBotPremium(
+            sessionUserId,
+            native.platform,
+            sessionId,
+            senderID,
+          );
+          if (isPremium) {
+            // Premium users see ANYONE + THREAD_ADMIN + PREMIUM commands.
+            // BOT_ADMIN is intentionally absent — premium is a sub-admin tier.
+            accessibleRoles.add(Role.THREAD_ADMIN);
+            accessibleRoles.add(Role.PREMIUM);
+          } else if (threadID) {
+            const isThreadAdm = await isThreadAdmin(threadID, senderID);
+            if (isThreadAdm) accessibleRoles.add(Role.THREAD_ADMIN);
+          }
         }
       }
     } catch {
