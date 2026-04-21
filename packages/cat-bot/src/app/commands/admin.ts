@@ -6,15 +6,15 @@ import {
   listBotAdmins,
   isBotAdmin,
 } from '@/engine/repos/credentials.repo.js';
+import { isSystemAdmin } from '@/engine/repos/system-admin.repo.js';
 import { OptionType } from '@/engine/modules/command/command-option.constants.js';
 import { Platforms } from '@/engine/modules/platform/platform.constants.js';
 import { MessageStyle } from '@/engine/constants/message-style.constants.js';
-import type { CommandConfig } from '@/engine/types/module-config.types.js';
 
-export const config: CommandConfig = {
+export const config = {
   name: 'admin',
   aliases: [] as string[],
-  version: '1.0.0',
+  version: '1.1.0',
   role: Role.ANYONE,
   author: 'John Lester',
   description:
@@ -67,13 +67,17 @@ export const onCommand = async ({
   const sub = args[0]?.toLowerCase();
 
   if (sub === 'add' || sub === 'delete') {
-    const callerIsBotAdmin = senderID
-      ? await isBotAdmin(userId, platform, sessionId, senderID)
+    // System admins hold global authority and may always manage bot admins.
+    // Bot admins may manage bot admins within their own session.
+    const callerIsAuthorised = senderID
+      ? (await isSystemAdmin(senderID)) ||
+        (await isBotAdmin(userId, platform, sessionId, senderID))
       : false;
-    if (!callerIsBotAdmin) {
+
+    if (!callerIsAuthorised) {
       await chat.replyMessage({
         style: MessageStyle.MARKDOWN,
-        message: '🚫 Only bot admins can add or remove admins.',
+        message: '🚫 Only bot admins or system admins can add or remove admins.',
       });
       return;
     }
