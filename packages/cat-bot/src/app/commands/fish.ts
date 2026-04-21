@@ -19,8 +19,9 @@ import { Role } from '@/engine/constants/role.constants.js';
 import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 import { ButtonStyle } from '@/engine/constants/button-style.constants.js';
 import { hasNativeButtons } from '@/engine/utils/ui-capabilities.util.js';
+import type { CommandConfig } from '@/engine/types/module-config.types.js';
 
-export const config = {
+export const config: CommandConfig = {
   name: 'fish',
   aliases: ['fishing', 'cast', 'reel'] as string[],
   version: '1.0.0',
