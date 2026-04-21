@@ -18,9 +18,9 @@ export const config = {
   role: Role.ANYONE,
   author: 'John Lester',
   description:
-    'Manage bot admins for this session: add, list, or delete by platform user ID',
+    'Manage bot admins for this session: add, list, or remove by user ID',
   category: 'Admin',
-  usage: '<add|list|delete> [uid]',
+  usage: '<add|list|remove> [uid]',
   cooldown: 5,
   hasPrefix: true,
   platform: [
@@ -32,13 +32,13 @@ export const config = {
     {
       type: OptionType.string,
       name: 'action',
-      description: 'Action to perform: add, list, or delete',
+      description: 'Action to perform: add, list, delete, or remove',
       required: true,
     },
     {
       type: OptionType.string,
       name: 'uid',
-      description: 'Platform user ID (required for add and delete actions)',
+      description: 'Platform user ID (required for add, delete, and remove actions)',
       required: false,
     },
   ],
@@ -66,7 +66,7 @@ export const onCommand = async ({
 
   const sub = args[0]?.toLowerCase();
 
-  if (sub === 'add' || sub === 'delete') {
+  if (sub === 'add' || sub === 'delete' || sub === 'remove') {
     // System admins hold global authority and may always manage bot admins.
     // Bot admins may manage bot admins within their own session.
     const callerIsAuthorised = senderID
@@ -120,7 +120,8 @@ export const onCommand = async ({
     return;
   }
 
-  if (sub === 'delete') {
+  // Support both 'delete' and 'remove' keywords for better UX
+  if (sub === 'delete' || sub === 'remove') {
     const uid = args[1];
     if (!uid) {
       await usage();
