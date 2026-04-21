@@ -38,7 +38,10 @@ export async function findSessionEvents(
      ORDER BY event_name`,
     [userId, platformId, sessionId],
   );
-  return res.rows.map((r) => ({ eventName: r.event_name, isEnable: r.is_enable }));
+  return res.rows.map((r) => ({
+    eventName: r.event_name,
+    isEnable: r.is_enable,
+  }));
 }
 
 export async function setEventEnabled(

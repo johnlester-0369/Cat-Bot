@@ -15,11 +15,22 @@ export async function banUser(
 ): Promise<void> {
   const db = getMongoDb();
   const platformId = toPlatformNumericId(platform);
-  await db.collection('botUserBanned').updateOne(
-    { userId, platformId, sessionId, botUserId },
-    { $set: { userId, platformId, sessionId, botUserId, isBanned: true, reason: reason ?? null } },
-    { upsert: true },
-  );
+  await db
+    .collection('botUserBanned')
+    .updateOne(
+      { userId, platformId, sessionId, botUserId },
+      {
+        $set: {
+          userId,
+          platformId,
+          sessionId,
+          botUserId,
+          isBanned: true,
+          reason: reason ?? null,
+        },
+      },
+      { upsert: true },
+    );
 }
 
 /**
@@ -34,10 +45,12 @@ export async function unbanUser(
   const db = getMongoDb();
   const platformId = toPlatformNumericId(platform);
   // updateOne no-ops when the document is absent — mirrors Prisma updateMany fail-open contract.
-  await db.collection('botUserBanned').updateOne(
-    { userId, platformId, sessionId, botUserId },
-    { $set: { isBanned: false } },
-  );
+  await db
+    .collection('botUserBanned')
+    .updateOne(
+      { userId, platformId, sessionId, botUserId },
+      { $set: { isBanned: false } },
+    );
 }
 
 /**
@@ -54,7 +67,10 @@ export async function isUserBanned(
     const platformId = toPlatformNumericId(platform);
     const rec = await db
       .collection<{ isBanned: boolean }>('botUserBanned')
-      .findOne({ userId, platformId, sessionId, botUserId }, { projection: { isBanned: 1, _id: 0 } });
+      .findOne(
+        { userId, platformId, sessionId, botUserId },
+        { projection: { isBanned: 1, _id: 0 } },
+      );
     return rec?.isBanned ?? false;
   } catch {
     return false;
@@ -73,11 +89,22 @@ export async function banThread(
 ): Promise<void> {
   const db = getMongoDb();
   const platformId = toPlatformNumericId(platform);
-  await db.collection('botThreadBanned').updateOne(
-    { userId, platformId, sessionId, botThreadId },
-    { $set: { userId, platformId, sessionId, botThreadId, isBanned: true, reason: reason ?? null } },
-    { upsert: true },
-  );
+  await db
+    .collection('botThreadBanned')
+    .updateOne(
+      { userId, platformId, sessionId, botThreadId },
+      {
+        $set: {
+          userId,
+          platformId,
+          sessionId,
+          botThreadId,
+          isBanned: true,
+          reason: reason ?? null,
+        },
+      },
+      { upsert: true },
+    );
 }
 
 /** Lifts a thread ban. Preserves the row so reason is retained for audit. */
@@ -89,10 +116,12 @@ export async function unbanThread(
 ): Promise<void> {
   const db = getMongoDb();
   const platformId = toPlatformNumericId(platform);
-  await db.collection('botThreadBanned').updateOne(
-    { userId, platformId, sessionId, botThreadId },
-    { $set: { isBanned: false } },
-  );
+  await db
+    .collection('botThreadBanned')
+    .updateOne(
+      { userId, platformId, sessionId, botThreadId },
+      { $set: { isBanned: false } },
+    );
 }
 
 /** Returns true when the thread is actively banned. Fail-open on DB error. */
@@ -107,7 +136,10 @@ export async function isThreadBanned(
     const platformId = toPlatformNumericId(platform);
     const rec = await db
       .collection<{ isBanned: boolean }>('botThreadBanned')
-      .findOne({ userId, platformId, sessionId, botThreadId }, { projection: { isBanned: 1, _id: 0 } });
+      .findOne(
+        { userId, platformId, sessionId, botThreadId },
+        { projection: { isBanned: 1, _id: 0 } },
+      );
     return rec?.isBanned ?? false;
   } catch {
     return false;

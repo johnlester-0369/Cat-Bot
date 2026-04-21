@@ -44,7 +44,10 @@ export async function findSessionCommands(
      ORDER BY command_name`,
     [userId, platformId, sessionId],
   );
-  return res.rows.map((r) => ({ commandName: r.command_name, isEnable: r.is_enable }));
+  return res.rows.map((r) => ({
+    commandName: r.command_name,
+    isEnable: r.is_enable,
+  }));
 }
 
 export async function setCommandEnabled(

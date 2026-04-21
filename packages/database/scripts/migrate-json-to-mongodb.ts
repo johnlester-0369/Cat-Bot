@@ -64,7 +64,7 @@ function convertDates(obj: any): any {
 async function main(): Promise<void> {
   console.log('json-to-mongodb migration');
   console.log(`  Input  : ${DB_JSON_FILE}`);
-  
+
   let raw: string;
   try {
     raw = await fs.readFile(DB_JSON_FILE, 'utf-8');
@@ -79,12 +79,20 @@ async function main(): Promise<void> {
   console.log('Clearing existing MongoDB collections and inserting data...');
 
   for (const [jsonKey, mongoCol] of Object.entries(collectionsMap)) {
-    await mongoDb.collection(mongoCol).deleteMany({}).catch((e: any) => console.warn(`[WARN] Delete failed for ${mongoCol}: ${e.message}`));
+    await mongoDb
+      .collection(mongoCol)
+      .deleteMany({})
+      .catch((e: any) =>
+        console.warn(`[WARN] Delete failed for ${mongoCol}: ${e.message}`),
+      );
     const rows = db[jsonKey];
     if (rows && rows.length > 0) {
       const docs = rows.map(convertDates).map((r: any) => {
         // Map 'id' back to '_id' for better-auth so it can natively query these records via ObjectId/String _id
-        if (r.id && ['user', 'session', 'account', 'verification'].includes(jsonKey)) {
+        if (
+          r.id &&
+          ['user', 'session', 'account', 'verification'].includes(jsonKey)
+        ) {
           r._id = r.id;
           delete r.id;
         }
@@ -100,7 +108,12 @@ async function main(): Promise<void> {
   }
 
   // ── botThread requires special mapping for participantIDs / adminIDs
-  await mongoDb.collection('botThreads').deleteMany({}).catch((e: any) => console.warn(`[WARN] Delete failed for botThreads: ${e.message}`));
+  await mongoDb
+    .collection('botThreads')
+    .deleteMany({})
+    .catch((e: any) =>
+      console.warn(`[WARN] Delete failed for botThreads: ${e.message}`),
+    );
   const threadRows = db.botThread;
   if (threadRows && threadRows.length > 0) {
     const threads = threadRows.map((t) => {

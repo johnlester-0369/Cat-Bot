@@ -17,15 +17,27 @@ export async function listSystemAdmins(): Promise<SystemAdminItem[]> {
   }));
 }
 
-export async function addSystemAdmin(adminId: string): Promise<SystemAdminItem> {
+export async function addSystemAdmin(
+  adminId: string,
+): Promise<SystemAdminItem> {
   const db = await getDb();
   // Idempotent — return existing record if adminId already registered
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const existing = (db.systemAdmin as any[]).find((r: any) => r.adminId === adminId);
+  const existing = (db.systemAdmin as any[]).find(
+    (r: any) => r.adminId === adminId,
+  );
   if (existing) {
-    return { id: existing.id as string, adminId: existing.adminId as string, createdAt: existing.createdAt as string };
+    return {
+      id: existing.id as string,
+      adminId: existing.adminId as string,
+      createdAt: existing.createdAt as string,
+    };
   }
-  const item: SystemAdminItem = { id: randomUUID(), adminId, createdAt: new Date().toISOString() };
+  const item: SystemAdminItem = {
+    id: randomUUID(),
+    adminId,
+    createdAt: new Date().toISOString(),
+  };
   // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any
   (db.systemAdmin as any[]).push(item);
   await saveDb();
@@ -35,7 +47,9 @@ export async function addSystemAdmin(adminId: string): Promise<SystemAdminItem> 
 export async function removeSystemAdmin(adminId: string): Promise<void> {
   const db = await getDb();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  db.systemAdmin = (db.systemAdmin as any[]).filter((r: any) => r.adminId !== adminId);
+  db.systemAdmin = (db.systemAdmin as any[]).filter(
+    (r: any) => r.adminId !== adminId,
+  );
   await saveDb();
 }
 

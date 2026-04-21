@@ -1,5 +1,8 @@
 import { pool } from '../client.js';
-import { Platforms, PLATFORM_TO_ID } from '@cat-bot/engine/modules/platform/platform.constants.js';
+import {
+  Platforms,
+  PLATFORM_TO_ID,
+} from '@cat-bot/engine/modules/platform/platform.constants.js';
 import { toPlatformNumericId } from '@cat-bot/engine/modules/platform/platform-id.util.js';
 import { decrypt } from '@cat-bot/engine/utils/crypto.util.js';
 
@@ -9,14 +12,20 @@ export async function findDiscordCredentialState(
   userId: string,
   sessionId: string,
 ): Promise<{ isCommandRegister: boolean; commandHash: string | null } | null> {
-  const res = await pool.query<{ is_command_register: boolean; command_hash: string | null }>(
+  const res = await pool.query<{
+    is_command_register: boolean;
+    command_hash: string | null;
+  }>(
     `SELECT is_command_register, command_hash FROM bot_credential_discord
      WHERE user_id = $1 AND platform_id = $2 AND session_id = $3`,
     [userId, PLATFORM_TO_ID[Platforms.Discord], sessionId],
   );
   if (!res.rows[0]) return null;
   const r = res.rows[0];
-  return { isCommandRegister: r.is_command_register, commandHash: r.command_hash };
+  return {
+    isCommandRegister: r.is_command_register,
+    commandHash: r.command_hash,
+  };
 }
 
 export async function updateDiscordCredentialCommandHash(
@@ -29,23 +38,39 @@ export async function updateDiscordCredentialCommandHash(
     `UPDATE bot_credential_discord
      SET is_command_register = $4, command_hash = $5
      WHERE user_id = $1 AND platform_id = $2 AND session_id = $3`,
-    [userId, PLATFORM_TO_ID[Platforms.Discord], sessionId, data.isCommandRegister, data.commandHash],
+    [
+      userId,
+      PLATFORM_TO_ID[Platforms.Discord],
+      sessionId,
+      data.isCommandRegister,
+      data.commandHash,
+    ],
   );
   if (res.rowCount === 0) throw new Error('Credential record not found');
 }
 
-export async function findAllDiscordCredentials(): Promise<Record<string, unknown>[]> {
+export async function findAllDiscordCredentials(): Promise<
+  Record<string, unknown>[]
+> {
   const res = await pool.query<{
-    user_id: string; platform_id: number; session_id: string;
-    discord_token: string; discord_client_id: string;
-    is_command_register: boolean; command_hash: string | null;
+    user_id: string;
+    platform_id: number;
+    session_id: string;
+    discord_token: string;
+    discord_client_id: string;
+    is_command_register: boolean;
+    command_hash: string | null;
   }>(`SELECT user_id, platform_id, session_id, discord_token, discord_client_id,
              is_command_register, command_hash
       FROM bot_credential_discord`);
   return res.rows.map((r) => ({
-    userId: r.user_id, platformId: r.platform_id, sessionId: r.session_id,
-    discordToken: decrypt(r.discord_token), discordClientId: r.discord_client_id,
-    isCommandRegister: r.is_command_register, commandHash: r.command_hash,
+    userId: r.user_id,
+    platformId: r.platform_id,
+    sessionId: r.session_id,
+    discordToken: decrypt(r.discord_token),
+    discordClientId: r.discord_client_id,
+    isCommandRegister: r.is_command_register,
+    commandHash: r.command_hash,
   }));
 }
 
@@ -55,14 +80,20 @@ export async function findTelegramCredentialState(
   userId: string,
   sessionId: string,
 ): Promise<{ isCommandRegister: boolean; commandHash: string | null } | null> {
-  const res = await pool.query<{ is_command_register: boolean; command_hash: string | null }>(
+  const res = await pool.query<{
+    is_command_register: boolean;
+    command_hash: string | null;
+  }>(
     `SELECT is_command_register, command_hash FROM bot_credential_telegram
      WHERE user_id = $1 AND platform_id = $2 AND session_id = $3`,
     [userId, PLATFORM_TO_ID[Platforms.Telegram], sessionId],
   );
   if (!res.rows[0]) return null;
   const r = res.rows[0];
-  return { isCommandRegister: r.is_command_register, commandHash: r.command_hash };
+  return {
+    isCommandRegister: r.is_command_register,
+    commandHash: r.command_hash,
+  };
 }
 
 export async function updateTelegramCredentialCommandHash(
@@ -74,47 +105,77 @@ export async function updateTelegramCredentialCommandHash(
     `UPDATE bot_credential_telegram
      SET is_command_register = $4, command_hash = $5
      WHERE user_id = $1 AND platform_id = $2 AND session_id = $3`,
-    [userId, PLATFORM_TO_ID[Platforms.Telegram], sessionId, data.isCommandRegister, data.commandHash],
+    [
+      userId,
+      PLATFORM_TO_ID[Platforms.Telegram],
+      sessionId,
+      data.isCommandRegister,
+      data.commandHash,
+    ],
   );
   if (res.rowCount === 0) throw new Error('Credential record not found');
 }
 
-export async function findAllTelegramCredentials(): Promise<Record<string, unknown>[]> {
+export async function findAllTelegramCredentials(): Promise<
+  Record<string, unknown>[]
+> {
   const res = await pool.query<{
-    user_id: string; platform_id: number; session_id: string;
-    telegram_token: string; is_command_register: boolean; command_hash: string | null;
+    user_id: string;
+    platform_id: number;
+    session_id: string;
+    telegram_token: string;
+    is_command_register: boolean;
+    command_hash: string | null;
   }>(`SELECT user_id, platform_id, session_id, telegram_token, is_command_register, command_hash
       FROM bot_credential_telegram`);
   return res.rows.map((r) => ({
-    userId: r.user_id, platformId: r.platform_id, sessionId: r.session_id,
+    userId: r.user_id,
+    platformId: r.platform_id,
+    sessionId: r.session_id,
     telegramToken: decrypt(r.telegram_token),
-    isCommandRegister: r.is_command_register, commandHash: r.command_hash,
+    isCommandRegister: r.is_command_register,
+    commandHash: r.command_hash,
   }));
 }
 
 // ── Facebook Page ──────────────────────────────────────────────────────────────
 
-export async function findAllFbPageCredentials(): Promise<Record<string, unknown>[]> {
+export async function findAllFbPageCredentials(): Promise<
+  Record<string, unknown>[]
+> {
   const res = await pool.query<{
-    user_id: string; platform_id: number; session_id: string;
-    fb_access_token: string; fb_page_id: string;
+    user_id: string;
+    platform_id: number;
+    session_id: string;
+    fb_access_token: string;
+    fb_page_id: string;
   }>(`SELECT user_id, platform_id, session_id, fb_access_token, fb_page_id
       FROM bot_credential_facebook_page`);
   return res.rows.map((r) => ({
-    userId: r.user_id, platformId: r.platform_id, sessionId: r.session_id,
-    fbAccessToken: decrypt(r.fb_access_token), fbPageId: r.fb_page_id,
+    userId: r.user_id,
+    platformId: r.platform_id,
+    sessionId: r.session_id,
+    fbAccessToken: decrypt(r.fb_access_token),
+    fbPageId: r.fb_page_id,
   }));
 }
 
 // ── Facebook Messenger ────────────────────────────────────────────────────────
 
-export async function findAllFbMessengerCredentials(): Promise<Record<string, unknown>[]> {
+export async function findAllFbMessengerCredentials(): Promise<
+  Record<string, unknown>[]
+> {
   const res = await pool.query<{
-    user_id: string; platform_id: number; session_id: string; appstate: string;
+    user_id: string;
+    platform_id: number;
+    session_id: string;
+    appstate: string;
   }>(`SELECT user_id, platform_id, session_id, appstate
       FROM bot_credential_facebook_messenger`);
   return res.rows.map((r) => ({
-    userId: r.user_id, platformId: r.platform_id, sessionId: r.session_id,
+    userId: r.user_id,
+    platformId: r.platform_id,
+    sessionId: r.session_id,
     appstate: decrypt(r.appstate),
   }));
 }
@@ -123,13 +184,21 @@ export async function findAllFbMessengerCredentials(): Promise<Record<string, un
 
 export async function findAllBotSessions(): Promise<Record<string, unknown>[]> {
   const res = await pool.query<{
-    user_id: string; platform_id: number; session_id: string;
-    nickname: string | null; prefix: string | null; is_running: boolean;
+    user_id: string;
+    platform_id: number;
+    session_id: string;
+    nickname: string | null;
+    prefix: string | null;
+    is_running: boolean;
   }>(`SELECT user_id, platform_id, session_id, nickname, prefix, is_running
       FROM bot_session`);
   return res.rows.map((r) => ({
-    userId: r.user_id, platformId: r.platform_id, sessionId: r.session_id,
-    nickname: r.nickname, prefix: r.prefix, isRunning: r.is_running,
+    userId: r.user_id,
+    platformId: r.platform_id,
+    sessionId: r.session_id,
+    nickname: r.nickname,
+    prefix: r.prefix,
+    isRunning: r.is_running,
   }));
 }
 

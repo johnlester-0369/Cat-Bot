@@ -11,7 +11,9 @@ export async function getFbPageWebhookVerification(
   return { isVerified: res.rows[0].is_verified };
 }
 
-export async function upsertFbPageWebhookVerification(userId: string): Promise<void> {
+export async function upsertFbPageWebhookVerification(
+  userId: string,
+): Promise<void> {
   // Verification status transitions false → true once and never reverts — always upsert true.
   await pool.query(
     `INSERT INTO fb_page_webhook (user_id, is_verified)

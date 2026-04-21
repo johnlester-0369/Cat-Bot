@@ -8,21 +8,30 @@ export async function upsertUser(data: BotUserData): Promise<void> {
     { id: data.id },
     {
       $set: {
-        name:      data.name,
+        name: data.name,
         firstName: data.firstName,
-        username:  data.username,
+        username: data.username,
         avatarUrl: data.avatarUrl,
         updatedAt: new Date(),
       },
-      $setOnInsert: { platformId: data.platformId, id: data.id, createdAt: new Date() },
+      $setOnInsert: {
+        platformId: data.platformId,
+        id: data.id,
+        createdAt: new Date(),
+      },
     },
     { upsert: true },
   );
 }
 
-export async function userExists(platform: string, userId: string): Promise<boolean> {
+export async function userExists(
+  platform: string,
+  userId: string,
+): Promise<boolean> {
   const db = getMongoDb();
-  const rec = await db.collection('botUsers').findOne({ id: userId }, { projection: { _id: 1 } });
+  const rec = await db
+    .collection('botUsers')
+    .findOne({ id: userId }, { projection: { _id: 1 } });
   return rec !== null;
 }
 
@@ -36,7 +45,10 @@ export async function userSessionExists(
   const platformId = toPlatformNumericId(platform);
   const rec = await db
     .collection('botUserSessions')
-    .findOne({ userId, platformId, sessionId, botUserId }, { projection: { _id: 1 } });
+    .findOne(
+      { userId, platformId, sessionId, botUserId },
+      { projection: { _id: 1 } },
+    );
   return rec !== null;
 }
 
@@ -102,10 +114,16 @@ export async function getUserSessionData(
   const platformId = toPlatformNumericId(platform);
   const rec = await db
     .collection<{ data?: string }>('botUserSessions')
-    .findOne({ userId, platformId, sessionId, botUserId }, { projection: { data: 1, _id: 0 } });
+    .findOne(
+      { userId, platformId, sessionId, botUserId },
+      { projection: { data: 1, _id: 0 } },
+    );
   if (!rec?.data) return {};
-  try { return JSON.parse(rec.data) as Record<string, unknown>; }
-  catch { return {}; }
+  try {
+    return JSON.parse(rec.data) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
 }
 
 /**
@@ -121,10 +139,12 @@ export async function setUserSessionData(
 ): Promise<void> {
   const db = getMongoDb();
   const platformId = toPlatformNumericId(platform);
-  await db.collection('botUserSessions').updateOne(
-    { userId, platformId, sessionId, botUserId },
-    { $set: { data: JSON.stringify(data) } },
-  );
+  await db
+    .collection('botUserSessions')
+    .updateOne(
+      { userId, platformId, sessionId, botUserId },
+      { $set: { data: JSON.stringify(data) } },
+    );
 }
 
 /**
@@ -141,13 +161,19 @@ export async function getAllUserSessionData(
   const platformId = toPlatformNumericId(platform);
   const rows = await db
     .collection<{ botUserId: string; data?: string }>('botUserSessions')
-    .find({ userId, platformId, sessionId }, { projection: { botUserId: 1, data: 1, _id: 0 } })
+    .find(
+      { userId, platformId, sessionId },
+      { projection: { botUserId: 1, data: 1, _id: 0 } },
+    )
     .toArray();
   return rows.map((row) => {
     let parsedData: Record<string, unknown> = {};
     if (row.data) {
-      try { parsedData = JSON.parse(row.data) as Record<string, unknown>; }
-      catch { /* malformed JSON — default to empty object */ }
+      try {
+        parsedData = JSON.parse(row.data) as Record<string, unknown>;
+      } catch {
+        /* malformed JSON — default to empty object */
+      }
     }
     return { botUserId: row.botUserId, data: parsedData };
   });

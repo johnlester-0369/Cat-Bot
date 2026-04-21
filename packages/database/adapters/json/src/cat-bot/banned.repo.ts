@@ -14,13 +14,24 @@ export async function banUser(
   const db = await getDb();
   const platformId = toPlatformNumericId(platform);
   const rec = db.botUserBanned.find(
-    (r: any) => r.userId === userId && r.platformId === platformId && r.sessionId === sessionId && r.botUserId === botUserId,
+    (r: any) =>
+      r.userId === userId &&
+      r.platformId === platformId &&
+      r.sessionId === sessionId &&
+      r.botUserId === botUserId,
   );
   if (rec) {
     rec.isBanned = true;
     rec.reason = reason ?? null;
   } else {
-    db.botUserBanned.push({ userId, platformId, sessionId, botUserId, isBanned: true, reason: reason ?? null });
+    db.botUserBanned.push({
+      userId,
+      platformId,
+      sessionId,
+      botUserId,
+      isBanned: true,
+      reason: reason ?? null,
+    });
   }
   await saveDb();
 }
@@ -35,7 +46,11 @@ export async function unbanUser(
   const db = await getDb();
   const platformId = toPlatformNumericId(platform);
   const rec = db.botUserBanned.find(
-    (r: any) => r.userId === userId && r.platformId === platformId && r.sessionId === sessionId && r.botUserId === botUserId,
+    (r: any) =>
+      r.userId === userId &&
+      r.platformId === platformId &&
+      r.sessionId === sessionId &&
+      r.botUserId === botUserId,
   );
   if (rec) {
     rec.isBanned = false;
@@ -54,7 +69,11 @@ export async function isUserBanned(
     const db = await getDb();
     const platformId = toPlatformNumericId(platform);
     const rec = db.botUserBanned.find(
-      (r: any) => r.userId === userId && r.platformId === platformId && r.sessionId === sessionId && r.botUserId === botUserId,
+      (r: any) =>
+        r.userId === userId &&
+        r.platformId === platformId &&
+        r.sessionId === sessionId &&
+        r.botUserId === botUserId,
     );
     return rec?.isBanned ?? false;
   } catch {
@@ -75,13 +94,24 @@ export async function banThread(
   const db = await getDb();
   const platformId = toPlatformNumericId(platform);
   const rec = db.botThreadBanned.find(
-    (r: any) => r.userId === userId && r.platformId === platformId && r.sessionId === sessionId && r.botThreadId === botThreadId,
+    (r: any) =>
+      r.userId === userId &&
+      r.platformId === platformId &&
+      r.sessionId === sessionId &&
+      r.botThreadId === botThreadId,
   );
   if (rec) {
     rec.isBanned = true;
     rec.reason = reason ?? null;
   } else {
-    db.botThreadBanned.push({ userId, platformId, sessionId, botThreadId, isBanned: true, reason: reason ?? null });
+    db.botThreadBanned.push({
+      userId,
+      platformId,
+      sessionId,
+      botThreadId,
+      isBanned: true,
+      reason: reason ?? null,
+    });
   }
   await saveDb();
 }
@@ -96,7 +126,11 @@ export async function unbanThread(
   const db = await getDb();
   const platformId = toPlatformNumericId(platform);
   const rec = db.botThreadBanned.find(
-    (r: any) => r.userId === userId && r.platformId === platformId && r.sessionId === sessionId && r.botThreadId === botThreadId,
+    (r: any) =>
+      r.userId === userId &&
+      r.platformId === platformId &&
+      r.sessionId === sessionId &&
+      r.botThreadId === botThreadId,
   );
   if (rec) {
     rec.isBanned = false;
@@ -115,7 +149,11 @@ export async function isThreadBanned(
     const db = await getDb();
     const platformId = toPlatformNumericId(platform);
     const rec = db.botThreadBanned.find(
-      (r: any) => r.userId === userId && r.platformId === platformId && r.sessionId === sessionId && r.botThreadId === botThreadId,
+      (r: any) =>
+        r.userId === userId &&
+        r.platformId === platformId &&
+        r.sessionId === sessionId &&
+        r.botThreadId === botThreadId,
     );
     return rec?.isBanned ?? false;
   } catch {

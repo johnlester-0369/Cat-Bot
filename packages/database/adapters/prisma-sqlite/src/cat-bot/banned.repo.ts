@@ -16,8 +16,22 @@ export async function banUser(
 ): Promise<void> {
   const platformId = toPlatformNumericId(platform);
   await prisma.botUserBanned.upsert({
-    where: { userId_platformId_sessionId_botUserId: { userId, platformId, sessionId, botUserId } },
-    create: { userId, platformId, sessionId, botUserId, isBanned: true, reason: reason ?? null },
+    where: {
+      userId_platformId_sessionId_botUserId: {
+        userId,
+        platformId,
+        sessionId,
+        botUserId,
+      },
+    },
+    create: {
+      userId,
+      platformId,
+      sessionId,
+      botUserId,
+      isBanned: true,
+      reason: reason ?? null,
+    },
     update: { isBanned: true, reason: reason ?? null },
   });
 }
@@ -54,7 +68,14 @@ export async function isUserBanned(
   try {
     const platformId = toPlatformNumericId(platform);
     const record = await prisma.botUserBanned.findUnique({
-      where: { userId_platformId_sessionId_botUserId: { userId, platformId, sessionId, botUserId } },
+      where: {
+        userId_platformId_sessionId_botUserId: {
+          userId,
+          platformId,
+          sessionId,
+          botUserId,
+        },
+      },
       select: { isBanned: true },
     });
     return record?.isBanned ?? false;
@@ -75,8 +96,22 @@ export async function banThread(
 ): Promise<void> {
   const platformId = toPlatformNumericId(platform);
   await prisma.botThreadBanned.upsert({
-    where: { userId_platformId_sessionId_botThreadId: { userId, platformId, sessionId, botThreadId } },
-    create: { userId, platformId, sessionId, botThreadId, isBanned: true, reason: reason ?? null },
+    where: {
+      userId_platformId_sessionId_botThreadId: {
+        userId,
+        platformId,
+        sessionId,
+        botThreadId,
+      },
+    },
+    create: {
+      userId,
+      platformId,
+      sessionId,
+      botThreadId,
+      isBanned: true,
+      reason: reason ?? null,
+    },
     update: { isBanned: true, reason: reason ?? null },
   });
 }
@@ -107,7 +142,14 @@ export async function isThreadBanned(
   try {
     const platformId = toPlatformNumericId(platform);
     const record = await prisma.botThreadBanned.findUnique({
-      where: { userId_platformId_sessionId_botThreadId: { userId, platformId, sessionId, botThreadId } },
+      where: {
+        userId_platformId_sessionId_botThreadId: {
+          userId,
+          platformId,
+          sessionId,
+          botThreadId,
+        },
+      },
       select: { isBanned: true },
     });
     return record?.isBanned ?? false;

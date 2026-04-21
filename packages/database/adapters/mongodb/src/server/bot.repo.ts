@@ -1,6 +1,10 @@
 import { getMongoDb } from '../client.js';
 import { ObjectId } from 'mongodb';
-import { PLATFORM_TO_ID, ID_TO_PLATFORM, Platforms } from '@cat-bot/engine/modules/platform/platform.constants.js';
+import {
+  PLATFORM_TO_ID,
+  ID_TO_PLATFORM,
+  Platforms,
+} from '@cat-bot/engine/modules/platform/platform.constants.js';
 import type {
   CreateBotRequestDto,
   CreateBotResponseDto,
@@ -17,81 +21,136 @@ import { encrypt, decrypt } from '@cat-bot/engine/utils/crypto.util.js';
 // Users on paid Atlas tiers or self-hosted replica sets can wrap these in a session if needed.
 
 export class BotRepo {
-  async create(userId: string, sessionId: string, dto: CreateBotRequestDto): Promise<CreateBotResponseDto> {
+  async create(
+    userId: string,
+    sessionId: string,
+    dto: CreateBotRequestDto,
+  ): Promise<CreateBotResponseDto> {
     const db = getMongoDb();
-    const platformId =
-      (PLATFORM_TO_ID as Record<string, number>)[dto.credentials.platform];
-    if (platformId === undefined) throw new Error(`Unknown platform ${dto.credentials.platform}`);
+    const platformId = (PLATFORM_TO_ID as Record<string, number>)[
+      dto.credentials.platform
+    ];
+    if (platformId === undefined)
+      throw new Error(`Unknown platform ${dto.credentials.platform}`);
 
     // isRunning: true mirrors the Prisma schema's @default(true) so session-loader picks
     // this session up on first boot without requiring an explicit API start call.
     await db.collection('botSessions').insertOne({
-      userId, platformId, sessionId,
-      nickname: dto.botNickname, prefix: dto.botPrefix,
+      userId,
+      platformId,
+      sessionId,
+      nickname: dto.botNickname,
+      prefix: dto.botPrefix,
       isRunning: true,
     });
 
     if (dto.botAdmins.length > 0) {
-      await db.collection('botAdmins').insertMany(
-        dto.botAdmins.map((adminId) => ({ userId, platformId, sessionId, adminId })),
-      );
+      await db
+        .collection('botAdmins')
+        .insertMany(
+          dto.botAdmins.map((adminId) => ({
+            userId,
+            platformId,
+            sessionId,
+            adminId,
+          })),
+        );
     }
 
     // Insert premium privileges if present
     if ((dto.botPremiums ?? []).length > 0) {
-      await db.collection('botPremiums').insertMany(
-        dto.botPremiums!.map((premiumId) => ({ userId, platformId, sessionId, premiumId })),
-      );
+      await db
+        .collection('botPremiums')
+        .insertMany(
+          dto.botPremiums!.map((premiumId) => ({
+            userId,
+            platformId,
+            sessionId,
+            premiumId,
+          })),
+        );
     }
 
     const creds = dto.credentials;
     if (creds.platform === Platforms.Discord) {
       await db.collection('botCredentialDiscord').insertOne({
-        userId, platformId, sessionId,
+        userId,
+        platformId,
+        sessionId,
         discordToken: encrypt(creds.discordToken),
         discordClientId: creds.discordClientId,
-        isCommandRegister: false, commandHash: null,
+        isCommandRegister: false,
+        commandHash: null,
       });
     } else if (creds.platform === Platforms.Telegram) {
       await db.collection('botCredentialTelegram').insertOne({
-        userId, platformId, sessionId,
+        userId,
+        platformId,
+        sessionId,
         telegramToken: encrypt(creds.telegramToken),
-        isCommandRegister: false, commandHash: null,
+        isCommandRegister: false,
+        commandHash: null,
       });
     } else if (creds.platform === Platforms.FacebookPage) {
       await db.collection('botCredentialFacebookPage').insertOne({
-        userId, platformId, sessionId,
+        userId,
+        platformId,
+        sessionId,
         fbAccessToken: encrypt(creds.fbAccessToken),
         fbPageId: creds.fbPageId,
       });
     } else {
       await db.collection('botCredentialFacebookMessenger').insertOne({
-        userId, platformId, sessionId,
+        userId,
+        platformId,
+        sessionId,
         // Narrowed via exhaustive if-else — creds.platform is Platforms.FacebookMessenger here
-        appstate: encrypt((creds as { platform: typeof Platforms.FacebookMessenger; appstate: string }).appstate),
+        appstate: encrypt(
+          (
+            creds as {
+              platform: typeof Platforms.FacebookMessenger;
+              appstate: string;
+            }
+          ).appstate,
+        ),
       });
     }
 
-    return { sessionId, userId, platformId, nickname: dto.botNickname, prefix: dto.botPrefix };
+    return {
+      sessionId,
+      userId,
+      platformId,
+      nickname: dto.botNickname,
+      prefix: dto.botPrefix,
+    };
   }
 
-  async getById(userId: string, sessionId: string): Promise<GetBotDetailResponseDto | null> {
+  async getById(
+    userId: string,
+    sessionId: string,
+  ): Promise<GetBotDetailResponseDto | null> {
     const db = getMongoDb();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const session = await db.collection<any>('botSessions').findOne({ userId, sessionId }, { projection: { _id: 0 } });
+    const session = await db
+      .collection<any>('botSessions')
+      .findOne({ userId, sessionId }, { projection: { _id: 0 } });
     if (!session) return null;
 
-    const platform = (ID_TO_PLATFORM as Record<number, string>)[session.platformId as number];
+    const platform = (ID_TO_PLATFORM as Record<number, string>)[
+      session.platformId as number
+    ];
     if (!platform) return null;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const adminDocs = await db.collection<{ adminId: string }>('botAdmins')
+    const adminDocs = await db
+      .collection<{ adminId: string }>('botAdmins')
       .find({ userId, sessionId }, { projection: { adminId: 1, _id: 0 } })
       .toArray();
     const admins = adminDocs.map((a) => a.adminId);
 
     // Fetch premium privileges to satisfy GetBotDetailResponseDto
-    const premiumDocs = await db.collection<{ premiumId: string }>('botPremiums')
+    const premiumDocs = await db
+      .collection<{ premiumId: string }>('botPremiums')
       .find({ userId, sessionId }, { projection: { premiumId: 1, _id: 0 } })
       .toArray();
     const premiums = premiumDocs.map((p) => p.premiumId);
@@ -100,24 +159,46 @@ export class BotRepo {
 
     if (platform === Platforms.Discord) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const c = await db.collection<any>('botCredentialDiscord').findOne({ userId, sessionId });
+      const c = await db
+        .collection<any>('botCredentialDiscord')
+        .findOne({ userId, sessionId });
       if (!c) throw new Error('Missing credentials');
-      credentials = { platform: Platforms.Discord, discordToken: decrypt(c.discordToken as string), discordClientId: c.discordClientId as string };
+      credentials = {
+        platform: Platforms.Discord,
+        discordToken: decrypt(c.discordToken as string),
+        discordClientId: c.discordClientId as string,
+      };
     } else if (platform === Platforms.Telegram) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const c = await db.collection<any>('botCredentialTelegram').findOne({ userId, sessionId });
+      const c = await db
+        .collection<any>('botCredentialTelegram')
+        .findOne({ userId, sessionId });
       if (!c) throw new Error('Missing credentials');
-      credentials = { platform: Platforms.Telegram, telegramToken: decrypt(c.telegramToken as string) };
+      credentials = {
+        platform: Platforms.Telegram,
+        telegramToken: decrypt(c.telegramToken as string),
+      };
     } else if (platform === Platforms.FacebookPage) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const c = await db.collection<any>('botCredentialFacebookPage').findOne({ userId, sessionId });
+      const c = await db
+        .collection<any>('botCredentialFacebookPage')
+        .findOne({ userId, sessionId });
       if (!c) throw new Error('Missing credentials');
-      credentials = { platform: Platforms.FacebookPage, fbAccessToken: decrypt(c.fbAccessToken as string), fbPageId: c.fbPageId as string };
+      credentials = {
+        platform: Platforms.FacebookPage,
+        fbAccessToken: decrypt(c.fbAccessToken as string),
+        fbPageId: c.fbPageId as string,
+      };
     } else {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const c = await db.collection<any>('botCredentialFacebookMessenger').findOne({ userId, sessionId });
+      const c = await db
+        .collection<any>('botCredentialFacebookMessenger')
+        .findOne({ userId, sessionId });
       if (!c) throw new Error('Missing credentials');
-      credentials = { platform: Platforms.FacebookMessenger, appstate: decrypt(c.appstate as string) };
+      credentials = {
+        platform: Platforms.FacebookMessenger,
+        appstate: decrypt(c.appstate as string),
+      };
     }
 
     return {
@@ -126,7 +207,7 @@ export class BotRepo {
       platformId: session.platformId as number,
       platform,
       nickname: (session.nickname as string | undefined) ?? '',
-      prefix:   (session.prefix   as string | undefined) ?? '',
+      prefix: (session.prefix as string | undefined) ?? '',
       admins,
       premiums,
       credentials,
@@ -140,34 +221,58 @@ export class BotRepo {
     isCredentialsModified = false,
   ): Promise<void> {
     const db = getMongoDb();
-    const platformId =
-      (PLATFORM_TO_ID as Record<string, number>)[dto.credentials.platform];
+    const platformId = (PLATFORM_TO_ID as Record<string, number>)[
+      dto.credentials.platform
+    ];
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const session = await db.collection<any>('botSessions').findOne({ userId, sessionId }, { projection: { _id: 0 } });
+    const session = await db
+      .collection<any>('botSessions')
+      .findOne({ userId, sessionId }, { projection: { _id: 0 } });
     if (!session) throw new Error('Bot not found');
     // Guard matches Prisma: platform is part of the composite PK; changing it would corrupt
     // all credential documents that are keyed by (userId, platformId, sessionId).
-    if ((session.platformId as number) !== platformId) throw new Error('Platform cannot be changed after bot creation.');
+    if ((session.platformId as number) !== platformId)
+      throw new Error('Platform cannot be changed after bot creation.');
 
-    await db.collection('botSessions').updateOne(
-      { userId, platformId, sessionId },
-      { $set: { nickname: dto.botNickname, prefix: dto.botPrefix } },
-    );
+    await db
+      .collection('botSessions')
+      .updateOne(
+        { userId, platformId, sessionId },
+        { $set: { nickname: dto.botNickname, prefix: dto.botPrefix } },
+      );
 
     // Replace all admins atomically by deleting then re-inserting — mirrors Prisma's deleteMany + create loop.
-    await db.collection('botAdmins').deleteMany({ userId, platformId, sessionId });
+    await db
+      .collection('botAdmins')
+      .deleteMany({ userId, platformId, sessionId });
     if (dto.botAdmins.length > 0) {
-      await db.collection('botAdmins').insertMany(
-        dto.botAdmins.map((adminId) => ({ userId, platformId, sessionId, adminId })),
-      );
+      await db
+        .collection('botAdmins')
+        .insertMany(
+          dto.botAdmins.map((adminId) => ({
+            userId,
+            platformId,
+            sessionId,
+            adminId,
+          })),
+        );
     }
 
     // Replace all premiums atomically by deleting then re-inserting
-    await db.collection('botPremiums').deleteMany({ userId, platformId, sessionId });
+    await db
+      .collection('botPremiums')
+      .deleteMany({ userId, platformId, sessionId });
     if ((dto.botPremiums ?? []).length > 0) {
-      await db.collection('botPremiums').insertMany(
-        dto.botPremiums!.map((premiumId) => ({ userId, platformId, sessionId, premiumId })),
-      );
+      await db
+        .collection('botPremiums')
+        .insertMany(
+          dto.botPremiums!.map((premiumId) => ({
+            userId,
+            platformId,
+            sessionId,
+            premiumId,
+          })),
+        );
     }
 
     const creds = dto.credentials;
@@ -176,9 +281,11 @@ export class BotRepo {
         { userId, sessionId },
         {
           $set: {
-            discordToken:    encrypt(creds.discordToken),
+            discordToken: encrypt(creds.discordToken),
             discordClientId: creds.discordClientId,
-            ...(isCredentialsModified ? { isCommandRegister: false, commandHash: null } : {}),
+            ...(isCredentialsModified
+              ? { isCommandRegister: false, commandHash: null }
+              : {}),
           },
         },
       );
@@ -188,48 +295,87 @@ export class BotRepo {
         {
           $set: {
             telegramToken: encrypt(creds.telegramToken),
-            ...(isCredentialsModified ? { isCommandRegister: false, commandHash: null } : {}),
+            ...(isCredentialsModified
+              ? { isCommandRegister: false, commandHash: null }
+              : {}),
           },
         },
       );
     } else if (creds.platform === Platforms.FacebookPage) {
-      await db.collection('botCredentialFacebookPage').updateOne(
-        { userId, sessionId },
-        { $set: { fbAccessToken: encrypt(creds.fbAccessToken), fbPageId: creds.fbPageId } },
-      );
+      await db
+        .collection('botCredentialFacebookPage')
+        .updateOne(
+          { userId, sessionId },
+          {
+            $set: {
+              fbAccessToken: encrypt(creds.fbAccessToken),
+              fbPageId: creds.fbPageId,
+            },
+          },
+        );
     } else {
-      await db.collection('botCredentialFacebookMessenger').updateOne(
-        { userId, sessionId },
-        { $set: { appstate: encrypt((creds as { platform: typeof Platforms.FacebookMessenger; appstate: string }).appstate) } },
-      );
+      await db
+        .collection('botCredentialFacebookMessenger')
+        .updateOne(
+          { userId, sessionId },
+          {
+            $set: {
+              appstate: encrypt(
+                (
+                  creds as {
+                    platform: typeof Platforms.FacebookMessenger;
+                    appstate: string;
+                  }
+                ).appstate,
+              ),
+            },
+          },
+        );
     }
   }
 
   async list(userId: string): Promise<GetBotListResponseDto> {
     const db = getMongoDb();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const rows = await db.collection<any>('botSessions').find({ userId }).toArray();
+    const rows = await db
+      .collection<any>('botSessions')
+      .find({ userId })
+      .toArray();
     return {
       bots: rows.map((r) => ({
-        sessionId:  r.sessionId as string,
+        sessionId: r.sessionId as string,
         platformId: r.platformId as number,
-        platform:   (ID_TO_PLATFORM as Record<number, string>)[r.platformId as number] ?? '',
-        nickname:   (r.nickname as string | undefined) ?? '',
-        prefix:     (r.prefix   as string | undefined) ?? '',
+        platform:
+          (ID_TO_PLATFORM as Record<number, string>)[r.platformId as number] ??
+          '',
+        nickname: (r.nickname as string | undefined) ?? '',
+        prefix: (r.prefix as string | undefined) ?? '',
       })),
     };
   }
 
-  async updateIsRunning(userId: string, sessionId: string, isRunning: boolean): Promise<void> {
+  async updateIsRunning(
+    userId: string,
+    sessionId: string,
+    isRunning: boolean,
+  ): Promise<void> {
     const db = getMongoDb();
-    await db.collection('botSessions').updateOne({ userId, sessionId }, { $set: { isRunning } });
+    await db
+      .collection('botSessions')
+      .updateOne({ userId, sessionId }, { $set: { isRunning } });
   }
 
-  async getPlatformId(userId: string, sessionId: string): Promise<number | null> {
+  async getPlatformId(
+    userId: string,
+    sessionId: string,
+  ): Promise<number | null> {
     const db = getMongoDb();
     const rec = await db
       .collection<{ platformId: number }>('botSessions')
-      .findOne({ userId, sessionId }, { projection: { platformId: 1, _id: 0 } });
+      .findOne(
+        { userId, sessionId },
+        { projection: { platformId: 1, _id: 0 } },
+      );
     return rec?.platformId ?? null;
   }
 
@@ -237,16 +383,22 @@ export class BotRepo {
   async listAll(): Promise<GetAdminBotListResponseDto> {
     const db = getMongoDb();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const rows = await db.collection<any>('botSessions').find({}).sort({ userId: 1 }).toArray();
+    const rows = await db
+      .collection<any>('botSessions')
+      .find({})
+      .sort({ userId: 1 })
+      .toArray();
     // Batch-fetch owners by unique userId to avoid N queries against the user collection.
     // better-auth stores the user's `id` field as a plain document field (not MongoDB _id).
     const uniqueUserIds = [...new Set(rows.map((r) => r.userId as string))];
 
     // Handle potential ObjectId conversion for the `_id` lookup in case better-auth used native ObjectIds
-    const objectIds = uniqueUserIds.filter(id => ObjectId.isValid(id)).map(id => new ObjectId(id));
+    const objectIds = uniqueUserIds
+      .filter((id) => ObjectId.isValid(id))
+      .map((id) => new ObjectId(id));
     const queryOr: any[] = [
       { _id: { $in: uniqueUserIds } },
-      { id: { $in: uniqueUserIds } }
+      { id: { $in: uniqueUserIds } },
     ];
     // Only push the ObjectId clause if there are valid ObjectIds to prevent query errors
     if (objectIds.length > 0) {
@@ -256,11 +408,17 @@ export class BotRepo {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let userDocs: any[] = [];
     if (uniqueUserIds.length > 0) {
-      userDocs = await db.collection<any>('user').find({ $or: queryOr }).toArray();
-      // Fallback: Check 'users' collection if 'user' yielded no results. Some DB viewers or 
+      userDocs = await db
+        .collection<any>('user')
+        .find({ $or: queryOr })
+        .toArray();
+      // Fallback: Check 'users' collection if 'user' yielded no results. Some DB viewers or
       // custom better-auth setups automatically pluralize collection names.
       if (userDocs.length === 0) {
-        userDocs = await db.collection<any>('users').find({ $or: queryOr }).toArray();
+        userDocs = await db
+          .collection<any>('users')
+          .find({ $or: queryOr })
+          .toArray();
       }
     }
 
@@ -271,7 +429,7 @@ export class BotRepo {
         // so lookups via r.userId (also cuid2) succeed. _id.toString() yields a 24-char hex
         // string that never matches a cuid2 userId, causing all owner lookups to return undefined.
         u.id ?? u._id?.toString(),
-        { name: u.name as string, email: u.email as string }
+        { name: u.name as string, email: u.email as string },
       ]),
     );
     return {
@@ -281,16 +439,19 @@ export class BotRepo {
           sessionId: r.sessionId as string,
           userId: r.userId as string,
           platformId: r.platformId as number,
-          platform: (ID_TO_PLATFORM as Record<number, string>)[r.platformId as number] ?? '',
+          platform:
+            (ID_TO_PLATFORM as Record<number, string>)[
+              r.platformId as number
+            ] ?? '',
           nickname: (r.nickname as string | undefined) ?? '',
-                  prefix: (r.prefix as string | undefined) ?? '',
-                  isRunning: (r.isRunning as boolean | undefined) ?? false,
-                  // Use ?? undefined to ensure empty strings are preserved,
-                  // preventing the frontend from rendering raw user IDs when name is blank.
-                  userName: owner?.name ?? undefined,
-                  userEmail: owner?.email ?? undefined,
-                };
-              }),
+          prefix: (r.prefix as string | undefined) ?? '',
+          isRunning: (r.isRunning as boolean | undefined) ?? false,
+          // Use ?? undefined to ensure empty strings are preserved,
+          // preventing the frontend from rendering raw user IDs when name is blank.
+          userName: owner?.name ?? undefined,
+          userEmail: owner?.email ?? undefined,
+        };
+      }),
     };
   }
 
@@ -310,10 +471,18 @@ export class BotRepo {
     await db.collection('botThreadSession').deleteMany({ userId, sessionId });
     await db.collection('botAdmins').deleteMany({ userId, sessionId });
     await db.collection('botPremiums').deleteMany({ userId, sessionId });
-    await db.collection('botCredentialDiscord').deleteMany({ userId, sessionId });
-    await db.collection('botCredentialTelegram').deleteMany({ userId, sessionId });
-    await db.collection('botCredentialFacebookPage').deleteMany({ userId, sessionId });
-    await db.collection('botCredentialFacebookMessenger').deleteMany({ userId, sessionId });
+    await db
+      .collection('botCredentialDiscord')
+      .deleteMany({ userId, sessionId });
+    await db
+      .collection('botCredentialTelegram')
+      .deleteMany({ userId, sessionId });
+    await db
+      .collection('botCredentialFacebookPage')
+      .deleteMany({ userId, sessionId });
+    await db
+      .collection('botCredentialFacebookMessenger')
+      .deleteMany({ userId, sessionId });
     await db.collection('botSessions').deleteMany({ userId, sessionId });
   }
 }

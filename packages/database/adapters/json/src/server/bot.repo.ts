@@ -1,91 +1,250 @@
 import { getDb, saveDb } from '../store.js';
-import { PLATFORM_TO_ID, ID_TO_PLATFORM, Platforms } from '@cat-bot/engine/modules/platform/platform.constants.js';
-import type { CreateBotRequestDto, CreateBotResponseDto, GetBotListItemDto, GetBotListResponseDto, GetBotDetailResponseDto, UpdateBotRequestDto } from '@cat-bot/server/dtos/bot.dto.js';
-import type { GetAdminBotListItemDto, GetAdminBotListResponseDto } from '@cat-bot/server/dtos/admin.dto.js';
+import {
+  PLATFORM_TO_ID,
+  ID_TO_PLATFORM,
+  Platforms,
+} from '@cat-bot/engine/modules/platform/platform.constants.js';
+import type {
+  CreateBotRequestDto,
+  CreateBotResponseDto,
+  GetBotListItemDto,
+  GetBotListResponseDto,
+  GetBotDetailResponseDto,
+  UpdateBotRequestDto,
+} from '@cat-bot/server/dtos/bot.dto.js';
+import type {
+  GetAdminBotListItemDto,
+  GetAdminBotListResponseDto,
+} from '@cat-bot/server/dtos/admin.dto.js';
 import { encrypt, decrypt } from '@cat-bot/engine/utils/crypto.util.js';
 
 export class BotRepo {
-  async create(userId: string, sessionId: string, dto: CreateBotRequestDto): Promise<CreateBotResponseDto> {
+  async create(
+    userId: string,
+    sessionId: string,
+    dto: CreateBotRequestDto,
+  ): Promise<CreateBotResponseDto> {
     const db = await getDb();
     // dto.credentials.platform is always hyphen-format ('facebook-page' etc.) — no fallback replace needed
-    const platformId = (PLATFORM_TO_ID as Record<string, number>)[dto.credentials.platform];
-    if (platformId === undefined) throw new Error(`Unknown platform ${dto.credentials.platform}`);
+    const platformId = (PLATFORM_TO_ID as Record<string, number>)[
+      dto.credentials.platform
+    ];
+    if (platformId === undefined)
+      throw new Error(`Unknown platform ${dto.credentials.platform}`);
 
     // isRunning: true mirrors the Prisma schema's @default(true) so session-loader.util.ts
     // includes this session in runningKeys on first boot without requiring an explicit API start call.
-    db.botSession.push({ userId, platformId, sessionId, nickname: dto.botNickname, prefix: dto.botPrefix, isRunning: true });
-    for (const adminId of dto.botAdmins) db.botAdmin.push({ userId, platformId, sessionId, adminId });
-    for (const premiumId of (dto.botPremiums ?? [])) db.botPremium.push({ userId, platformId, sessionId, premiumId });
+    db.botSession.push({
+      userId,
+      platformId,
+      sessionId,
+      nickname: dto.botNickname,
+      prefix: dto.botPrefix,
+      isRunning: true,
+    });
+    for (const adminId of dto.botAdmins)
+      db.botAdmin.push({ userId, platformId, sessionId, adminId });
+    for (const premiumId of dto.botPremiums ?? [])
+      db.botPremium.push({ userId, platformId, sessionId, premiumId });
 
     const creds = dto.credentials;
-    if (creds.platform === Platforms.Discord) db.botCredentialDiscord.push({ userId, platformId, sessionId, discordToken: encrypt(creds.discordToken), discordClientId: creds.discordClientId, isCommandRegister: false, commandHash: null });
-    else if (creds.platform === Platforms.Telegram) db.botCredentialTelegram.push({ userId, platformId, sessionId, telegramToken: encrypt(creds.telegramToken), isCommandRegister: false, commandHash: null });
-    else if (creds.platform === Platforms.FacebookPage) db.botCredentialFacebookPage.push({ userId, platformId, sessionId, fbAccessToken: encrypt(creds.fbAccessToken), fbPageId: creds.fbPageId });
-    else db.botCredentialFacebookMessenger.push({ userId, platformId, sessionId, appstate: encrypt(creds.appstate) }); // facebook-messenger
-    
+    if (creds.platform === Platforms.Discord)
+      db.botCredentialDiscord.push({
+        userId,
+        platformId,
+        sessionId,
+        discordToken: encrypt(creds.discordToken),
+        discordClientId: creds.discordClientId,
+        isCommandRegister: false,
+        commandHash: null,
+      });
+    else if (creds.platform === Platforms.Telegram)
+      db.botCredentialTelegram.push({
+        userId,
+        platformId,
+        sessionId,
+        telegramToken: encrypt(creds.telegramToken),
+        isCommandRegister: false,
+        commandHash: null,
+      });
+    else if (creds.platform === Platforms.FacebookPage)
+      db.botCredentialFacebookPage.push({
+        userId,
+        platformId,
+        sessionId,
+        fbAccessToken: encrypt(creds.fbAccessToken),
+        fbPageId: creds.fbPageId,
+      });
+    else
+      db.botCredentialFacebookMessenger.push({
+        userId,
+        platformId,
+        sessionId,
+        appstate: encrypt(creds.appstate),
+      }); // facebook-messenger
+
     await saveDb();
-    return { sessionId, userId, platformId, nickname: dto.botNickname, prefix: dto.botPrefix };
+    return {
+      sessionId,
+      userId,
+      platformId,
+      nickname: dto.botNickname,
+      prefix: dto.botPrefix,
+    };
   }
 
-  async getById(userId: string, sessionId: string): Promise<GetBotDetailResponseDto | null> {
+  async getById(
+    userId: string,
+    sessionId: string,
+  ): Promise<GetBotDetailResponseDto | null> {
     const db = await getDb();
-    const session = db.botSession.find((s: any) => s.userId === userId && s.sessionId === sessionId);
+    const session = db.botSession.find(
+      (s: any) => s.userId === userId && s.sessionId === sessionId,
+    );
     if (!session) return null;
 
-    const platform = (ID_TO_PLATFORM as Record<number, string>)[session.platformId];
+    const platform = (ID_TO_PLATFORM as Record<number, string>)[
+      session.platformId
+    ];
     if (!platform) return null;
 
-    const admins = db.botAdmin.filter((a: any) => a.userId === userId && a.sessionId === sessionId).map((a: any) => a.adminId);
-    const premiums = db.botPremium.filter((p: any) => p.userId === userId && p.sessionId === sessionId).map((p: any) => p.premiumId);
+    const admins = db.botAdmin
+      .filter((a: any) => a.userId === userId && a.sessionId === sessionId)
+      .map((a: any) => a.adminId);
+    const premiums = db.botPremium
+      .filter((p: any) => p.userId === userId && p.sessionId === sessionId)
+      .map((p: any) => p.premiumId);
     let credentials: GetBotDetailResponseDto['credentials'];
 
     if (platform === Platforms.Discord) {
-      const c = db.botCredentialDiscord.find((c: any) => c.userId === userId && c.sessionId === sessionId);
-      credentials = { platform: Platforms.Discord, discordToken: decrypt(c.discordToken as string), discordClientId: c.discordClientId };
+      const c = db.botCredentialDiscord.find(
+        (c: any) => c.userId === userId && c.sessionId === sessionId,
+      );
+      credentials = {
+        platform: Platforms.Discord,
+        discordToken: decrypt(c.discordToken as string),
+        discordClientId: c.discordClientId,
+      };
     } else if (platform === Platforms.Telegram) {
-      const c = db.botCredentialTelegram.find((c: any) => c.userId === userId && c.sessionId === sessionId);
-      credentials = { platform: Platforms.Telegram, telegramToken: decrypt(c.telegramToken as string) };
+      const c = db.botCredentialTelegram.find(
+        (c: any) => c.userId === userId && c.sessionId === sessionId,
+      );
+      credentials = {
+        platform: Platforms.Telegram,
+        telegramToken: decrypt(c.telegramToken as string),
+      };
     } else if (platform === Platforms.FacebookPage) {
-      const c = db.botCredentialFacebookPage.find((c: any) => c.userId === userId && c.sessionId === sessionId);
-      credentials = { platform: Platforms.FacebookPage, fbAccessToken: decrypt(c.fbAccessToken as string), fbPageId: c.fbPageId };
+      const c = db.botCredentialFacebookPage.find(
+        (c: any) => c.userId === userId && c.sessionId === sessionId,
+      );
+      credentials = {
+        platform: Platforms.FacebookPage,
+        fbAccessToken: decrypt(c.fbAccessToken as string),
+        fbPageId: c.fbPageId,
+      };
     } else {
-      const c = db.botCredentialFacebookMessenger.find((c: any) => c.userId === userId && c.sessionId === sessionId);
-      credentials = { platform: Platforms.FacebookMessenger, appstate: decrypt(c.appstate as string) };
+      const c = db.botCredentialFacebookMessenger.find(
+        (c: any) => c.userId === userId && c.sessionId === sessionId,
+      );
+      credentials = {
+        platform: Platforms.FacebookMessenger,
+        appstate: decrypt(c.appstate as string),
+      };
     }
 
-    return { sessionId, userId, platformId: session.platformId, platform, nickname: session.nickname ?? '', prefix: session.prefix ?? '', admins, premiums, credentials };
+    return {
+      sessionId,
+      userId,
+      platformId: session.platformId,
+      platform,
+      nickname: session.nickname ?? '',
+      prefix: session.prefix ?? '',
+      admins,
+      premiums,
+      credentials,
+    };
   }
 
-  async update(userId: string, sessionId: string, dto: UpdateBotRequestDto, isCredentialsModified: boolean = false): Promise<void> {
+  async update(
+    userId: string,
+    sessionId: string,
+    dto: UpdateBotRequestDto,
+    isCredentialsModified: boolean = false,
+  ): Promise<void> {
     const db = await getDb();
-    const platformId = (PLATFORM_TO_ID as Record<string, number>)[dto.credentials.platform];
-    const session = db.botSession.find((s: any) => s.userId === userId && s.sessionId === sessionId);
+    const platformId = (PLATFORM_TO_ID as Record<string, number>)[
+      dto.credentials.platform
+    ];
+    const session = db.botSession.find(
+      (s: any) => s.userId === userId && s.sessionId === sessionId,
+    );
     if (!session) throw new Error('Bot not found');
     // Guard matches Prisma: admin deletions and credential updates use the incoming platformId,
     // so silently proceeding when it differs would corrupt those rows for the wrong platform.
-    if (session.platformId !== platformId) throw new Error('Platform cannot be changed after bot creation.');
-    
+    if (session.platformId !== platformId)
+      throw new Error('Platform cannot be changed after bot creation.');
+
     session.nickname = dto.botNickname;
     session.prefix = dto.botPrefix;
 
-    db.botAdmin = db.botAdmin.filter((a: any) => !(a.userId === userId && a.platformId === platformId && a.sessionId === sessionId));
-    for (const adminId of dto.botAdmins) db.botAdmin.push({ userId, platformId, sessionId, adminId });
+    db.botAdmin = db.botAdmin.filter(
+      (a: any) =>
+        !(
+          a.userId === userId &&
+          a.platformId === platformId &&
+          a.sessionId === sessionId
+        ),
+    );
+    for (const adminId of dto.botAdmins)
+      db.botAdmin.push({ userId, platformId, sessionId, adminId });
     // Full premium list replacement — mirrors the admin pattern; delete all then re-insert from dto.
-    db.botPremium = db.botPremium.filter((p: any) => !(p.userId === userId && p.platformId === platformId && p.sessionId === sessionId));
-    for (const premiumId of (dto.botPremiums ?? [])) db.botPremium.push({ userId, platformId, sessionId, premiumId });
+    db.botPremium = db.botPremium.filter(
+      (p: any) =>
+        !(
+          p.userId === userId &&
+          p.platformId === platformId &&
+          p.sessionId === sessionId
+        ),
+    );
+    for (const premiumId of dto.botPremiums ?? [])
+      db.botPremium.push({ userId, platformId, sessionId, premiumId });
 
     const creds = dto.credentials;
     if (creds.platform === Platforms.Discord) {
-      const c = db.botCredentialDiscord.find((c: any) => c.userId === userId && c.sessionId === sessionId);
-      if (c) { c.discordToken = encrypt(creds.discordToken); c.discordClientId = creds.discordClientId; if (isCredentialsModified) { c.isCommandRegister = false; c.commandHash = null; } }
+      const c = db.botCredentialDiscord.find(
+        (c: any) => c.userId === userId && c.sessionId === sessionId,
+      );
+      if (c) {
+        c.discordToken = encrypt(creds.discordToken);
+        c.discordClientId = creds.discordClientId;
+        if (isCredentialsModified) {
+          c.isCommandRegister = false;
+          c.commandHash = null;
+        }
+      }
     } else if (creds.platform === Platforms.Telegram) {
-      const c = db.botCredentialTelegram.find((c: any) => c.userId === userId && c.sessionId === sessionId);
-      if (c) { c.telegramToken = encrypt(creds.telegramToken); if (isCredentialsModified) { c.isCommandRegister = false; c.commandHash = null; } }
+      const c = db.botCredentialTelegram.find(
+        (c: any) => c.userId === userId && c.sessionId === sessionId,
+      );
+      if (c) {
+        c.telegramToken = encrypt(creds.telegramToken);
+        if (isCredentialsModified) {
+          c.isCommandRegister = false;
+          c.commandHash = null;
+        }
+      }
     } else if (creds.platform === Platforms.FacebookPage) {
-      const c = db.botCredentialFacebookPage.find((c: any) => c.userId === userId && c.sessionId === sessionId);
-      if (c) { c.fbAccessToken = encrypt(creds.fbAccessToken); c.fbPageId = creds.fbPageId; }
+      const c = db.botCredentialFacebookPage.find(
+        (c: any) => c.userId === userId && c.sessionId === sessionId,
+      );
+      if (c) {
+        c.fbAccessToken = encrypt(creds.fbAccessToken);
+        c.fbPageId = creds.fbPageId;
+      }
     } else {
-      const c = db.botCredentialFacebookMessenger.find((c: any) => c.userId === userId && c.sessionId === sessionId);
+      const c = db.botCredentialFacebookMessenger.find(
+        (c: any) => c.userId === userId && c.sessionId === sessionId,
+      );
       if (c) c.appstate = encrypt(creds.appstate);
     }
     await saveDb();
@@ -94,18 +253,40 @@ export class BotRepo {
   async list(userId: string): Promise<GetBotListResponseDto> {
     const db = await getDb();
     const rows = db.botSession.filter((s: any) => s.userId === userId);
-    return { bots: rows.map((r: any) => ({ sessionId: r.sessionId, platformId: r.platformId, platform: (ID_TO_PLATFORM as Record<number, string>)[r.platformId], nickname: r.nickname ?? '', prefix: r.prefix ?? '' })) };
+    return {
+      bots: rows.map((r: any) => ({
+        sessionId: r.sessionId,
+        platformId: r.platformId,
+        platform: (ID_TO_PLATFORM as Record<number, string>)[r.platformId],
+        nickname: r.nickname ?? '',
+        prefix: r.prefix ?? '',
+      })),
+    };
   }
 
-  async updateIsRunning(userId: string, sessionId: string, isRunning: boolean): Promise<void> {
+  async updateIsRunning(
+    userId: string,
+    sessionId: string,
+    isRunning: boolean,
+  ): Promise<void> {
     const db = await getDb();
-    const session = db.botSession.find((s: any) => s.userId === userId && s.sessionId === sessionId);
-    if (session) { session.isRunning = isRunning; await saveDb(); }
+    const session = db.botSession.find(
+      (s: any) => s.userId === userId && s.sessionId === sessionId,
+    );
+    if (session) {
+      session.isRunning = isRunning;
+      await saveDb();
+    }
   }
 
-  async getPlatformId(userId: string, sessionId: string): Promise<number | null> {
+  async getPlatformId(
+    userId: string,
+    sessionId: string,
+  ): Promise<number | null> {
     const db = await getDb();
-    const session = db.botSession.find((s: any) => s.userId === userId && s.sessionId === sessionId);
+    const session = db.botSession.find(
+      (s: any) => s.userId === userId && s.sessionId === sessionId,
+    );
     return session?.platformId ?? null;
   }
 
@@ -115,7 +296,10 @@ export class BotRepo {
     // Build a userId → {name, email} lookup map before iterating bot rows so the overall
     // complexity stays O(users + sessions) rather than O(users × sessions).
     const userMap = new Map<string, { name: string; email: string }>(
-      (db.user as any[]).map((u: any) => [u.id as string, { name: u.name as string, email: u.email as string }]),
+      (db.user as any[]).map((u: any) => [
+        u.id as string,
+        { name: u.name as string, email: u.email as string },
+      ]),
     );
     return {
       bots: (db.botSession as any[]).map((r: any): GetAdminBotListItemDto => {
@@ -124,16 +308,19 @@ export class BotRepo {
           sessionId: r.sessionId as string,
           userId: r.userId as string,
           platformId: r.platformId as number,
-          platform: (ID_TO_PLATFORM as Record<number, string>)[r.platformId as number] ?? '',
-                  nickname: (r.nickname as string | undefined) ?? '',
-                  prefix: (r.prefix as string | undefined) ?? '',
-                  isRunning: (r.isRunning as boolean | undefined) ?? false,
-                  // Use ?? undefined to ensure empty strings are preserved,
-                  // preventing the frontend from rendering raw user IDs when name is blank.
-                  userName: owner?.name ?? undefined,
-                  userEmail: owner?.email ?? undefined,
-                };
-              }),
+          platform:
+            (ID_TO_PLATFORM as Record<number, string>)[
+              r.platformId as number
+            ] ?? '',
+          nickname: (r.nickname as string | undefined) ?? '',
+          prefix: (r.prefix as string | undefined) ?? '',
+          isRunning: (r.isRunning as boolean | undefined) ?? false,
+          // Use ?? undefined to ensure empty strings are preserved,
+          // preventing the frontend from rendering raw user IDs when name is blank.
+          userName: owner?.name ?? undefined,
+          userEmail: owner?.email ?? undefined,
+        };
+      }),
     };
   }
 
@@ -144,19 +331,26 @@ export class BotRepo {
   async deleteById(userId: string, sessionId: string): Promise<void> {
     const db = await getDb();
     const match = (r: any) => r.userId === userId && r.sessionId === sessionId;
-    db.botSessionCommand          = db.botSessionCommand.filter((r: any) => !match(r));
-    db.botSessionEvent            = db.botSessionEvent.filter((r: any) => !match(r));
-    db.botUserBanned              = db.botUserBanned.filter((r: any) => !match(r));
-    db.botThreadBanned            = db.botThreadBanned.filter((r: any) => !match(r));
-    db.botUserSession             = db.botUserSession.filter((r: any) => !match(r));
-    db.botThreadSession           = db.botThreadSession.filter((r: any) => !match(r));
-    db.botAdmin                   = db.botAdmin.filter((r: any) => !match(r));
-    db.botPremium                 = db.botPremium.filter((r: any) => !match(r));
-    db.botCredentialDiscord       = db.botCredentialDiscord.filter((r: any) => !match(r));
-    db.botCredentialTelegram      = db.botCredentialTelegram.filter((r: any) => !match(r));
-    db.botCredentialFacebookPage  = db.botCredentialFacebookPage.filter((r: any) => !match(r));
-    db.botCredentialFacebookMessenger = db.botCredentialFacebookMessenger.filter((r: any) => !match(r));
-    db.botSession                 = db.botSession.filter((r: any) => !match(r));
+    db.botSessionCommand = db.botSessionCommand.filter((r: any) => !match(r));
+    db.botSessionEvent = db.botSessionEvent.filter((r: any) => !match(r));
+    db.botUserBanned = db.botUserBanned.filter((r: any) => !match(r));
+    db.botThreadBanned = db.botThreadBanned.filter((r: any) => !match(r));
+    db.botUserSession = db.botUserSession.filter((r: any) => !match(r));
+    db.botThreadSession = db.botThreadSession.filter((r: any) => !match(r));
+    db.botAdmin = db.botAdmin.filter((r: any) => !match(r));
+    db.botPremium = db.botPremium.filter((r: any) => !match(r));
+    db.botCredentialDiscord = db.botCredentialDiscord.filter(
+      (r: any) => !match(r),
+    );
+    db.botCredentialTelegram = db.botCredentialTelegram.filter(
+      (r: any) => !match(r),
+    );
+    db.botCredentialFacebookPage = db.botCredentialFacebookPage.filter(
+      (r: any) => !match(r),
+    );
+    db.botCredentialFacebookMessenger =
+      db.botCredentialFacebookMessenger.filter((r: any) => !match(r));
+    db.botSession = db.botSession.filter((r: any) => !match(r));
     await saveDb();
   }
 }

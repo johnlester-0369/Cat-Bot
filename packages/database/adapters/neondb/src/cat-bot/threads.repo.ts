@@ -3,7 +3,9 @@ import type { BotThreadData } from '@cat-bot/engine/models/threads.model.js';
 import { toPlatformNumericId } from '@cat-bot/engine/modules/platform/platform-id.util.js';
 
 export async function upsertThread(data: BotThreadData): Promise<void> {
-  const allUserIds = Array.from(new Set([...data.participantIDs, ...data.adminIDs]));
+  const allUserIds = Array.from(
+    new Set([...data.participantIDs, ...data.adminIDs]),
+  );
 
   // ATOMICITY — why BEGIN/COMMIT is mandatory here:
   // Prisma's botThread.upsert with `participants: { set: [...] }` executes the implicit-M:M
@@ -26,7 +28,9 @@ export async function upsertThread(data: BotThreadData): Promise<void> {
     // Contrast with bot-session-commands where $1/$2/$3 ARE reused across rows — valid there
     // because userId/platformId/sessionId are genuinely shared constants, not per-row scalars.
     if (allUserIds.length > 0) {
-      const placeholders = allUserIds.map((_, i) => `($${i * 2 + 1}, $${i * 2 + 2}, 'Unknown User')`).join(', ');
+      const placeholders = allUserIds
+        .map((_, i) => `($${i * 2 + 1}, $${i * 2 + 2}, 'Unknown User')`)
+        .join(', ');
       const params = allUserIds.flatMap((id) => [data.platformId, id]);
       await client.query(
         `INSERT INTO bot_users (platform_id, id, name) VALUES ${placeholders}
@@ -45,22 +49,36 @@ export async function upsertThread(data: BotThreadData): Promise<void> {
          member_count = EXCLUDED.member_count,
          avatar_url = EXCLUDED.avatar_url,
          updated_at = NOW()`,
-      [data.platformId, data.id, data.name, data.isGroup, data.memberCount, data.avatarUrl],
+      [
+        data.platformId,
+        data.id,
+        data.name,
+        data.isGroup,
+        data.memberCount,
+        data.avatarUrl,
+      ],
     );
 
     // Atomically replace participants and admins M:M sets — DELETE+INSERT is the standard
     // SQL equivalent of Prisma's { set: [...] } which replaces the full junction set in one TX.
     // $1 = threadId (shared constant across all rows); $${i+2} emits "$2","$3"… for each userId.
-    await client.query(`DELETE FROM bot_thread_participants WHERE thread_id = $1`, [data.id]);
+    await client.query(
+      `DELETE FROM bot_thread_participants WHERE thread_id = $1`,
+      [data.id],
+    );
     if (data.participantIDs.length > 0) {
-      const pValues = data.participantIDs.map((_, i) => `($1, $${i + 2})`).join(', ');
+      const pValues = data.participantIDs
+        .map((_, i) => `($1, $${i + 2})`)
+        .join(', ');
       await client.query(
         `INSERT INTO bot_thread_participants (thread_id, user_id) VALUES ${pValues} ON CONFLICT DO NOTHING`,
         [data.id, ...data.participantIDs],
       );
     }
 
-    await client.query(`DELETE FROM bot_thread_admins WHERE thread_id = $1`, [data.id]);
+    await client.query(`DELETE FROM bot_thread_admins WHERE thread_id = $1`, [
+      data.id,
+    ]);
     if (data.adminIDs.length > 0) {
       const aValues = data.adminIDs.map((_, i) => `($1, $${i + 2})`).join(', ');
       await client.query(
@@ -78,15 +96,17 @@ export async function upsertThread(data: BotThreadData): Promise<void> {
   }
 }
 
-export async function threadExists(_platform: string, threadId: string): Promise<boolean> {
+export async function threadExists(
+  _platform: string,
+  threadId: string,
+): Promise<boolean> {
   // _platform is intentionally unused — threadId is the globally unique key across all
   // platforms (each platform adapter generates platform-namespaced IDs). Filtering by
   // platform would require a JOIN to bot_threads.platform_id which adds cost with no gain.
   // Mirrors prisma-sqlite: findUnique({ where: { id: threadId } }) also ignores platform.
-  const res = await pool.query(
-    `SELECT 1 FROM bot_threads WHERE id = $1`,
-    [threadId],
-  );
+  const res = await pool.query(`SELECT 1 FROM bot_threads WHERE id = $1`, [
+    threadId,
+  ]);
   return (res.rowCount ?? 0) > 0;
 }
 
@@ -142,7 +162,10 @@ export async function getThreadSessionUpdatedAt(
   return res.rows[0]?.last_updated_at ?? null;
 }
 
-export async function isThreadAdmin(threadId: string, userId: string): Promise<boolean> {
+export async function isThreadAdmin(
+  threadId: string,
+  userId: string,
+): Promise<boolean> {
   const res = await pool.query(
     `SELECT 1 FROM bot_thread_admins WHERE thread_id = $1 AND user_id = $2`,
     [threadId, userId],
@@ -179,8 +202,11 @@ export async function getThreadSessionData(
     [userId, platformId, sessionId, botThreadId],
   );
   if (!res.rows[0]?.data) return {};
-  try { return JSON.parse(res.rows[0].data) as Record<string, unknown>; }
-  catch { return {}; }
+  try {
+    return JSON.parse(res.rows[0].data) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
 }
 
 /**

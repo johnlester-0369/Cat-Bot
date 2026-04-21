@@ -45,10 +45,16 @@ async function main(): Promise<void> {
   console.log('');
 
   const adapter = new PrismaBetterSqlite3({ url: `file:${DB_SQLITE_FILE}` });
-  const prisma = new PrismaClient({ adapter } as ConstructorParameters<typeof PrismaClient>[0]);
+  const prisma = new PrismaClient({ adapter } as ConstructorParameters<
+    typeof PrismaClient
+  >[0]);
 
   // Mute errors if better-auth introduces tables SQLite does not yet possess.
-  const safeFind = <T>(p: Promise<T>): Promise<T> => p.catch((e: any) => { console.warn(`[WARN] ${e.message}`); return[] as unknown as T; });
+  const safeFind = <T>(p: Promise<T>): Promise<T> =>
+    p.catch((e: any) => {
+      console.warn(`[WARN] ${e.message}`);
+      return [] as unknown as T;
+    });
 
   console.log('Reading tables from SQLite…');
 
@@ -87,12 +93,14 @@ async function main(): Promise<void> {
     safeFind(prisma.botCredentialFacebookPage.findMany()),
     safeFind(prisma.botCredentialFacebookMessenger.findMany()),
     safeFind(prisma.botUser.findMany()),
-    safeFind(prisma.botThread.findMany({
-      include: {
-        participants: { select: { id: true } },
-        admins:       { select: { id: true } },
-      },
-    })),
+    safeFind(
+      prisma.botThread.findMany({
+        include: {
+          participants: { select: { id: true } },
+          admins: { select: { id: true } },
+        },
+      }),
+    ),
     safeFind(prisma.botUserSession.findMany()),
     safeFind(prisma.botThreadSession.findMany()),
     safeFind(prisma.fbPageWebhook.findMany()),
@@ -105,42 +113,42 @@ async function main(): Promise<void> {
   // Flatten Prisma M:M relation objects → plain string[] so the JSON file matches
   // the schema that the JSON adapter's threads.repo.ts writes and reads.
   const mappedBotThreads = botThreads.map((t) => ({
-    platformId:   t.platformId,
-    id:           t.id,
-    name:         t.name,
-    isGroup:      t.isGroup,
-    memberCount:  t.memberCount,
-    avatarUrl:    t.avatarUrl,
-    createdAt:    t.createdAt,
-    updatedAt:    t.updatedAt,
+    platformId: t.platformId,
+    id: t.id,
+    name: t.name,
+    isGroup: t.isGroup,
+    memberCount: t.memberCount,
+    avatarUrl: t.avatarUrl,
+    createdAt: t.createdAt,
+    updatedAt: t.updatedAt,
     participants: t.participants.map((p) => p.id),
-    admins:       t.admins.map((a) => a.id),
+    admins: t.admins.map((a) => a.id),
   }));
 
   const db = {
     // better-auth core tables
-    user:         users,
-    session:      sessions,
-    account:      accounts,
+    user: users,
+    session: sessions,
+    account: accounts,
     verification: verifications,
     // bot identity
-    botUser:      botUsers,
-    botThread:    mappedBotThreads,
+    botUser: botUsers,
+    botThread: mappedBotThreads,
     // per-session config
-    botSession:              botSessions,
-    botAdmin:                botAdmins,
+    botSession: botSessions,
+    botAdmin: botAdmins,
     botCredentialDiscord,
     botCredentialTelegram,
     botCredentialFacebookPage,
     botCredentialFacebookMessenger,
     // session tracking join tables
-    botUserSession:   botUserSessions,
+    botUserSession: botUserSessions,
     botThreadSession: botThreadSessions,
     // webhooks
-    fbPageWebhook:    fbPageWebhooks,
+    fbPageWebhook: fbPageWebhooks,
     // command / event overrides
     botSessionCommand: botSessionCommands,
-    botSessionEvent:   botSessionEvents,
+    botSessionEvent: botSessionEvents,
     // bans
     botUserBanned,
     botThreadBanned,

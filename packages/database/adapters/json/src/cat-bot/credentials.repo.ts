@@ -1,17 +1,39 @@
 import { getDb, saveDb } from '../store.js';
-import { Platforms, PLATFORM_TO_ID } from '@cat-bot/engine/modules/platform/platform.constants.js';
+import {
+  Platforms,
+  PLATFORM_TO_ID,
+} from '@cat-bot/engine/modules/platform/platform.constants.js';
 import { toPlatformNumericId } from '@cat-bot/engine/modules/platform/platform-id.util.js';
 import { decrypt } from '@cat-bot/engine/utils/crypto.util.js';
 
-export async function findDiscordCredentialState(userId: string, sessionId: string): Promise<{ isCommandRegister: boolean; commandHash: string | null } | null> {
+export async function findDiscordCredentialState(
+  userId: string,
+  sessionId: string,
+): Promise<{ isCommandRegister: boolean; commandHash: string | null } | null> {
   const db = await getDb();
-  const rec = db.botCredentialDiscord.find((c: any) => c.userId === userId && c.platformId === PLATFORM_TO_ID[Platforms.Discord] && c.sessionId === sessionId);
-  return rec ? { isCommandRegister: rec.isCommandRegister, commandHash: rec.commandHash } : null;
+  const rec = db.botCredentialDiscord.find(
+    (c: any) =>
+      c.userId === userId &&
+      c.platformId === PLATFORM_TO_ID[Platforms.Discord] &&
+      c.sessionId === sessionId,
+  );
+  return rec
+    ? { isCommandRegister: rec.isCommandRegister, commandHash: rec.commandHash }
+    : null;
 }
 
-export async function updateDiscordCredentialCommandHash(userId: string, sessionId: string, data: { isCommandRegister: boolean; commandHash: string }): Promise<void> {
+export async function updateDiscordCredentialCommandHash(
+  userId: string,
+  sessionId: string,
+  data: { isCommandRegister: boolean; commandHash: string },
+): Promise<void> {
   const db = await getDb();
-  const rec = db.botCredentialDiscord.find((c: any) => c.userId === userId && c.platformId === PLATFORM_TO_ID[Platforms.Discord] && c.sessionId === sessionId);
+  const rec = db.botCredentialDiscord.find(
+    (c: any) =>
+      c.userId === userId &&
+      c.platformId === PLATFORM_TO_ID[Platforms.Discord] &&
+      c.sessionId === sessionId,
+  );
   // Mirror Prisma's update() which throws P2025 when the record is absent —
   // a missing credential at this call site means something is structurally wrong upstream.
   if (!rec) throw new Error('Credential record not found');
@@ -20,17 +42,42 @@ export async function updateDiscordCredentialCommandHash(userId: string, session
   await saveDb();
 }
 
-export async function findAllDiscordCredentials(): Promise<any[]> { const db = await getDb(); return db.botCredentialDiscord.map((r: any) => ({ ...r, discordToken: decrypt(r.discordToken as string) })); }
-
-export async function findTelegramCredentialState(userId: string, sessionId: string): Promise<{ isCommandRegister: boolean; commandHash: string | null } | null> {
+export async function findAllDiscordCredentials(): Promise<any[]> {
   const db = await getDb();
-  const rec = db.botCredentialTelegram.find((c: any) => c.userId === userId && c.platformId === PLATFORM_TO_ID[Platforms.Telegram] && c.sessionId === sessionId);
-  return rec ? { isCommandRegister: rec.isCommandRegister, commandHash: rec.commandHash } : null;
+  return db.botCredentialDiscord.map((r: any) => ({
+    ...r,
+    discordToken: decrypt(r.discordToken as string),
+  }));
 }
 
-export async function updateTelegramCredentialCommandHash(userId: string, sessionId: string, data: { isCommandRegister: boolean; commandHash: string }): Promise<void> {
+export async function findTelegramCredentialState(
+  userId: string,
+  sessionId: string,
+): Promise<{ isCommandRegister: boolean; commandHash: string | null } | null> {
   const db = await getDb();
-  const rec = db.botCredentialTelegram.find((c: any) => c.userId === userId && c.platformId === PLATFORM_TO_ID[Platforms.Telegram] && c.sessionId === sessionId);
+  const rec = db.botCredentialTelegram.find(
+    (c: any) =>
+      c.userId === userId &&
+      c.platformId === PLATFORM_TO_ID[Platforms.Telegram] &&
+      c.sessionId === sessionId,
+  );
+  return rec
+    ? { isCommandRegister: rec.isCommandRegister, commandHash: rec.commandHash }
+    : null;
+}
+
+export async function updateTelegramCredentialCommandHash(
+  userId: string,
+  sessionId: string,
+  data: { isCommandRegister: boolean; commandHash: string },
+): Promise<void> {
+  const db = await getDb();
+  const rec = db.botCredentialTelegram.find(
+    (c: any) =>
+      c.userId === userId &&
+      c.platformId === PLATFORM_TO_ID[Platforms.Telegram] &&
+      c.sessionId === sessionId,
+  );
   // Mirror Prisma's update() which throws P2025 when the record is absent —
   // a missing credential at this call site means something is structurally wrong upstream.
   if (!rec) throw new Error('Credential record not found');
@@ -39,39 +86,104 @@ export async function updateTelegramCredentialCommandHash(userId: string, sessio
   await saveDb();
 }
 
-export async function findAllTelegramCredentials(): Promise<any[]> { const db = await getDb(); return db.botCredentialTelegram.map((r: any) => ({ ...r, telegramToken: decrypt(r.telegramToken as string) })); }
-export async function findAllFbPageCredentials(): Promise<any[]> { const db = await getDb(); return db.botCredentialFacebookPage.map((r: any) => ({ ...r, fbAccessToken: decrypt(r.fbAccessToken as string) })); }
-export async function findAllFbMessengerCredentials(): Promise<any[]> { const db = await getDb(); return db.botCredentialFacebookMessenger.map((r: any) => ({ ...r, appstate: decrypt(r.appstate as string) })); }
-export async function findAllBotSessions(): Promise<any[]> { const db = await getDb(); return [...db.botSession]; }
+export async function findAllTelegramCredentials(): Promise<any[]> {
+  const db = await getDb();
+  return db.botCredentialTelegram.map((r: any) => ({
+    ...r,
+    telegramToken: decrypt(r.telegramToken as string),
+  }));
+}
+export async function findAllFbPageCredentials(): Promise<any[]> {
+  const db = await getDb();
+  return db.botCredentialFacebookPage.map((r: any) => ({
+    ...r,
+    fbAccessToken: decrypt(r.fbAccessToken as string),
+  }));
+}
+export async function findAllFbMessengerCredentials(): Promise<any[]> {
+  const db = await getDb();
+  return db.botCredentialFacebookMessenger.map((r: any) => ({
+    ...r,
+    appstate: decrypt(r.appstate as string),
+  }));
+}
+export async function findAllBotSessions(): Promise<any[]> {
+  const db = await getDb();
+  return [...db.botSession];
+}
 
-export async function isBotAdmin(userId: string, platform: string, sessionId: string, adminId: string): Promise<boolean> {
+export async function isBotAdmin(
+  userId: string,
+  platform: string,
+  sessionId: string,
+  adminId: string,
+): Promise<boolean> {
   const db = await getDb();
   const platformId = toPlatformNumericId(platform);
-  return db.botAdmin.some((a: any) => a.userId === userId && a.platformId === platformId && a.sessionId === sessionId && a.adminId === adminId);
+  return db.botAdmin.some(
+    (a: any) =>
+      a.userId === userId &&
+      a.platformId === platformId &&
+      a.sessionId === sessionId &&
+      a.adminId === adminId,
+  );
 }
 
-export async function addBotAdmin(userId: string, platform: string, sessionId: string, adminId: string): Promise<void> {
+export async function addBotAdmin(
+  userId: string,
+  platform: string,
+  sessionId: string,
+  adminId: string,
+): Promise<void> {
   const db = await getDb();
   const platformId = toPlatformNumericId(platform);
   // Guard prevents duplicate entries — mirrors Prisma upsert's idempotent contract.
-  const exists = db.botAdmin.some((a: any) => a.userId === userId && a.platformId === platformId && a.sessionId === sessionId && a.adminId === adminId);
+  const exists = db.botAdmin.some(
+    (a: any) =>
+      a.userId === userId &&
+      a.platformId === platformId &&
+      a.sessionId === sessionId &&
+      a.adminId === adminId,
+  );
   if (!exists) db.botAdmin.push({ userId, platformId, sessionId, adminId });
   await saveDb();
 }
 
-export async function removeBotAdmin(userId: string, platform: string, sessionId: string, adminId: string): Promise<void> {
+export async function removeBotAdmin(
+  userId: string,
+  platform: string,
+  sessionId: string,
+  adminId: string,
+): Promise<void> {
   const db = await getDb();
   const platformId = toPlatformNumericId(platform);
   // filter replaces the array in-place — no error when the record is absent (mirrors Prisma deleteMany).
-  db.botAdmin = db.botAdmin.filter((a: any) => !(a.userId === userId && a.platformId === platformId && a.sessionId === sessionId && a.adminId === adminId));
+  db.botAdmin = db.botAdmin.filter(
+    (a: any) =>
+      !(
+        a.userId === userId &&
+        a.platformId === platformId &&
+        a.sessionId === sessionId &&
+        a.adminId === adminId
+      ),
+  );
   await saveDb();
 }
 
-export async function listBotAdmins(userId: string, platform: string, sessionId: string): Promise<string[]> {
+export async function listBotAdmins(
+  userId: string,
+  platform: string,
+  sessionId: string,
+): Promise<string[]> {
   const db = await getDb();
   const platformId = toPlatformNumericId(platform);
   return db.botAdmin
-    .filter((a: any) => a.userId === userId && a.platformId === platformId && a.sessionId === sessionId)
+    .filter(
+      (a: any) =>
+        a.userId === userId &&
+        a.platformId === platformId &&
+        a.sessionId === sessionId,
+    )
     .map((a: any) => a.adminId as string)
     .sort();
 }
@@ -90,7 +202,10 @@ export async function updateBotSessionPrefix(
   const db = await getDb();
   const platformId = toPlatformNumericId(platform);
   const rec = db.botSession.find(
-    (s: any) => s.userId === userId && s.platformId === platformId && s.sessionId === sessionId,
+    (s: any) =>
+      s.userId === userId &&
+      s.platformId === platformId &&
+      s.sessionId === sessionId,
   );
   if (rec) {
     rec.prefix = prefix;
@@ -110,7 +225,10 @@ export async function getBotNickname(
   const db = await getDb();
   const platformId = toPlatformNumericId(platform);
   const rec = db.botSession.find(
-    (s: any) => s.userId === userId && s.platformId === platformId && s.sessionId === sessionId,
+    (s: any) =>
+      s.userId === userId &&
+      s.platformId === platformId &&
+      s.sessionId === sessionId,
   );
   return (rec?.nickname as string | undefined) ?? null;
 }
@@ -126,7 +244,11 @@ export async function isBotPremium(
   const db = await getDb();
   const platformId = toPlatformNumericId(platform);
   return db.botPremium.some(
-    (p: any) => p.userId === userId && p.platformId === platformId && p.sessionId === sessionId && p.premiumId === premiumId,
+    (p: any) =>
+      p.userId === userId &&
+      p.platformId === platformId &&
+      p.sessionId === sessionId &&
+      p.premiumId === premiumId,
   );
 }
 
@@ -140,7 +262,11 @@ export async function addBotPremium(
   const platformId = toPlatformNumericId(platform);
   // Guard prevents duplicates — mirrors Prisma upsert idempotent contract.
   const exists = db.botPremium.some(
-    (p: any) => p.userId === userId && p.platformId === platformId && p.sessionId === sessionId && p.premiumId === premiumId,
+    (p: any) =>
+      p.userId === userId &&
+      p.platformId === platformId &&
+      p.sessionId === sessionId &&
+      p.premiumId === premiumId,
   );
   if (!exists) db.botPremium.push({ userId, platformId, sessionId, premiumId });
   await saveDb();
@@ -156,7 +282,13 @@ export async function removeBotPremium(
   const platformId = toPlatformNumericId(platform);
   // filter replaces array in-place — silent no-op when record is absent.
   db.botPremium = db.botPremium.filter(
-    (p: any) => !(p.userId === userId && p.platformId === platformId && p.sessionId === sessionId && p.premiumId === premiumId),
+    (p: any) =>
+      !(
+        p.userId === userId &&
+        p.platformId === platformId &&
+        p.sessionId === sessionId &&
+        p.premiumId === premiumId
+      ),
   );
   await saveDb();
 }
@@ -169,7 +301,12 @@ export async function listBotPremiums(
   const db = await getDb();
   const platformId = toPlatformNumericId(platform);
   return db.botPremium
-    .filter((p: any) => p.userId === userId && p.platformId === platformId && p.sessionId === sessionId)
+    .filter(
+      (p: any) =>
+        p.userId === userId &&
+        p.platformId === platformId &&
+        p.sessionId === sessionId,
+    )
     .map((p: any) => p.premiumId as string)
     .sort();
 }

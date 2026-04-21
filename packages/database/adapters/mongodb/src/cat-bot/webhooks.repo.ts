@@ -10,11 +10,15 @@ export async function getFbPageWebhookVerification(
   return rec ?? null;
 }
 
-export async function upsertFbPageWebhookVerification(userId: string): Promise<void> {
+export async function upsertFbPageWebhookVerification(
+  userId: string,
+): Promise<void> {
   const db = getMongoDb();
-  await db.collection('fbPageWebhooks').updateOne(
-    { userId },
-    { $set: { isVerified: true }, $setOnInsert: { userId } },
-    { upsert: true },
-  );
+  await db
+    .collection('fbPageWebhooks')
+    .updateOne(
+      { userId },
+      { $set: { isVerified: true }, $setOnInsert: { userId } },
+      { upsert: true },
+    );
 }

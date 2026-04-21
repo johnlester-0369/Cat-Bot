@@ -16,7 +16,15 @@ export async function upsertSessionCommands(
   const ops = commandNames.map((commandName) => ({
     updateOne: {
       filter: { userId, platformId, sessionId, commandName },
-      update: { $setOnInsert: { userId, platformId, sessionId, commandName, isEnable: true } },
+      update: {
+        $setOnInsert: {
+          userId,
+          platformId,
+          sessionId,
+          commandName,
+          isEnable: true,
+        },
+      },
       upsert: true,
     },
   }));
@@ -31,8 +39,13 @@ export async function findSessionCommands(
   const db = getMongoDb();
   const platformId = toPlatformNumericId(platform);
   const rows = await db
-    .collection<{ commandName: string; isEnable: boolean }>('botSessionCommands')
-    .find({ userId, platformId, sessionId }, { projection: { commandName: 1, isEnable: 1, _id: 0 } })
+    .collection<{ commandName: string; isEnable: boolean }>(
+      'botSessionCommands',
+    )
+    .find(
+      { userId, platformId, sessionId },
+      { projection: { commandName: 1, isEnable: 1, _id: 0 } },
+    )
     .sort({ commandName: 1 })
     .toArray();
   return rows;
@@ -47,11 +60,16 @@ export async function setCommandEnabled(
 ): Promise<void> {
   const db = getMongoDb();
   const platformId = toPlatformNumericId(platform);
-  await db.collection('botSessionCommands').updateOne(
-    { userId, platformId, sessionId, commandName },
-    { $set: { isEnable }, $setOnInsert: { userId, platformId, sessionId, commandName } },
-    { upsert: true },
-  );
+  await db
+    .collection('botSessionCommands')
+    .updateOne(
+      { userId, platformId, sessionId, commandName },
+      {
+        $set: { isEnable },
+        $setOnInsert: { userId, platformId, sessionId, commandName },
+      },
+      { upsert: true },
+    );
 }
 
 export async function isCommandEnabled(
@@ -65,7 +83,10 @@ export async function isCommandEnabled(
     const platformId = toPlatformNumericId(platform);
     const rec = await db
       .collection<{ isEnable: boolean }>('botSessionCommands')
-      .findOne({ userId, platformId, sessionId, commandName }, { projection: { isEnable: 1, _id: 0 } });
+      .findOne(
+        { userId, platformId, sessionId, commandName },
+        { projection: { isEnable: 1, _id: 0 } },
+      );
     // Absent row = enabled; fail-open keeps the bot functional during DB hiccups.
     return rec?.isEnable ?? true;
   } catch {

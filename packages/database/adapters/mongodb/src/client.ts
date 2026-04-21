@@ -4,20 +4,20 @@ import { MongoClient, ServerApiVersion, type Db } from 'mongodb';
 
 // ── Environment resolution ────────────────────────────────────────────────────
 
-const MONGODB_URI_RAW    = process.env['MONGODB_URI'];
-const MONGO_PASSWORD     = process.env['MONGO_PASSWORD'];
+const MONGODB_URI_RAW = process.env['MONGODB_URI'];
+const MONGO_PASSWORD = process.env['MONGO_PASSWORD'];
 const MONGO_DATABASE_NAME = process.env['MONGO_DATABASE_NAME'];
 
 if (!MONGODB_URI_RAW) {
   throw new Error(
     '[MongoDB] Missing required env var: MONGODB_URI\n' +
-    'Set it in your .env file. See .env.example for the <PASSWORD> placeholder format.',
+      'Set it in your .env file. See .env.example for the <PASSWORD> placeholder format.',
   );
 }
 if (!MONGO_DATABASE_NAME) {
   throw new Error(
     '[MongoDB] Missing required env var: MONGO_DATABASE_NAME\n' +
-    'Set it to the name of the MongoDB database this bot should use.',
+      'Set it to the name of the MongoDB database this bot should use.',
   );
 }
 
@@ -49,7 +49,8 @@ export const mongoClient: MongoClient =
   });
 
 // Only pin to globalThis in dev; production processes boot once and never hot-reload.
-if (process.env['NODE_ENV'] !== 'production') globalForMongo.mongoClient = mongoClient;
+if (process.env['NODE_ENV'] !== 'production')
+  globalForMongo.mongoClient = mongoClient;
 
 /**
  * Returns the Db instance for MONGO_DATABASE_NAME.

@@ -10,15 +10,15 @@ export async function upsertThread(data: BotThreadData): Promise<void> {
     { id: data.id },
     {
       $set: {
-        platformId:     data.platformId,
-        id:             data.id,
-        name:           data.name,
-        isGroup:        data.isGroup,
-        memberCount:    data.memberCount,
-        avatarUrl:      data.avatarUrl,
+        platformId: data.platformId,
+        id: data.id,
+        name: data.name,
+        isGroup: data.isGroup,
+        memberCount: data.memberCount,
+        avatarUrl: data.avatarUrl,
         participantIDs: data.participantIDs,
-        adminIDs:       data.adminIDs,
-        updatedAt:      new Date(),
+        adminIDs: data.adminIDs,
+        updatedAt: new Date(),
       },
       $setOnInsert: { createdAt: new Date() },
     },
@@ -26,9 +26,14 @@ export async function upsertThread(data: BotThreadData): Promise<void> {
   );
 }
 
-export async function threadExists(platform: string, threadId: string): Promise<boolean> {
+export async function threadExists(
+  platform: string,
+  threadId: string,
+): Promise<boolean> {
   const db = getMongoDb();
-  const rec = await db.collection('botThreads').findOne({ id: threadId }, { projection: { _id: 1 } });
+  const rec = await db
+    .collection('botThreads')
+    .findOne({ id: threadId }, { projection: { _id: 1 } });
   return rec !== null;
 }
 
@@ -42,7 +47,10 @@ export async function threadSessionExists(
   const platformId = toPlatformNumericId(platform);
   const rec = await db
     .collection('botThreadSessions')
-    .findOne({ userId, platformId, sessionId, botThreadId: threadId }, { projection: { _id: 1 } });
+    .findOne(
+      { userId, platformId, sessionId, botThreadId: threadId },
+      { projection: { _id: 1 } },
+    );
   return rec !== null;
 }
 
@@ -84,7 +92,10 @@ export async function getThreadSessionUpdatedAt(
   return rec?.lastUpdatedAt ?? null;
 }
 
-export async function isThreadAdmin(threadId: string, userId: string): Promise<boolean> {
+export async function isThreadAdmin(
+  threadId: string,
+  userId: string,
+): Promise<boolean> {
   const db = getMongoDb();
   const rec = await db
     .collection<{ adminIDs: string[] }>('botThreads')
@@ -118,10 +129,16 @@ export async function getThreadSessionData(
   const platformId = toPlatformNumericId(platform);
   const rec = await db
     .collection<{ data?: string }>('botThreadSessions')
-    .findOne({ userId, platformId, sessionId, botThreadId }, { projection: { data: 1, _id: 0 } });
+    .findOne(
+      { userId, platformId, sessionId, botThreadId },
+      { projection: { data: 1, _id: 0 } },
+    );
   if (!rec?.data) return {};
-  try { return JSON.parse(rec.data) as Record<string, unknown>; }
-  catch { return {}; }
+  try {
+    return JSON.parse(rec.data) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
 }
 
 /**
@@ -137,10 +154,12 @@ export async function setThreadSessionData(
 ): Promise<void> {
   const db = getMongoDb();
   const platformId = toPlatformNumericId(platform);
-  await db.collection('botThreadSessions').updateOne(
-    { userId, platformId, sessionId, botThreadId },
-    { $set: { data: JSON.stringify(data) } },
-  );
+  await db
+    .collection('botThreadSessions')
+    .updateOne(
+      { userId, platformId, sessionId, botThreadId },
+      { $set: { data: JSON.stringify(data) } },
+    );
 }
 
 /**
@@ -159,14 +178,20 @@ export async function getAllGroupThreadIds(
   // Step 1 — gather every thread ID this session has ever encountered
   const sessionRows = await db
     .collection<{ botThreadId: string }>('botThreadSessions')
-    .find({ userId, platformId, sessionId }, { projection: { botThreadId: 1, _id: 0 } })
+    .find(
+      { userId, platformId, sessionId },
+      { projection: { botThreadId: 1, _id: 0 } },
+    )
     .toArray();
   const threadIds = sessionRows.map((r) => r.botThreadId);
   if (threadIds.length === 0) return [];
   // Step 2 — filter to group-only threads using the canonical botThreads collection
   const groupRows = await db
     .collection<{ id: string }>('botThreads')
-    .find({ id: { $in: threadIds }, isGroup: true }, { projection: { id: 1, _id: 0 } })
+    .find(
+      { id: { $in: threadIds }, isGroup: true },
+      { projection: { id: 1, _id: 0 } },
+    )
     .toArray();
   return groupRows.map((r) => r.id);
 }

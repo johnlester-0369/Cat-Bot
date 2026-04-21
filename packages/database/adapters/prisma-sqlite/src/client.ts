@@ -12,7 +12,10 @@ const __dirname = path.dirname(__filename);
 
 let dbRoot = path.resolve(__dirname, '../../..');
 // If compiled into dist/database/adapters/..., go up two more levels to exit dist/
-if (path.basename(dbRoot) === 'database' && path.basename(path.dirname(dbRoot)) === 'dist') {
+if (
+  path.basename(dbRoot) === 'database' &&
+  path.basename(path.dirname(dbRoot)) === 'dist'
+) {
   dbRoot = path.resolve(dbRoot, '../..');
 }
 const defaultDbPath = path.resolve(dbRoot, 'database/database.sqlite');
@@ -53,7 +56,8 @@ if (!globalForPrisma.prismaReady) {
   // WAL (Write-Ahead Log): the single most impactful SQLite setting for web apps.
   // Allows concurrent reads while a write is in progress — without WAL, every
   // write exclusively locks the file and blocks all readers until it commits.
-  prisma.$executeRawUnsafe('PRAGMA journal_mode = WAL')
+  prisma
+    .$executeRawUnsafe('PRAGMA journal_mode = WAL')
     .then(() =>
       // NORMAL sync is safe with WAL and dramatically faster than FULL (the default).
       // Data survives OS crashes and process kills; only a sudden hardware power-cut

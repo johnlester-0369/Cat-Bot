@@ -15,7 +15,15 @@ export async function upsertSessionEvents(
   const ops = eventNames.map((eventName) => ({
     updateOne: {
       filter: { userId, platformId, sessionId, eventName },
-      update: { $setOnInsert: { userId, platformId, sessionId, eventName, isEnable: true } },
+      update: {
+        $setOnInsert: {
+          userId,
+          platformId,
+          sessionId,
+          eventName,
+          isEnable: true,
+        },
+      },
       upsert: true,
     },
   }));
@@ -31,7 +39,10 @@ export async function findSessionEvents(
   const platformId = toPlatformNumericId(platform);
   const rows = await db
     .collection<{ eventName: string; isEnable: boolean }>('botSessionEvents')
-    .find({ userId, platformId, sessionId }, { projection: { eventName: 1, isEnable: 1, _id: 0 } })
+    .find(
+      { userId, platformId, sessionId },
+      { projection: { eventName: 1, isEnable: 1, _id: 0 } },
+    )
     .sort({ eventName: 1 })
     .toArray();
   return rows;
@@ -46,11 +57,16 @@ export async function setEventEnabled(
 ): Promise<void> {
   const db = getMongoDb();
   const platformId = toPlatformNumericId(platform);
-  await db.collection('botSessionEvents').updateOne(
-    { userId, platformId, sessionId, eventName },
-    { $set: { isEnable }, $setOnInsert: { userId, platformId, sessionId, eventName } },
-    { upsert: true },
-  );
+  await db
+    .collection('botSessionEvents')
+    .updateOne(
+      { userId, platformId, sessionId, eventName },
+      {
+        $set: { isEnable },
+        $setOnInsert: { userId, platformId, sessionId, eventName },
+      },
+      { upsert: true },
+    );
 }
 
 export async function isEventEnabled(
@@ -64,7 +80,10 @@ export async function isEventEnabled(
     const platformId = toPlatformNumericId(platform);
     const rec = await db
       .collection<{ isEnable: boolean }>('botSessionEvents')
-      .findOne({ userId, platformId, sessionId, eventName }, { projection: { isEnable: 1, _id: 0 } });
+      .findOne(
+        { userId, platformId, sessionId, eventName },
+        { projection: { isEnable: 1, _id: 0 } },
+      );
     return rec?.isEnable ?? true;
   } catch {
     return true;

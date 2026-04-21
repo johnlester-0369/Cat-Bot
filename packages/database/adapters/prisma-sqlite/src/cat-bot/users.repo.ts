@@ -6,7 +6,12 @@ export async function upsertUser(data: BotUserData): Promise<void> {
   await prisma.botUser.upsert({
     where: { id: data.id },
     create: data,
-    update: { name: data.name, firstName: data.firstName, username: data.username, avatarUrl: data.avatarUrl },
+    update: {
+      name: data.name,
+      firstName: data.firstName,
+      username: data.username,
+      avatarUrl: data.avatarUrl,
+    },
   });
 }
 
@@ -23,12 +28,22 @@ export async function getUserSessionData(
 ): Promise<Record<string, unknown>> {
   const platformId = toPlatformNumericId(platform);
   const row = await prisma.botUserSession.findUnique({
-    where: { userId_platformId_sessionId_botUserId: { userId, platformId, sessionId, botUserId } },
+    where: {
+      userId_platformId_sessionId_botUserId: {
+        userId,
+        platformId,
+        sessionId,
+        botUserId,
+      },
+    },
     select: { data: true },
   });
   if (!row?.data) return {};
-  try { return JSON.parse(row.data) as Record<string, unknown>; }
-  catch { return {}; }
+  try {
+    return JSON.parse(row.data) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
 }
 
 /**
@@ -58,23 +73,53 @@ export async function getUserName(userId: string): Promise<string> {
   return row?.name ?? 'Unknown user';
 }
 
-export async function userExists(platform: string, userId: string): Promise<boolean> {
-  const row = await prisma.botUser.findUnique({ where: { id: userId }, select: { platformId: true } });
+export async function userExists(
+  platform: string,
+  userId: string,
+): Promise<boolean> {
+  const row = await prisma.botUser.findUnique({
+    where: { id: userId },
+    select: { platformId: true },
+  });
   return row !== null;
 }
 
-export async function userSessionExists(userId: string, platform: string, sessionId: string, botUserId: string): Promise<boolean> {
+export async function userSessionExists(
+  userId: string,
+  platform: string,
+  sessionId: string,
+  botUserId: string,
+): Promise<boolean> {
   const row = await prisma.botUserSession.findUnique({
-    where: { userId_platformId_sessionId_botUserId: { userId, platformId: toPlatformNumericId(platform), sessionId, botUserId } },
+    where: {
+      userId_platformId_sessionId_botUserId: {
+        userId,
+        platformId: toPlatformNumericId(platform),
+        sessionId,
+        botUserId,
+      },
+    },
     select: { botUserId: true },
   });
   return row !== null;
 }
 
-export async function upsertUserSession(userId: string, platform: string, sessionId: string, botUserId: string): Promise<void> {
+export async function upsertUserSession(
+  userId: string,
+  platform: string,
+  sessionId: string,
+  botUserId: string,
+): Promise<void> {
   const platformNumericId = toPlatformNumericId(platform);
   await prisma.botUserSession.upsert({
-    where: { userId_platformId_sessionId_botUserId: { userId, platformId: platformNumericId, sessionId, botUserId } },
+    where: {
+      userId_platformId_sessionId_botUserId: {
+        userId,
+        platformId: platformNumericId,
+        sessionId,
+        botUserId,
+      },
+    },
     create: { userId, platformId: platformNumericId, sessionId, botUserId },
     // Same fix as upsertThreadSession — Prisma's @updatedAt only advances when a field is written.
     // Without this, every message sees a permanently stale sender row and triggers getFullUserInfo
@@ -89,10 +134,20 @@ export async function upsertUserSession(userId: string, platform: string, sessio
  * constant lives in the middleware, not here, so this function is purely a data accessor.
  */
 export async function getUserSessionUpdatedAt(
-  userId: string, platform: string, sessionId: string, botUserId: string,
+  userId: string,
+  platform: string,
+  sessionId: string,
+  botUserId: string,
 ): Promise<Date | null> {
   const row = await prisma.botUserSession.findUnique({
-    where: { userId_platformId_sessionId_botUserId: { userId, platformId: toPlatformNumericId(platform), sessionId, botUserId } },
+    where: {
+      userId_platformId_sessionId_botUserId: {
+        userId,
+        platformId: toPlatformNumericId(platform),
+        sessionId,
+        botUserId,
+      },
+    },
     select: { lastUpdatedAt: true },
   });
   return row?.lastUpdatedAt ?? null;
@@ -116,8 +171,11 @@ export async function getAllUserSessionData(
   return rows.map((row) => {
     let data: Record<string, unknown> = {};
     if (row.data) {
-      try { data = JSON.parse(row.data) as Record<string, unknown>; }
-      catch { /* malformed JSON — default to empty object */ }
+      try {
+        data = JSON.parse(row.data) as Record<string, unknown>;
+      } catch {
+        /* malformed JSON — default to empty object */
+      }
     }
     return { botUserId: row.botUserId, data };
   });

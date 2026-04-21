@@ -13,22 +13,39 @@ import { fileURLToPath } from 'node:url';
 //   empty arrays while leaving all existing data completely untouched —
 //   zero manual migration required when the schema evolves.
 const DEFAULT_DB = {
-  botSessionCommand: [], botSessionEvent: [], botCredentialDiscord: [],
-  botCredentialTelegram: [], botCredentialFacebookPage: [],
-  botCredentialFacebookMessenger: [], botSession: [], botAdmin: [], botPremium: [],
-  botThread: [], botUser: [], fbPageWebhook: [], systemAdmin: [],
-  botThreadSession: [], botUserSession: [],
-  botUserBanned: [], botThreadBanned: [],
+  botSessionCommand: [],
+  botSessionEvent: [],
+  botCredentialDiscord: [],
+  botCredentialTelegram: [],
+  botCredentialFacebookPage: [],
+  botCredentialFacebookMessenger: [],
+  botSession: [],
+  botAdmin: [],
+  botPremium: [],
+  botThread: [],
+  botUser: [],
+  fbPageWebhook: [],
+  systemAdmin: [],
+  botThreadSession: [],
+  botUserSession: [],
+  botUserBanned: [],
+  botThreadBanned: [],
   // better-auth core tables — required when DATABASE_TYPE=json so auth queries
   // find an initialised array instead of undefined on first boot.
-  user: [], session: [], account: [], verification: [],
+  user: [],
+  session: [],
+  account: [],
+  verification: [],
 };
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 let dbRoot = path.resolve(__dirname, '../../..');
 // If compiled into dist/database/adapters/..., go up two more levels to exit dist/
-if (path.basename(dbRoot) === 'database' && path.basename(path.dirname(dbRoot)) === 'dist') {
+if (
+  path.basename(dbRoot) === 'database' &&
+  path.basename(path.dirname(dbRoot)) === 'dist'
+) {
   dbRoot = path.resolve(dbRoot, '../..');
 }
 const DB_FILE = path.resolve(dbRoot, 'database/database.json');
@@ -42,7 +59,7 @@ export const getDb = async () => {
     const content = await fs.readFile(DB_FILE, 'utf-8');
     // Spread DEFAULT_DB first so any table absent from an older database.json
     // is backfilled with [] — parsed content wins for all keys that already exist.
-    dbCache = { ...DEFAULT_DB, ...JSON.parse(content) as object };
+    dbCache = { ...DEFAULT_DB, ...(JSON.parse(content) as object) };
   } catch {
     dbCache = { ...DEFAULT_DB };
   }

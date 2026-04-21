@@ -6,32 +6,79 @@ export async function upsertThread(data: BotThreadData): Promise<void> {
   const db = await getDb();
   const rec = db.botThread.find((t: any) => t.id === data.id);
   if (rec) {
-    Object.assign(rec, { name: data.name, isGroup: data.isGroup, memberCount: data.memberCount, avatarUrl: data.avatarUrl, participants: data.participantIDs, admins: data.adminIDs });
+    Object.assign(rec, {
+      name: data.name,
+      isGroup: data.isGroup,
+      memberCount: data.memberCount,
+      avatarUrl: data.avatarUrl,
+      participants: data.participantIDs,
+      admins: data.adminIDs,
+    });
   } else {
-    db.botThread.push({ platformId: data.platformId, id: data.id, name: data.name, isGroup: data.isGroup, memberCount: data.memberCount, avatarUrl: data.avatarUrl, participants: data.participantIDs, admins: data.adminIDs });
+    db.botThread.push({
+      platformId: data.platformId,
+      id: data.id,
+      name: data.name,
+      isGroup: data.isGroup,
+      memberCount: data.memberCount,
+      avatarUrl: data.avatarUrl,
+      participants: data.participantIDs,
+      admins: data.adminIDs,
+    });
   }
   await saveDb();
 }
 
-export async function threadExists(platform: string, threadId: string): Promise<boolean> {
+export async function threadExists(
+  platform: string,
+  threadId: string,
+): Promise<boolean> {
   const db = await getDb();
   return db.botThread.some((t: any) => t.id === threadId);
 }
 
-export async function threadSessionExists(userId: string, platform: string, sessionId: string, threadId: string): Promise<boolean> {
+export async function threadSessionExists(
+  userId: string,
+  platform: string,
+  sessionId: string,
+  threadId: string,
+): Promise<boolean> {
   const db = await getDb();
   const pid = toPlatformNumericId(platform);
-  return db.botThreadSession.some((ts: any) => ts.userId === userId && ts.platformId === pid && ts.sessionId === sessionId && ts.botThreadId === threadId);
+  return db.botThreadSession.some(
+    (ts: any) =>
+      ts.userId === userId &&
+      ts.platformId === pid &&
+      ts.sessionId === sessionId &&
+      ts.botThreadId === threadId,
+  );
 }
 
-export async function upsertThreadSession(userId: string, platform: string, sessionId: string, threadId: string): Promise<void> {
+export async function upsertThreadSession(
+  userId: string,
+  platform: string,
+  sessionId: string,
+  threadId: string,
+): Promise<void> {
   const db = await getDb();
   const pid = toPlatformNumericId(platform);
   const now = new Date().toISOString();
-  const rec = db.botThreadSession.find((ts: any) => ts.userId === userId && ts.platformId === pid && ts.sessionId === sessionId && ts.botThreadId === threadId);
+  const rec = db.botThreadSession.find(
+    (ts: any) =>
+      ts.userId === userId &&
+      ts.platformId === pid &&
+      ts.sessionId === sessionId &&
+      ts.botThreadId === threadId,
+  );
   if (!rec) {
     // First encounter — create the row with lastUpdatedAt so the middleware has a baseline timestamp.
-    db.botThreadSession.push({ userId, platformId: pid, sessionId, botThreadId: threadId, lastUpdatedAt: now });
+    db.botThreadSession.push({
+      userId,
+      platformId: pid,
+      sessionId,
+      botThreadId: threadId,
+      lastUpdatedAt: now,
+    });
     await saveDb();
   } else {
     // Re-sync — update lastUpdatedAt so subsequent staleness checks see the fresh timestamp.
@@ -46,18 +93,28 @@ export async function upsertThreadSession(userId: string, platform: string, sess
  * middleware can compare them uniformly regardless of which adapter is active.
  */
 export async function getThreadSessionUpdatedAt(
-  userId: string, platform: string, sessionId: string, threadId: string,
+  userId: string,
+  platform: string,
+  sessionId: string,
+  threadId: string,
 ): Promise<Date | null> {
   const db = await getDb();
   const pid = toPlatformNumericId(platform);
   const rec = db.botThreadSession.find(
-    (ts: any) => ts.userId === userId && ts.platformId === pid && ts.sessionId === sessionId && ts.botThreadId === threadId,
+    (ts: any) =>
+      ts.userId === userId &&
+      ts.platformId === pid &&
+      ts.sessionId === sessionId &&
+      ts.botThreadId === threadId,
   );
   if (!rec?.lastUpdatedAt) return null;
   return new Date(rec.lastUpdatedAt as string);
 }
 
-export async function isThreadAdmin(threadId: string, userId: string): Promise<boolean> {
+export async function isThreadAdmin(
+  threadId: string,
+  userId: string,
+): Promise<boolean> {
   const db = await getDb();
   const rec = db.botThread.find((t: any) => t.id === threadId);
   return rec ? rec.admins.includes(userId) : false;
@@ -86,11 +143,18 @@ export async function getThreadSessionData(
   const db = await getDb();
   const pid = toPlatformNumericId(platform);
   const rec = db.botThreadSession.find(
-    (ts: any) => ts.userId === userId && ts.platformId === pid && ts.sessionId === sessionId && ts.botThreadId === botThreadId,
+    (ts: any) =>
+      ts.userId === userId &&
+      ts.platformId === pid &&
+      ts.sessionId === sessionId &&
+      ts.botThreadId === botThreadId,
   );
   if (!rec?.data) return {};
-  try { return JSON.parse(rec.data as string) as Record<string, unknown>; }
-  catch { return {}; }
+  try {
+    return JSON.parse(rec.data as string) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
 }
 
 /**
@@ -107,7 +171,11 @@ export async function setThreadSessionData(
   const db = await getDb();
   const pid = toPlatformNumericId(platform);
   const rec = db.botThreadSession.find(
-    (ts: any) => ts.userId === userId && ts.platformId === pid && ts.sessionId === sessionId && ts.botThreadId === botThreadId,
+    (ts: any) =>
+      ts.userId === userId &&
+      ts.platformId === pid &&
+      ts.sessionId === sessionId &&
+      ts.botThreadId === botThreadId,
   );
   if (rec) {
     rec.data = JSON.stringify(data);
@@ -130,7 +198,12 @@ export async function getAllGroupThreadIds(
   const pid = toPlatformNumericId(platform);
   // Step 1 — gather every thread ID this session has ever encountered
   const sessionThreadIds: string[] = (db.botThreadSession as any[])
-    .filter((ts) => ts.userId === userId && ts.platformId === pid && ts.sessionId === sessionId)
+    .filter(
+      (ts) =>
+        ts.userId === userId &&
+        ts.platformId === pid &&
+        ts.sessionId === sessionId,
+    )
     .map((ts) => ts.botThreadId as string);
   // Step 2 — filter to group-only threads using the shared bot_threads source-of-truth table
   return sessionThreadIds.filter((threadId) => {

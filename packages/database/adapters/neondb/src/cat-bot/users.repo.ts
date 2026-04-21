@@ -12,12 +12,24 @@ export async function upsertUser(data: BotUserData): Promise<void> {
        username = EXCLUDED.username,
        avatar_url = EXCLUDED.avatar_url,
        updated_at = NOW()`,
-    [data.platformId, data.id, data.name, data.firstName ?? null, data.username ?? null, data.avatarUrl ?? null],
+    [
+      data.platformId,
+      data.id,
+      data.name,
+      data.firstName ?? null,
+      data.username ?? null,
+      data.avatarUrl ?? null,
+    ],
   );
 }
 
-export async function userExists(platform: string, userId: string): Promise<boolean> {
-  const res = await pool.query(`SELECT 1 FROM bot_users WHERE id = $1`, [userId]);
+export async function userExists(
+  platform: string,
+  userId: string,
+): Promise<boolean> {
+  const res = await pool.query(`SELECT 1 FROM bot_users WHERE id = $1`, [
+    userId,
+  ]);
   return (res.rowCount ?? 0) > 0;
 }
 
@@ -99,8 +111,11 @@ export async function getUserSessionData(
     [userId, platformId, sessionId, botUserId],
   );
   if (!res.rows[0]?.data) return {};
-  try { return JSON.parse(res.rows[0].data) as Record<string, unknown>; }
-  catch { return {}; }
+  try {
+    return JSON.parse(res.rows[0].data) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
 }
 
 /**
@@ -139,8 +154,11 @@ export async function getAllUserSessionData(
   return res.rows.map((row) => {
     let data: Record<string, unknown> = {};
     if (row.data) {
-      try { data = JSON.parse(row.data) as Record<string, unknown>; }
-      catch { /* malformed JSON — default to empty object */ }
+      try {
+        data = JSON.parse(row.data) as Record<string, unknown>;
+      } catch {
+        /* malformed JSON — default to empty object */
+      }
     }
     return { botUserId: row.bot_user_id, data };
   });

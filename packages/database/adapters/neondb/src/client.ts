@@ -28,7 +28,7 @@ const connectionString =
 if (!connectionString) {
   throw new Error(
     '[neondb] NEON_DATABASE_URL or DATABASE_URL environment variable is required. ' +
-    'Set it to your Neon project connection string (postgres://...).',
+      'Set it to your Neon project connection string (postgres://...).',
   );
 }
 

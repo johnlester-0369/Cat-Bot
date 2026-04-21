@@ -6,32 +6,68 @@ export async function upsertUser(data: BotUserData): Promise<void> {
   const db = await getDb();
   const rec = db.botUser.find((u: any) => u.id === data.id);
   if (rec) {
-    Object.assign(rec, { name: data.name, firstName: data.firstName, username: data.username, avatarUrl: data.avatarUrl });
+    Object.assign(rec, {
+      name: data.name,
+      firstName: data.firstName,
+      username: data.username,
+      avatarUrl: data.avatarUrl,
+    });
   } else {
     db.botUser.push({ ...data });
   }
   await saveDb();
 }
 
-export async function userExists(platform: string, userId: string): Promise<boolean> {
+export async function userExists(
+  platform: string,
+  userId: string,
+): Promise<boolean> {
   const db = await getDb();
   return db.botUser.some((u: any) => u.id === userId);
 }
 
-export async function userSessionExists(userId: string, platform: string, sessionId: string, botUserId: string): Promise<boolean> {
+export async function userSessionExists(
+  userId: string,
+  platform: string,
+  sessionId: string,
+  botUserId: string,
+): Promise<boolean> {
   const db = await getDb();
   const pid = toPlatformNumericId(platform);
-  return db.botUserSession.some((us: any) => us.userId === userId && us.platformId === pid && us.sessionId === sessionId && us.botUserId === botUserId);
+  return db.botUserSession.some(
+    (us: any) =>
+      us.userId === userId &&
+      us.platformId === pid &&
+      us.sessionId === sessionId &&
+      us.botUserId === botUserId,
+  );
 }
 
-export async function upsertUserSession(userId: string, platform: string, sessionId: string, botUserId: string): Promise<void> {
+export async function upsertUserSession(
+  userId: string,
+  platform: string,
+  sessionId: string,
+  botUserId: string,
+): Promise<void> {
   const db = await getDb();
   const pid = toPlatformNumericId(platform);
   const now = new Date().toISOString();
-  const rec = db.botUserSession.find((us: any) => us.userId === userId && us.platformId === pid && us.sessionId === sessionId && us.botUserId === botUserId);
+  const rec = db.botUserSession.find(
+    (us: any) =>
+      us.userId === userId &&
+      us.platformId === pid &&
+      us.sessionId === sessionId &&
+      us.botUserId === botUserId,
+  );
   if (!rec) {
     // First encounter — create the row with lastUpdatedAt so the middleware has a baseline timestamp.
-    db.botUserSession.push({ userId, platformId: pid, sessionId, botUserId, lastUpdatedAt: now });
+    db.botUserSession.push({
+      userId,
+      platformId: pid,
+      sessionId,
+      botUserId,
+      lastUpdatedAt: now,
+    });
     await saveDb();
   } else {
     // Re-sync — update lastUpdatedAt so subsequent staleness checks see the fresh timestamp.
@@ -46,12 +82,19 @@ export async function upsertUserSession(userId: string, platform: string, sessio
  * middleware can compare them uniformly regardless of which adapter is active.
  */
 export async function getUserSessionUpdatedAt(
-  userId: string, platform: string, sessionId: string, botUserId: string,
+  userId: string,
+  platform: string,
+  sessionId: string,
+  botUserId: string,
 ): Promise<Date | null> {
   const db = await getDb();
   const pid = toPlatformNumericId(platform);
   const rec = db.botUserSession.find(
-    (us: any) => us.userId === userId && us.platformId === pid && us.sessionId === sessionId && us.botUserId === botUserId,
+    (us: any) =>
+      us.userId === userId &&
+      us.platformId === pid &&
+      us.sessionId === sessionId &&
+      us.botUserId === botUserId,
   );
   if (!rec?.lastUpdatedAt) return null;
   return new Date(rec.lastUpdatedAt as string);
@@ -78,11 +121,18 @@ export async function getUserSessionData(
   const db = await getDb();
   const pid = toPlatformNumericId(platform);
   const rec = db.botUserSession.find(
-    (us: any) => us.userId === userId && us.platformId === pid && us.sessionId === sessionId && us.botUserId === botUserId,
+    (us: any) =>
+      us.userId === userId &&
+      us.platformId === pid &&
+      us.sessionId === sessionId &&
+      us.botUserId === botUserId,
   );
   if (!rec?.data) return {};
-  try { return JSON.parse(rec.data as string) as Record<string, unknown>; }
-  catch { return {}; }
+  try {
+    return JSON.parse(rec.data as string) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
 }
 
 /**
@@ -99,7 +149,11 @@ export async function setUserSessionData(
   const db = await getDb();
   const pid = toPlatformNumericId(platform);
   const rec = db.botUserSession.find(
-    (us: any) => us.userId === userId && us.platformId === pid && us.sessionId === sessionId && us.botUserId === botUserId,
+    (us: any) =>
+      us.userId === userId &&
+      us.platformId === pid &&
+      us.sessionId === sessionId &&
+      us.botUserId === botUserId,
   );
   if (rec) {
     rec.data = JSON.stringify(data);
@@ -119,11 +173,20 @@ export async function getAllUserSessionData(
   const db = await getDb();
   const pid = toPlatformNumericId(platform);
   return db.botUserSession
-    .filter((us: any) => us.userId === userId && us.platformId === pid && us.sessionId === sessionId)
+    .filter(
+      (us: any) =>
+        us.userId === userId &&
+        us.platformId === pid &&
+        us.sessionId === sessionId,
+    )
     .map((us: any) => {
       let data: Record<string, unknown> = {};
-      try { if (us.data) data = JSON.parse(us.data as string) as Record<string, unknown>; }
-      catch { /* malformed JSON — default to empty object */ }
+      try {
+        if (us.data)
+          data = JSON.parse(us.data as string) as Record<string, unknown>;
+      } catch {
+        /* malformed JSON — default to empty object */
+      }
       return { botUserId: us.botUserId as string, data };
     });
 }

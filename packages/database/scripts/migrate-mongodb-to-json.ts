@@ -51,7 +51,11 @@ function deepConvert(obj: any): any {
   if (obj === null || obj === undefined) return obj;
   if (typeof obj === 'object') {
     if (obj instanceof Date) return obj;
-    if (obj._bsontype === 'ObjectID' || (obj.toHexString && typeof obj.toHexString === 'function')) return obj.toString();
+    if (
+      obj._bsontype === 'ObjectID' ||
+      (obj.toHexString && typeof obj.toHexString === 'function')
+    )
+      return obj.toString();
     if (Array.isArray(obj)) return obj.map(deepConvert);
     const out: any = {};
     for (const [k, v] of Object.entries(obj)) out[k] = deepConvert(v);
@@ -63,7 +67,7 @@ function deepConvert(obj: any): any {
 async function main(): Promise<void> {
   console.log('mongodb-to-json migration');
   console.log(`  Output : ${DB_JSON_FILE}`);
-  
+
   const mongoDb = getMongoDb();
   const outDb: Record<string, any[]> = {};
 
@@ -82,7 +86,7 @@ async function main(): Promise<void> {
       });
     } catch (e: any) {
       console.warn(`[WARN] Skipping ${mongoCol}: ${e.message}`);
-      outDb[jsonKey] =[];
+      outDb[jsonKey] = [];
     }
   }
 
@@ -97,12 +101,12 @@ async function main(): Promise<void> {
       return {
         ...rest,
         participants: participantIDs || [],
-        admins: adminIDs ||[],
+        admins: adminIDs || [],
       };
     });
   } catch (e: any) {
     console.warn(`[WARN] Skipping botThreads: ${e.message}`);
-    outDb.botThread =[];
+    outDb.botThread = [];
   }
 
   await fs.mkdir(path.dirname(DB_JSON_FILE), { recursive: true });
@@ -114,7 +118,7 @@ async function main(): Promise<void> {
       console.log(`  ${table.padEnd(34)} ${rows.length}`);
     }
   }
-  
+
   await mongoClient.close();
 }
 
