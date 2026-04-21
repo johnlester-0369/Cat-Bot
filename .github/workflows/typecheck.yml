@@ -1,0 +1,93 @@
+# Typecheck-only CI — runs tsc in no-emit mode for both packages.
+# Deliberately separate from build/test workflows so type errors surface fast
+# (< 2 min) without waiting for Vite bundle, vitest suite, or platform tests.
+#
+# Concurrency group cancels the in-progress run for the same ref when a new
+# push lands — prevents queue pile-up on fast-moving feature branches while
+# ensuring the final commit on a PR always gets a green/red result.
+
+name: Typecheck
+
+on:
+  push:
+    branches: ['**']          # catch type errors on every branch, not just main
+  pull_request:
+    branches: [main, master]  # required-status-check candidate for merge gate
+
+concurrency:
+  # One run per workflow per branch at a time — cancels the older run when a
+  # new commit arrives on the same branch so developers get faster feedback.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read  # checkout only — no write access needed for a typecheck job
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # JOB 1 — cat-bot (Node.js backend, moduleResolution: nodenext)
+  #
+  # tsconfig.json does NOT set noEmit, so --noEmit must be passed explicitly.
+  # Running npm ci inside packages/cat-bot resolves the file:../database dep
+  # via npm's local-package install path — no root workspace install required.
+  # ─────────────────────────────────────────────────────────────────────────────
+  typecheck-cat-bot:
+    name: Typecheck / cat-bot
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: packages/cat-bot
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'   # Node 20 reached EOL April 2026; 22 is current LTS
+          cache: 'npm'
+          cache-dependency-path: packages/cat-bot/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        # --noEmit: typecheck only, no dist output produced in CI
+        # nodenext + strict + noUncheckedIndexedAccess — this will catch real errors
+        run: npx tsc --noEmit
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # JOB 2 — web (React/Vite frontend, bundler moduleResolution)
+  #
+  # tsconfig.app.json already sets noEmit: true, so tsc -b is the correct
+  # command (mirrors the "tsc -b && vite build" script from package.json).
+  # tsc -b respects project references and runs the full composite check.
+  # ─────────────────────────────────────────────────────────────────────────────
+  typecheck-web:
+    name: Typecheck / web
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: packages/web
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: packages/web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        # tsc -b: project-references-aware build; tsconfig.app.json has noEmit:true
+        # so this is a pure typecheck — no JS output, no Vite bundle
+        run: npx tsc -b
