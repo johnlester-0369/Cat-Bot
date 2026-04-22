@@ -8,6 +8,7 @@
  *   • All previous optimizations (direct attachment_url, try/finally, efficiency, no interruption)
  *     are preserved.
  *   • Facebook downloader now uses the chocomilk API (ZTRdiamond - Zanixon Group).
+ *   • YouTube downloader now uses the chocomilk API (ZTRdiamond - Zanixon Group).
  *   • Fixed TS2345 + TS2339 errors: added missing `apiUrl` null-guard in downloadFacebook.
  *   • Updated FacebookDlData interface to match real API response shape (caption, url, media.all).
  *   • Facebook video resolution now falls back to media.all if media.videos is empty.
@@ -42,19 +43,19 @@ interface FacebookDlMediaItem {
   url: string;
 }
 interface FacebookDlData {
-  type: string;        // e.g. "reel", "video"
-  url?: string;        // original Facebook URL echoed back
+  type: string; // e.g. "reel", "video"
+  url?: string; // original Facebook URL echoed back
   title?: string;
-  caption?: string;    // short caption text
+  caption?: string; // short caption text
   cover?: string;
   media: {
-    all?: FacebookDlMediaItem[];     // all media items combined
+    all?: FacebookDlMediaItem[]; // all media items combined
     videos: FacebookDlMediaItem[];
     images: FacebookDlMediaItem[];
   };
 }
 interface FacebookDlResponse {
-  info?: string;       // e.g. "Developed by ZTRdiamond - Zanixon Group"
+  info?: string; // e.g. "Developed by ZTRdiamond - Zanixon Group"
   code: number;
   success: boolean;
   data: FacebookDlData;
@@ -70,14 +71,22 @@ interface PinterestDlResponse {
   result: PinterestResult;
 }
 
-interface YtMp4Result {
-  url: string;
+interface YtDownloadData {
   title: string;
-  duration?: string;
-  quality?: string;
+  filename: string;
+  thumbnail?: string;
+  author?: string;
+  duration?: number;
+  quality?: number;
+  description?: string;
+  download: string;
 }
-interface YtMp4Response {
-  result: YtMp4Result;
+interface YtDownloadResponse {
+  info?: string;
+  code: number;
+  success: boolean;
+  data: YtDownloadData;
+  error: string | null;
 }
 
 // ── Platform detection ────────────────────────────────────────────────────────
@@ -233,7 +242,6 @@ async function downloadFacebook(rawUrl: string, ctx: AppCtx): Promise<void> {
     if (!res?.success || !res?.data)
       throw new Error('API returned an unsuccessful response.');
 
-    // Prefer media.videos; fall back to media.all filtered for video type
     const videos =
       res.data.media?.videos?.length
         ? res.data.media.videos
@@ -322,25 +330,33 @@ async function downloadYouTube(rawUrl: string, ctx: AppCtx): Promise<void> {
   })) as string | undefined;
 
   try {
-    const apiUrl = createUrl('nexray', '/downloader/v1/ytmp4', { url: rawUrl });
+    const apiUrl = createUrl('chocomilk', '/v1/youtube/download', {
+      url: rawUrl,
+      quality: '1080',
+      mode: 'video',
+    });
     if (!apiUrl) throw new Error('Failed to build API URL.');
 
-    const { data } = await axios.get<YtMp4Response>(apiUrl, {
+    const { data } = await axios.get<YtDownloadResponse>(apiUrl, {
       timeout: 120000,
+      headers: { Accept: 'application/json' },
     });
-    const result = data?.result;
-    if (!result?.url) throw new Error('No video URL returned from API.');
 
-    const fileName = safeFilename(result.title ?? 'video', 'mp4');
+    if (!data?.success || !data?.data?.download)
+      throw new Error('No video URL returned from API.');
+
+    const result = data.data;
+    const fileName = result.filename || safeFilename(result.title ?? 'video', 'mp4');
 
     await chat.replyMessage({
       style: MessageStyle.MARKDOWN,
       message:
         `🎬 **${result.title ?? 'YouTube Video'}**\n` +
-        (result.duration ? `⏱ Duration: ${result.duration}\n` : '') +
-        (result.quality ? `🎞 Quality: ${result.quality}\n` : '') +
+        (result.author ? `👤 Author: ${result.author}\n` : '') +
+        (typeof result.duration === 'number' ? `⏱ Duration: ${result.duration}s\n` : '') +
+        (typeof result.quality === 'number' ? `🎞 Quality: ${result.quality}p\n` : '') +
         `🔗 ${rawUrl}`,
-      attachment_url: [{ name: fileName, url: result.url }],
+      attachment_url: [{ name: fileName, url: result.download }],
     });
   } catch (err) {
     const error = err as { message?: string };
@@ -418,11 +434,9 @@ export const onChat = async (ctx: AppCtx): Promise<void> => {
 
   const trimmed = message.trim();
 
-  // Use the exact same prefix that exists inside onCommand + config.name
   const { prefix = '!' } = ctx;
-  const commandName = config.name; // ← dynamic command name
+  const commandName = config.name;
 
-  // Skip any message that starts with <prefix><commandName> (case-insensitive)
   if (
     trimmed.toLowerCase().startsWith(`${prefix}${commandName}`.toLowerCase())
   ) {
