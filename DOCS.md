@@ -1449,10 +1449,121 @@ await settings.set('welcomeEnabled', true)
 
 **Economy shortcut — `ctx.currencies`:**
 
+The `currencies` context provides a high-level economy API that operates on each user's
+running coin total. It is always pre-scoped to the current bot session — the same
+`(sessionOwnerUserId, platform, sessionId)` triplet that scopes `db` — so concurrent
+sessions never interfere with each other's balances.
+
+**Methods:**
+
+| Method | Signature | Returns | Description |
+|---|---|---|---|
+| `getMoney` | `getMoney(userId: string)` | `Promise<number>` | Returns the user's current coin balance. Returns `0` when the user has no record yet — safe to call without an existence check. |
+| `increaseMoney` | `increaseMoney({ user_id: string, money: number })` | `Promise<void>` | Adds `money` coins to the user's balance. Creates the money record automatically on first call — no prior `createCollection` call is needed. |
+| `decreaseMoney` | `decreaseMoney({ user_id: string, money: number })` | `Promise<void>` | Subtracts `money` coins from the user's balance. **Does not enforce a floor** — the balance can go below zero if the caller does not validate first. Always check the balance before calling. |
+
+**Basic usage:**
+
 ```ts
-await currencies.increaseMoney({ user_id: senderID, money: 100 })
+export const onCommand = async ({ chat, event, currencies }: AppCtx) => {
+  const senderID = event['senderID'] as string
+
+  // getMoney always returns a number — 0 when the user has never earned coins
+  const balance = await currencies.getMoney(senderID)
+
+  await currencies.increaseMoney({ user_id: senderID, money: 100 })
+  await currencies.decreaseMoney({ user_id: senderID, money: 50 })
+
+  await chat.replyMessage({
+    message: `Balance: ${balance.toLocaleString()} coins`,
+  })
+}
+```
+
+**Checking balance before a deduction (e.g. gambling or purchase commands):**
+
+`decreaseMoney` does not guard against a negative balance — always validate the current
+balance before deducting so users cannot go into debt unintentionally:
+
+```ts
+export const onCommand = async ({ chat, event, currencies, args }: AppCtx) => {
+  const senderID = event['senderID'] as string
+  const bet = Number(args[0])
+  const balance = await currencies.getMoney(senderID)
+
+  // decreaseMoney has no floor — reject the bet explicitly before it is applied
+  if (bet > balance) {
+    await chat.replyMessage({
+      message: `⚠️ You only have ${balance.toLocaleString()} coins.`,
+    })
+    return
+  }
+
+  await currencies.decreaseMoney({ user_id: senderID, money: bet })
+  // ... game logic ...
+}
+```
+
+**Showing another user's balance (mention path — used by `/balance`):**
+
+`getMoney` returns `0` for any userId that has never earned coins, so the multi-user
+mention loop never throws — no existence check is needed before the loop:
+
+```ts
+export const onCommand = async ({ chat, event, currencies }: AppCtx) => {
+  const mentions = event['mentions'] as Record<string, string> | undefined
+  const mentionIDs = Object.keys(mentions ?? {})
+
+  if (mentionIDs.length > 0) {
+    const lines: string[] = []
+    for (const uid of mentionIDs) {
+      // Platforms embed '@' in the mention display name — strip it for cleaner output
+      const displayName = (mentions?.[uid] ?? uid).replace(/^@/, '')
+      const coins = await currencies.getMoney(uid)  // 0 for users with no coins yet
+      lines.push(`**${displayName}:** ${coins.toLocaleString()} coins`)
+    }
+    await chat.replyMessage({ message: lines.join('\n') })
+    return
+  }
+  // ... self-balance path ...
+}
+```
+
+**Running currency and state updates in parallel (used by `/slot`):**
+
+When a currency write and a separate state write are independent, `Promise.all` eliminates
+the sequential await overhead — useful for any command that persists both a game/work state
+and a coin total in the same operation:
+
+```ts
+// Both writes are independent — no ordering dependency between currency and game state
+const currencyUpdate =
+  won > 0
+    ? currencies.increaseMoney({ user_id: senderID, money: won })
+    : currencies.decreaseMoney({ user_id: senderID, money: lost })
+
+await Promise.all([currencyUpdate, saveGameState(ctx, state)])
+```
+
+**Integration with `db.users` collections:**
+
+`currencies` and `db.users` share the same underlying session row. The `/daily` and `/work`
+commands write their own metadata (last-claim timestamp, streak, job count) to separate
+named collections on the same row, then call `currencies.increaseMoney` to update the
+shared coin total. `getMoney` always reflects the running total across every economy
+command — metadata collections and the coin total are updated independently but stored
+together:
+
+```ts
+// Write command-specific metadata to its own named collection
+await daily.set('lastClaim', Date.now())
+await daily.set('streak', newStreak)
+
+// Credit coins via currencies — updates the shared coin total on the same session row
+await currencies.increaseMoney({ user_id: senderID, money: totalCoins })
+
+// getMoney later returns the full accumulated balance across all economy commands
 const balance = await currencies.getMoney(senderID)
-await settings.set('welcomeEnabled', true)
 ```
 
 ---
