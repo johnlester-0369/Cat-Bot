@@ -459,14 +459,15 @@ When a command does not execute, the failure belongs to exactly one middleware. 
 | **Conversation State** | Scoped `onReply` and `onReact` flows replace the global-array anti-pattern; concurrent users never interfere with each other's flow |
 | **Interactive Buttons** | `export const button` in your command file — Discord gets `ActionRowBuilder`, Telegram gets inline keyboards, Messenger gets a numbered text menu, Facebook Page gets a Button Template |
 | **Admin Portal** | Independent admin dashboard with separate session cookies — ban users, halt their sessions, manage system admins |
-| **Pluggable Database** | Switch between SQLite (Prisma), JSON, MongoDB, and Neon PostgreSQL via one environment variable; 12 bidirectional migration scripts included |
+| **Pluggable Database** | Four interchangeable backends — JSON (zero dependencies), SQLite via Prisma, MongoDB, and Neon PostgreSQL — selected at runtime with a single `DATABASE_TYPE` environment variable; 12 bidirectional migration scripts cover every adapter pair so switching storage backends never means re-entering data |
 | **Role-Based Access** | Five role levels (`ANYONE`, `THREAD_ADMIN`, `BOT_ADMIN`, `PREMIUM`, `SYSTEM_ADMIN`) enforced by middleware before `onCommand` runs |
 | **Cooldown & Ban System** | Per-user cooldown and per-user/per-thread bans enforced by the middleware pipeline |
 | **Slash Command Sync** | Discord and Telegram slash menus stay current with a SHA-based idempotency gate — no redundant REST calls on restart |
 | **Economy API** | Built-in `currencies` context (`getMoney`, `increaseMoney`, `decreaseMoney`) backed by the active database adapter |
 | **AI Agent** | Groq-powered ReAct agent with `execute_command`, `test_command`, and `help` tools accessible from chat |
 | **Live Log Streaming** | Socket.IO pushes bot console output to the dashboard in real time with a 100-entry sliding window buffer |
-
+| **LRU Cache Layer** | A 2,000-entry LRU cache sits between the bot engine and every database adapter — permission checks, cooldown lookups, and credential reads are served from memory on repeated access; all writes are write-through so command handlers never observe stale data |
+ 
 ---
 
 ## Architecture
