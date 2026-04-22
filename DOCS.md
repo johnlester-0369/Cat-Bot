@@ -339,7 +339,7 @@ export const button = {
       })
     },
   },
-  cancel: {
+  [BUTTON_ID.cancel]: {
     label: '❌ Cancel',
     style: ButtonStyle.DANGER,
     onClick: async ({ chat, event }: AppCtx) => {
@@ -354,8 +354,8 @@ export const button = {
 
 export const onCommand = async ({ chat, button: btn }: AppCtx) => {
   // Private scope by default — only the invoking user can click
-  const confirmId = btn.generateID({ id: 'confirm' })
-  const cancelId  = btn.generateID({ id: 'cancel' })
+  const confirmId = btn.generateID({ id: BUTTON_ID.confirm })
+  const cancelId  = btn.generateID({ id: BUTTON_ID.cancel })
 
   await chat.replyMessage({
     style: MessageStyle.MARKDOWN,
@@ -881,11 +881,12 @@ The key is `${messageID}:${threadID}`. Any member of the thread can reply or rea
 
 Registers a pending state against a key. The engine looks this up when a reply (`message_reply`) or reaction (`message_reaction`) event arrives.
 
-```ts
+const STATE = { awaiting_name: 'awaiting_name' }
 state.create({
   id: state.generateID({ id: String(messageID) }),
-  state: 'awaiting_name',          // string label; becomes the handler key in onReply
+  state: STATE.awaiting_name,      // string label; becomes the handler key in onReply
   context: { step: 1 },            // arbitrary data carried into the handler via session.context
+})
 })
 ```
 
@@ -1195,8 +1196,10 @@ export const onEvent = async ({ event, chat }: AppCtx): Promise<void> => {
 Defined as methods inside `export const button`. Called when a user clicks (or text-selects on Messenger) the corresponding button.
 
 ```ts
+const BUTTON_ID = { refresh: 'refresh' }
+
 export const button = {
-  refresh: {
+  [BUTTON_ID.refresh]: {
     label: '🔄 Refresh',
     style: ButtonStyle.SECONDARY,
     onClick: async ({ chat, event, button: btn, session }: AppCtx) => {
@@ -1320,8 +1323,10 @@ Visual hint for button appearance. Only meaningful on Discord; Telegram and Face
 ```ts
 import { ButtonStyle } from '@/engine/constants/button-style.constants.js'
 
+const BUTTON_ID = { confirm: 'confirm' }
+
 export const button = {
-  confirm: {
+  [BUTTON_ID.confirm]: {
     label: '✅ Confirm',
     style: ButtonStyle.SUCCESS,
     onClick: async (ctx: AppCtx) => { /* ... */ },
@@ -2030,6 +2035,8 @@ export const onReply = {
 ### Example 2 — Emoji Reaction Flow (onReact)
 
 ```ts
+const STATE = { like: '❤️', dislike: '😢' }
+
 export const onCommand = async ({ chat, state }: AppCtx) => {
   const msgId = await chat.replyMessage({
     style: MessageStyle.MARKDOWN,
@@ -2039,17 +2046,17 @@ export const onCommand = async ({ chat, state }: AppCtx) => {
 
   state.create({
     id: state.generateID({ id: String(msgId) }),
-    state: ['❤️', '😢'],   // emoji allowlist — only these advance the flow
+    state: [STATE.like, STATE.dislike],   // emoji allowlist — only these advance the flow
     context: {},
   })
 }
 
 export const onReact = {
-  ['❤️']: async ({ chat, session, state }: AppCtx) => {
+  [STATE.like]: async ({ chat, session, state }: AppCtx) => {
     state.delete(session.id)
     await chat.reply({ style: MessageStyle.MARKDOWN, message: '🐱 Great taste!' })
   },
-  ['😢']: async ({ chat, session, state }: AppCtx) => {
+  [STATE.dislike]: async ({ chat, session, state }: AppCtx) => {
     state.delete(session.id)
     await chat.reply({ style: MessageStyle.MARKDOWN, message: '😢 Fair enough.' })
   },
