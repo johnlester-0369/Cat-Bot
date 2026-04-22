@@ -313,6 +313,59 @@ state.create({
 | `thread_id` / `threadID` | `string` | Override target thread (defaults to event thread) |
 | `reply_to_message_id` | `string` | Quote-reply to a specific message ID (`replyMessage` sets this automatically) |
 
+**Attachment — `stream` accepts `Buffer` or `Readable`:**
+
+`attachment` takes `{ name, stream }[]` where `stream` is either a raw `Buffer` (in-memory bytes) or a Node.js `Readable` stream. The `name` field sets the download filename; its extension determines the MIME type used by the platform wrapper.
+
+```ts
+// Buffer — for in-memory data fetched via axios arraybuffer (most common for image commands)
+const { data } = await axios.get<ArrayBuffer>(url, { responseType: 'arraybuffer' })
+await chat.replyMessage({
+  style: MessageStyle.MARKDOWN,
+  message: '🖼️ Here is your image:',
+  attachment: [{ name: 'photo.jpg', stream: Buffer.from(data) }],
+})
+
+// Readable stream — for piped file data (e.g. fs.createReadStream, got stream)
+import { createReadStream } from 'fs'
+await chat.replyMessage({
+  message: '📄 Here is your file:',
+  attachment: [{ name: 'document.pdf', stream: createReadStream('./file.pdf') }],
+})
+
+// Multiple attachments in one message
+await chat.replyMessage({
+  message: 'Files attached:',
+  attachment: [
+    { name: 'image.png',  stream: imageBuffer },
+    { name: 'audio.mp3',  stream: audioStream },
+  ],
+})
+```
+
+**Button grid — 2D array layout (`button: string[][]`):**
+
+Pass `button` as `string[][]` to arrange buttons across multiple rows. Each inner array is one row. A flat `string[]` always collapses to a single row regardless of its length.
+
+```ts
+// Flat — all 3 buttons in one row (equivalent to [[ aId, bId, cId ]])
+button: [aId, bId, cId]
+
+// 2D — two rows of three  (2 × 3 grid)
+button: [
+  [randomId, natureId, spaceId],  // Row 1
+  [cityId,   sunsetId, animeId],  // Row 2
+]
+
+// Mixed-width rows
+button: [
+  [prevId, nextId],               // Row 1 — 2 navigation buttons
+  [likeId, shareId, closeId],     // Row 2 — 3 action buttons
+]
+```
+
+> **Platform limits:** Discord — max 5 buttons per `ActionRow`, max 5 rows; Telegram — no hard per-row button limit; Facebook Messenger — all buttons are flattened to a numbered text menu regardless of row structure; Facebook Page — max 3 buttons per Button Template row.
+
 ### chat.editMessage
 
 Edits a previously sent bot message in-place. Accepts `message_id_to_edit`. Use this for updating quiz results, ping latency refreshes, or replacing buttons after a choice is made.
@@ -509,6 +562,54 @@ export const onCommand = async ({ chat, button: btn }: AppCtx) => {
   })
 }
 ```
+
+### Multi-row button grid — 2D array
+
+To build a grid layout, pass `button` as `string[][]` — each inner array maps to one row. This is the only way to produce multi-row layouts; a flat `string[]` always collapses to a single row.
+
+```ts
+import { ButtonStyle } from '@/engine/constants/button-style.constants.js'
+
+const BUTTON_ID = {
+  prev: 'prev', next: 'next', close: 'close',
+  like: 'like', share: 'share', save: 'save',
+}
+
+export const button = {
+  [BUTTON_ID.prev]:  { label: '◀ Prev',  style: ButtonStyle.SECONDARY, onClick: async (_ctx: AppCtx) => { /* ... */ } },
+  [BUTTON_ID.next]:  { label: '▶ Next',  style: ButtonStyle.SECONDARY, onClick: async (_ctx: AppCtx) => { /* ... */ } },
+  [BUTTON_ID.close]: { label: '✕ Close', style: ButtonStyle.DANGER,    onClick: async (_ctx: AppCtx) => { /* ... */ } },
+  [BUTTON_ID.like]:  { label: '❤ Like',  style: ButtonStyle.PRIMARY,   onClick: async (_ctx: AppCtx) => { /* ... */ } },
+  [BUTTON_ID.share]: { label: '↗ Share', style: ButtonStyle.SUCCESS,   onClick: async (_ctx: AppCtx) => { /* ... */ } },
+  [BUTTON_ID.save]:  { label: '💾 Save', style: ButtonStyle.SECONDARY, onClick: async (_ctx: AppCtx) => { /* ... */ } },
+}
+
+export const onCommand = async ({ chat, button: btn }: AppCtx) => {
+  // Public — any thread member can click; scoped (default) — only the invoker can click
+  const prevId  = btn.generateID({ id: BUTTON_ID.prev,  public: true })
+  const nextId  = btn.generateID({ id: BUTTON_ID.next,  public: true })
+  const closeId = btn.generateID({ id: BUTTON_ID.close })        // scoped to invoker
+  const likeId  = btn.generateID({ id: BUTTON_ID.like,  public: true })
+  const shareId = btn.generateID({ id: BUTTON_ID.share, public: true })
+  const saveId  = btn.generateID({ id: BUTTON_ID.save })         // scoped to invoker
+
+  await chat.replyMessage({
+    style: MessageStyle.MARKDOWN,
+    message: '**Page 1 of 5**',
+    button: [
+      [prevId, nextId, closeId],  // Row 1 — navigation (3 buttons)
+      [likeId, shareId, saveId],  // Row 2 — engagement (3 buttons)
+    ],
+  })
+}
+```
+
+**Platform notes for 2D grids:**
+- **Discord** — each inner array is one `ActionRow`; max 5 buttons per row, max 5 rows total per message.
+- **Telegram** — each inner array is one inline keyboard row; no hard per-row button limit.
+- **Facebook Messenger** — row structure is ignored; all buttons are flattened to a numbered text menu appended to the message body.
+- **Facebook Page** — each inner array is one Button Template row; max 3 buttons per row.
+
 
 ---
 
