@@ -8,9 +8,10 @@
 ## Table of Contents
 
 1. [Philosophy](#philosophy)
+2. [Platform API Comparison: Native vs Unified](#platform-api-comparison-native-vs-unified)
 2. [Quick Start](#quick-start)
 3. [Module Structure](#module-structure)
-   - [CommandConfig](#commandconfig)
+   4. [CommandConfig](#commandconfig)
    - [EventConfig](#eventconfig)
 4. [The Context Object — `AppCtx`](#the-context-object--appctx)
 5. [Chat API](#chat-api)
@@ -89,6 +90,491 @@ await chat.replyMessage({
 // ❌ Positional — you have to count arguments and memorise order
 await message.reply(style, '**Hello!**', threadID)
 ```
+
+---
+
+## Platform API Comparison: Native vs Unified
+
+Every platform SDK solves the same problems differently, forcing bot authors to maintain four separate mental models simultaneously. discord.js, Telegraf, fca-unofficial, and the Facebook Graph API are each well-designed for their own domain. Cat-Bot does not replace them — it sits on top of all four, absorbing every per-platform difference so your feature code never needs to.
+
+This section shows, side-by-side, how each native library approaches common bot tasks and how Cat-Bot's unified surface eliminates that per-platform boilerplate. The goal is to make the architectural choices concrete: not "why abstraction is good in theory," but "here is the code you no longer have to write."
+
+---
+
+### Sending a Text Message
+
+**discord.js v14** has two distinct code paths depending on whether the trigger is a slash command (interaction) or a text-prefix message. Slash interactions must be acknowledged within 3 seconds or Discord renders "interaction failed" for the user. The methods differ between the two paths:
+
+```js
+// discord.js v14 — text-prefix message
+await message.channel.send('Hello, world!')
+
+// discord.js v14 — slash command (must deferReply within 3 seconds)
+await interaction.deferReply()
+// ... async work ...
+await interaction.editReply('Hello, world!')
+// Subsequent sends after the first reply use followUp
+await interaction.followUp('Here is more information.')
+```
+
+**Telegraf v4** provides `ctx.reply()` as a shortcut for same-chat replies, but sending to a different destination (admin DM, relay channel) requires the explicit `ctx.telegram.sendMessage(chatId, text)` form. The two paths have different method names and argument shapes:
+
+```js
+// Telegraf v4 — same-chat reply
+await ctx.reply('Hello, world!')
+
+// Telegraf v4 — send to a different chat (e.g. admin DM)
+await ctx.telegram.sendMessage(adminChatId, 'You have a new message.')
+```
+
+**fca-unofficial** is callback-based with positional arguments. The text field is `body`, not `text` or `message`. Every send is asynchronous through a Node.js-style `(err, info)` callback:
+
+```js
+// fca-unofficial
+api.sendMessage({ body: 'Hello, world!' }, threadID, (err, info) => {
+  if (err) return console.error(err)
+  const sentMessageID = info.messageID
+})
+```
+
+**Facebook Page Graph API** requires a raw HTTP POST with a structured `recipient` + `message` JSON body. There is no SDK; every operation is a manual HTTP call:
+
+```js
+// Facebook Page — raw Graph API via axios
+await axios.post(
+  `https://graph.facebook.com/v22.0/me/messages?access_token=${PAGE_TOKEN}`,
+  { recipient: { id: psid }, message: { text: 'Hello, world!' } }
+)
+```
+
+**Cat-Bot — all four platforms:**
+
+```ts
+await chat.replyMessage({
+  style: MessageStyle.MARKDOWN,
+  message: '**Hello, world!**',
+})
+```
+
+One call. The adapter handles the deferral window on Discord, the `ctx.reply` routing on Telegram, the `api.sendMessage` callback on Messenger, and the Graph API POST on Facebook Page.
+
+---
+
+### Sending a File Attachment
+
+**discord.js v14** uses `AttachmentBuilder` for binary data. The send call differs between slash interactions and text-prefix commands — two different method chains for the same outcome:
+
+```js
+// discord.js v14
+const { AttachmentBuilder } = require('discord.js')
+const file = new AttachmentBuilder(imageBuffer, { name: 'photo.jpg' })
+
+// Text-prefix path
+await message.channel.send({ content: 'Here is your image:', files: [file] })
+// Slash interaction path (after deferReply)
+await interaction.editReply({ content: 'Here is your image:', files: [file] })
+```
+
+**Telegraf v4** uses separate methods per media type. `replyWithPhoto`, `replyWithDocument`, `replyWithAudio` — the caller must know the media type at the call site. URL, Buffer, and Readable stream each have slightly different argument shapes:
+
+```js
+// Telegraf v4 — must select the correct method per media type
+await ctx.replyWithPhoto({ source: imageBuffer }, { caption: 'Here is your image.' })
+// Photo from URL — different argument shape from buffer
+await ctx.replyWithPhoto('https://example.com/image.jpg')
+// Generic file upload — different method name entirely
+await ctx.replyWithDocument({ source: pdfBuffer, filename: 'report.pdf' })
+```
+
+**fca-unofficial** requires a Readable stream with a `.path` property set. MIME type is inferred from the `.path` file extension — Buffers must be manually wrapped into a named `PassThrough` stream:
+
+```js
+// fca-unofficial — Buffer must be wrapped; .path drives MIME detection
+const { Readable } = require('stream')
+const stream = Readable.from(imageBuffer)
+stream.path = 'photo.jpg'  // must be set — fca reads this for Content-Type
+
+api.sendMessage(
+  { body: 'Here is your image:', attachment: stream },
+  threadID,
+  callback
+)
+```
+
+**Facebook Page Graph API** has two entirely separate code paths: a `FormData` multipart upload for binary content, and a different JSON payload for URL-based assets:
+
+```js
+// Facebook Page — URL reference (Graph API fetches server-side)
+await axios.post(`${GRAPH}?access_token=${TOKEN}`, {
+  recipient: { id: psid },
+  message: { attachment: { type: 'image', payload: { url: imageUrl } } }
+})
+
+// Facebook Page — binary upload (multipart FormData — different code path entirely)
+const form = new FormData()
+form.append('recipient', JSON.stringify({ id: psid }))
+form.append('message', JSON.stringify({ attachment: { type: 'image', payload: {} } }))
+form.append('filedata', imageBuffer, { filename: 'photo.jpg', contentType: 'image/jpeg' })
+await axios.post(`${GRAPH}?access_token=${TOKEN}`, form, { headers: form.getHeaders() })
+```
+
+**Cat-Bot — all four platforms:**
+
+```ts
+// Buffer or Readable stream
+await chat.replyMessage({
+  message: 'Here is your image:',
+  attachment: [{ name: 'photo.jpg', stream: imageBuffer }],
+})
+
+// URL-based (platform adapter handles server-side fetch vs local download)
+await chat.replyMessage({
+  message: 'Here is your image:',
+  attachment_url: [{ name: 'photo.jpg', url: 'https://example.com/image.jpg' }],
+})
+```
+
+The platform wrapper selects `AttachmentBuilder` on Discord, chooses `replyWithPhoto`/`replyWithDocument`/`replyWithAudio` on Telegram by filename extension, wraps the buffer as a named stream on Messenger, and dispatches to multipart upload or URL-reference on Facebook Page. You never choose a method based on media type.
+
+---
+
+### Interactive Buttons
+
+This is where per-platform divergence becomes most costly. Each platform has a completely different button model, different routing mechanism, and different acknowledgment requirements.
+
+**discord.js v14** — Buttons require `ActionRowBuilder` and `ButtonBuilder`. The click handler is a global `interactionCreate` listener registered separately on the Client, and must acknowledge within 3 seconds or Discord shows "interaction failed." Button IDs are plain global strings — nothing prevents an unrelated user from matching a `customId`:
+
+```js
+// discord.js v14 — build and send buttons
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js')
+
+const row = new ActionRowBuilder().addComponents(
+  new ButtonBuilder()
+    .setCustomId('confirm:12345')  // embed userId manually for ownership check
+    .setLabel('✅ Confirm')
+    .setStyle(ButtonStyle.Success),
+  new ButtonBuilder()
+    .setCustomId('cancel:12345')
+    .setLabel('❌ Cancel')
+    .setStyle(ButtonStyle.Danger)
+)
+await message.channel.send({ content: 'Are you sure?', components: [row] })
+
+// discord.js — handle click (registered separately on the Client globally)
+client.on('interactionCreate', async interaction => {
+  if (!interaction.isButton()) return
+  await interaction.deferUpdate()  // MUST call within 3 seconds
+  const [action, userId] = interaction.customId.split(':')
+  if (interaction.user.id !== userId) {
+    return interaction.followUp({ content: 'Not your button!', ephemeral: true })
+  }
+  if (action === 'confirm') {
+    await interaction.editReply({ content: '✅ Confirmed!', components: [] })
+  }
+})
+```
+
+**Telegraf v4** — Inline keyboard buttons carry `callback_data` (max 64 bytes). Clicks arrive via `bot.on('callback_query')` registered separately from the command. `ctx.answerCbQuery()` must be called to dismiss the loading spinner:
+
+```js
+// Telegraf v4 — send inline keyboard
+await ctx.reply('Are you sure?', {
+  reply_markup: {
+    inline_keyboard: [[
+      { text: '✅ Confirm', callback_data: `confirm:${ctx.from.id}` },
+      { text: '❌ Cancel',  callback_data: `cancel:${ctx.from.id}`  }
+    ]]
+  }
+})
+
+// Telegraf — handle click (registered separately)
+bot.on('callback_query', async ctx => {
+  await ctx.answerCbQuery()  // dismiss the loading spinner
+  const [action, userId] = ctx.callbackQuery.data.split(':')
+  if (ctx.from.id.toString() !== userId) {
+    return ctx.answerCbQuery('Not your button!', { show_alert: true })
+  }
+  if (action === 'confirm') await ctx.editMessageText('✅ Confirmed!')
+})
+```
+
+**fca-unofficial** — The Messenger MQTT protocol has no native button component. Buttons must be emulated with numbered text menus. Conversation state is stored in a global mutable array that all concurrent commands share:
+
+```js
+// fca-unofficial — "buttons" via numbered text menu (no native buttons exist)
+api.sendMessage(
+  'Are you sure?\n1. ✅ Confirm\n2. ❌ Cancel',
+  threadID,
+  (err, info) => {
+    if (err) return
+    global.client.handleReply.push({
+      name: 'myCommand', messageID: info.messageID,
+      author: event.senderID, type: 'awaiting_confirm',
+    })
+  }
+)
+
+module.exports.handleReply = async ({ event, handleReply, api }) => {
+  if (handleReply.author !== event.senderID) return  // manual ownership check
+  const idx = global.client.handleReply.findIndex(r => r.messageID === handleReply.messageID)
+  global.client.handleReply.splice(idx, 1)  // manual cleanup — races with concurrent handlers
+  const choice = event.body.trim()
+  if (choice === '1') api.sendMessage('✅ Confirmed!', event.threadID, () => {})
+  else api.sendMessage('❌ Cancelled.', event.threadID, () => {})
+}
+```
+
+**Facebook Page Graph API** — The Button Template is the only interactive construct, limited to 3 buttons per message with titles capped at 20 characters. Clicks arrive as `postback` webhook events routed by string matching:
+
+```js
+// Facebook Page — Button Template (max 3 buttons, title ≤20 chars)
+await axios.post(`${GRAPH}?access_token=${TOKEN}`, {
+  recipient: { id: psid },
+  message: {
+    attachment: {
+      type: 'template',
+      payload: {
+        template_type: 'button',
+        text: 'Are you sure?',
+        buttons: [
+          { type: 'postback', title: '✅ Confirm', payload: `CONFIRM_${psid}` },
+          { type: 'postback', title: '❌ Cancel',  payload: `CANCEL_${psid}` },
+        ]
+      }
+    }
+  }
+})
+
+// Facebook Page — postback handler (in the Express webhook, completely separate file)
+app.post('/webhook', (req, res) => {
+  res.sendStatus(200)  // must respond within 20 seconds
+  req.body.entry.forEach(entry =>
+    entry.messaging.forEach(async event => {
+      if (!event.postback) return
+      const [action, userId] = event.postback.payload.split('_')
+      if (event.sender.id !== userId) return  // manual ownership check
+      if (action === 'CONFIRM') {
+        await axios.post(`${GRAPH}?access_token=${TOKEN}`, {
+          recipient: { id: event.sender.id },
+          message: { text: '✅ Confirmed!' }
+        })
+      }
+    })
+  )
+})
+```
+
+**Cat-Bot — all four platforms:**
+
+```ts
+// Button handlers and the command that sends them live in the same file
+export const button = {
+  confirm: {
+    label: '✅ Confirm',
+    style: ButtonStyle.SUCCESS,
+    // Called after the adapter has already handled the acknowledgment window
+    onClick: async ({ chat, event }: AppCtx) => {
+      await chat.editMessage({
+        message_id_to_edit: event['messageID'] as string,
+        style: MessageStyle.MARKDOWN,
+        message: '✅ **Confirmed!**',
+        button: [],  // clear buttons after the action
+      })
+    },
+  },
+  cancel: {
+    label: '❌ Cancel',
+    style: ButtonStyle.DANGER,
+    onClick: async ({ chat, event }: AppCtx) => {
+      await chat.editMessage({
+        message_id_to_edit: event['messageID'] as string,
+        message: '❌ Cancelled.',
+        button: [],
+      })
+    },
+  },
+}
+
+export const onCommand = async ({ chat, button: btn }: AppCtx) => {
+  // Private scope by default — only the invoking user can click
+  const confirmId = btn.generateID({ id: 'confirm' })
+  const cancelId  = btn.generateID({ id: 'cancel' })
+
+  await chat.replyMessage({
+    style: MessageStyle.MARKDOWN,
+    message: '**Are you sure?**',
+    button: [confirmId, cancelId],
+  })
+}
+```
+
+On Discord: becomes an `ActionRowBuilder` with two `ButtonBuilder` entries; `deferUpdate()` is called by the adapter before `onClick` receives control. On Telegram: becomes an `inline_keyboard`; `answerCbQuery()` is handled before `onClick` fires. On Messenger: `"1. ✅ Confirm\n2. ❌ Cancel"` is appended to the message body, and the numbered reply is transparently routed to the matching `onClick` handler. On Facebook Page: becomes a Button Template with two postback buttons. Your command code is identical for all four outcomes.
+
+---
+
+### Conversation Flows (Waiting for a Reply)
+
+Chaining a multi-step conversation — ask a question, wait for the user to quote-reply to that specific message, ask another, complete — requires very different approaches per platform.
+
+**discord.js v14** — `createMessageCollector()` with a filter function and a timeout. Steps are nested callbacks, and timeout handling must be replicated at every step:
+
+```js
+// discord.js — two-step conversation flow
+await message.reply('What is your name?')
+
+const filter = m => m.author.id === message.author.id
+const nameCollector = message.channel.createMessageCollector({ filter, max: 1, time: 30_000 })
+nameCollector.on('collect', async nameMsg => {
+  const name = nameMsg.content
+  const nextMsg = await nameMsg.reply('How old are you?')
+
+  const ageCollector = nextMsg.channel.createMessageCollector({ filter, max: 1, time: 30_000 })
+  ageCollector.on('collect', async ageMsg => {
+    await ageMsg.reply(`Done! ${name}, ${ageMsg.content}`)
+  })
+  ageCollector.on('end', (_, reason) => {
+    if (reason === 'time') nextMsg.reply('Timed out.')
+  })
+})
+nameCollector.on('end', (_, reason) => {
+  if (reason === 'time') message.reply('Timed out.')
+})
+```
+
+**Telegraf v4** — `Scenes.WizardScene` with `session()` middleware. A separate concept to learn and register as middleware. Wizard state is Telegram-only; there is no equivalent abstraction that carries to other platforms:
+
+```js
+// Telegraf — two-step conversation via WizardScene
+const { Scenes, session } = require('telegraf')
+
+const wizard = new Scenes.WizardScene('my-wizard',
+  async ctx => { await ctx.reply('What is your name?'); return ctx.wizard.next() },
+  async ctx => {
+    ctx.wizard.state.name = ctx.message.text
+    await ctx.reply('How old are you?')
+    return ctx.wizard.next()
+  },
+  async ctx => {
+    await ctx.reply(`Done! ${ctx.wizard.state.name}, ${ctx.message.text}`)
+    return ctx.scene.leave()
+  }
+)
+const stage = new Scenes.Stage([wizard])
+bot.use(session())           // must register — stores wizard state between updates
+bot.use(stage.middleware())  // must register — activates scene routing
+bot.command('register', ctx => ctx.scene.enter('my-wizard'))
+```
+
+**fca-unofficial** — Global `handleReply` array with manual push, manual cleanup via `splice`, and manual ownership check. Two simultaneous users running the same command share the same global array, creating a real race condition:
+
+```js
+// fca-unofficial — two-step conversation via global array
+api.sendMessage('What is your name?', threadID, (err, info) => {
+  if (err) return
+  global.client.handleReply.push({
+    name: 'myCommand', messageID: info.messageID,
+    author: event.senderID, type: 'awaiting_name', data: {}
+  })
+})
+
+module.exports.handleReply = async ({ event, handleReply, api }) => {
+  if (handleReply.author !== event.senderID) return  // manual ownership check
+  const idx = global.client.handleReply.findIndex(r => r.messageID === handleReply.messageID)
+  global.client.handleReply.splice(idx, 1)  // manual cleanup — races with concurrent pushes
+
+  if (handleReply.type === 'awaiting_name') {
+    handleReply.data.name = event.body
+    api.sendMessage('How old are you?', event.threadID, (err, info) => {
+      global.client.handleReply.push({
+        name: 'myCommand', messageID: info.messageID,
+        author: event.senderID, type: 'awaiting_age', data: handleReply.data
+      })
+    })
+  } else if (handleReply.type === 'awaiting_age') {
+    api.sendMessage(
+      `Done! ${handleReply.data.name}, ${event.body}`,
+      event.threadID, () => {}
+    )
+  }
+}
+```
+
+**Cat-Bot — all four platforms:**
+
+```ts
+const STATE = { awaiting_name: 'awaiting_name', awaiting_age: 'awaiting_age' }
+
+export const onReply = {
+  [STATE.awaiting_name]: async ({ chat, event, session, state }: AppCtx) => {
+    const name = event['message'] as string
+    const msgId = await chat.replyMessage({
+      style: MessageStyle.MARKDOWN, message: '**How old are you?**',
+    })
+    state.delete(session.id)  // remove the current step before creating the next
+    if (msgId) {
+      state.create({
+        id: state.generateID({ id: String(msgId) }),
+        state: STATE.awaiting_age,
+        context: { name },  // carry data forward in the context object
+      })
+    }
+  },
+  [STATE.awaiting_age]: async ({ chat, event, session, state }: AppCtx) => {
+    const { name } = session.context as { name: string }
+    state.delete(session.id)
+    await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
+      message: `Done! **${name}**, ${event['message'] as string}`,
+    })
+  },
+}
+
+export const onCommand = async ({ chat, state }: AppCtx) => {
+  const msgId = await chat.replyMessage({
+    style: MessageStyle.MARKDOWN, message: '**What is your name?**',
+  })
+  if (msgId) {
+    state.create({
+      id: state.generateID({ id: String(msgId) }),
+      state: STATE.awaiting_name,
+      context: {},
+    })
+  }
+}
+```
+
+No nested callbacks. No wizard middleware to register. No global array to splice. State is scoped to `messageID:senderID` automatically — two users running this command simultaneously each have a completely isolated conversation with zero interference.
+
+---
+
+### What Cat-Bot Solves — Problem by Problem
+
+**The 3-Second Acknowledgment Window.** Discord's slash commands and button interactions must be acknowledged within 3 seconds or the user sees "interaction failed." Telegraf's callback queries must be answered within ~10 seconds to dismiss the loading spinner. In Cat-Bot, the platform adapter calls `deferReply()` or `deferUpdate()` immediately when the interaction arrives — before dispatching to your handler. Your `onCommand` and `button.onClick` functions receive control only after the acknowledgment has already been sent. You never race a timing window in your command code.
+
+**The Global State Race Condition.** `global.client.handleReply` is a mutable array shared across every active conversation. When two users run the same command simultaneously, their state objects coexist in the same array. A `splice(idx, 1)` in one handler races with a `push` in another, producing entries that point to the wrong conversation context. Cat-Bot's `state.create()` stores each entry under a composite key: `${messageID}:${senderID}` for private flows, `${messageID}:${threadID}` for public flows. Two simultaneous conversations produce two distinct keys. There is no array to splice and no possibility of one user's flow advancing another's.
+
+**The Platform Branching Problem.** Any feature that must run on more than one platform requires branching in native code — three separate implementation paths maintained in sync forever. Cat-Bot's `UnifiedApi` contract eliminates this. `chat.replyMessage({ button: [...] })` produces an `ActionRowBuilder` on Discord, an `inline_keyboard` on Telegram, a numbered text menu on Messenger (handled transparently by `createChatContext`), and a Button Template on Facebook Page. The feature is implemented once and runs correctly on all four platforms.
+
+**The Button Ownership Problem.** Discord's `customId` is a global string. Any user who intercepts the interaction payload can trigger a button they did not generate. Telegraf's `callback_data` has the same property. Cat-Bot's `button.generateID({ id: 'confirm' })` embeds the invoking user's ID in the generated key. The `enforceButtonScope` middleware rejects clicks from users who did not generate the button. Passing `{ public: true }` explicitly opts into thread-scoped buttons when you want group interaction. The default is always private.
+
+**The Handler Colocation Problem.** In every native SDK, the code that sends a button and the code that handles its click live in different places. A `client.on('interactionCreate')` in discord.js, a `bot.on('callback_query')` in Telegraf, a `handleReply` export in fca — all are global registrations that route by string matching. Reading the command that sends a button tells you nothing about what happens when it is clicked. In Cat-Bot, `export const button` lives in the same file as `export const onCommand`. A developer reading the file sees the complete behavior: what is sent, what each button does, and how the conversation ends.
+
+**The Architectural Insight.** The breakthrough in Cat-Bot's design is that the bot problem and the platform problem are separate concerns. The bot problem is: how do I model a conversation, route commands, manage state, and respond to the user? The platform problem is: how do I translate that model into the specific API calls, acknowledgment windows, and data shapes that Discord, Telegram, or Facebook require? Every native SDK conflates these two — you write bot logic in the SDK's own idiom, and the logic is inseparable from the transport mechanism. Cat-Bot separates them cleanly:
+
+```
+Your command module (bot logic — onCommand, onReply, button.onClick)
+      │
+      ▼
+UnifiedApi + context factories (shared vocabulary — chat, state, button, thread, user)
+      │
+      ▼
+Platform adapter (transport translation — the code you no longer write)
+      │
+      ▼
+discord.js v14  /  Telegraf v4  /  fca-unofficial  /  Facebook Graph API
+```
+
+Your command module never imports `discord.js`. Your button handler never calls `ctx.answerCbQuery()`. Your reply handler never pushes to a global array. The adapter layer absorbs every platform difference and presents a uniform surface to your code.
 
 ---
 
