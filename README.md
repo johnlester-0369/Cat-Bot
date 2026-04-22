@@ -47,12 +47,13 @@ The platform transport layer absorbs every SDK difference (discord.js gateway, T
 3. [Architecture at a Glance](#architecture-at-a-glance)
 4. [Quick Start — Development (JSON, zero setup)](#quick-start--development-json-zero-setup)
 5. [Production Setup](#production-setup)
-6. [Writing Commands](#writing-commands)
-7. [Writing Event Handlers](#writing-event-handlers)
-8. [Database Adapters](#database-adapters)
-9. [Environment Variables](#environment-variables)
-10. [npm Scripts](#npm-scripts)
-11. [Authors](#authors)
+6. [Philosophy](#philosophy)
+7. [Writing Commands](#writing-commands)
+8. [Writing Event Handlers](#writing-event-handlers)
+9. [Database Adapters](#database-adapters)
+10. [Environment Variables](#environment-variables)
+11. [npm Scripts](#npm-scripts)
+12. [Authors](#authors)
 
 ---
 
@@ -375,6 +376,48 @@ TELEGRAM_WEBHOOK_DOMAIN=https://your-domain.com
 ```
 
 The Telegram adapter automatically switches to webhook mode when this variable is present.
+
+---
+
+## Philosophy
+
+Cat-Bot eliminates `global` variables for conversation state. The old pattern looked like this:
+
+```js
+// ❌ Old approach — fragile, shared mutable state, hard to debug
+global.client.handleReply.push({
+  name: 'quiz',
+  messageID: info.messageID,
+  author: event.senderID,
+  answer: 'True'
+})
+```
+
+Cat-Bot replaces this with scoped, typed, garbage-collected state:
+
+```ts
+// ✅ Cat-Bot approach — scoped to this message, auto-cleaned, type-safe
+state.create({
+  id: state.generateID({ id: String(messageID) }),
+  state: 'awaiting_answer',
+  context: { answer: 'True' },
+})
+```
+
+Every value you need in a follow-up handler arrives through the `session` object — no global lookup, no shared mutable arrays, no race conditions between concurrent conversations.
+
+The API is designed so that every parameter is **named** inside an object literal:
+
+```ts
+// ✅ Semantic — you know what each field does without reading docs
+await chat.replyMessage({
+  style: MessageStyle.MARKDOWN,
+  message: '**Hello!**',
+})
+
+// ❌ Positional — you have to count arguments and memorise order
+await message.reply(style, '**Hello!**', threadID)
+```
 
 ---
 
