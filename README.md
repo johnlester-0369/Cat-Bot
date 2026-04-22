@@ -32,7 +32,7 @@
 
 ## The Problem
 
-Most chatbot projects are locked into one platform and one running instance. Deploying on Discord *and* Telegram means writing two separate codebases. Each SDK has its own event model, attachment format, button system, and conversation-state pattern — quadruple the surface area, quadruple the maintenance.
+Most chatbot projects are locked into one platform and one running instance. Deploying on Discord _and_ Telegram means writing two separate codebases. Each SDK has its own event model, attachment format, button system, and conversation-state pattern — quadruple the surface area, quadruple the maintenance.
 
 Cat-Bot solves both problems simultaneously:
 
@@ -135,7 +135,7 @@ npm run dev:web
 
 ## What Cat-Bot Provides
 
-The core insight is that the *bot problem* and the *platform problem* are separate concerns. Cat-Bot handles the platform problem so your code only addresses the bot problem.
+The core insight is that the _bot problem_ and the _platform problem_ are separate concerns. Cat-Bot handles the platform problem so your code only addresses the bot problem.
 
 ### One API surface for four platforms
 
@@ -148,20 +148,20 @@ Every platform SDK solves the same tasks differently. Here is what sending a sin
 
 ```js
 // discord.js — slash command
-await interaction.deferReply()
-await interaction.editReply('Hello!')
+await interaction.deferReply();
+await interaction.editReply("Hello!");
 
 // Telegraf
-await ctx.reply('Hello!')
+await ctx.reply("Hello!");
 
 // fca-unofficial
-api.sendMessage({ body: 'Hello!' }, threadID, cb)
+api.sendMessage({ body: "Hello!" }, threadID, cb);
 
 // Facebook Page — raw HTTP
 await axios.post(graphUrl, {
   recipient: { id: psid },
-  message: { text: 'Hello!' }
-})
+  message: { text: "Hello!" },
+});
 ```
 
 </td>
@@ -170,8 +170,8 @@ await axios.post(graphUrl, {
 ```ts
 await chat.replyMessage({
   style: MessageStyle.MARKDOWN,
-  message: '**Hello!**',
-})
+  message: "**Hello!**",
+});
 ```
 
 </td>
@@ -187,8 +187,11 @@ The standard global-array pattern creates race conditions the moment two users r
 ```js
 // ❌ Old pattern — shared mutable global, concurrent users corrupt each other's state
 global.client.handleReply.push({
-  name: 'quiz', messageID: info.messageID, author: event.senderID, answer: 'True'
-})
+  name: "quiz",
+  messageID: info.messageID,
+  author: event.senderID,
+  answer: "True",
+});
 ```
 
 Cat-Bot scopes every pending state to a composite key (`messageId:userId` for private flows, `messageId:threadId` for public flows):
@@ -197,9 +200,9 @@ Cat-Bot scopes every pending state to a composite key (`messageId:userId` for pr
 // ✅ Cat-Bot — isolated per message and per user, zero global mutations
 state.create({
   id: state.generateID({ id: String(messageID) }),
-  state: 'awaiting_answer',
-  context: { answer: 'True' },
-})
+  state: "awaiting_answer",
+  context: { answer: "True" },
+});
 ```
 
 Two users running the same flow simultaneously each have a completely independent state entry.
@@ -220,12 +223,20 @@ In classic bot frameworks, all conversation flows are routed through a single mo
 // GoatBot / Mirai pattern — the entire state machine lives in one function
 module.exports.handleReply = async ({ event, handleReply, api }) => {
   switch (handleReply.type) {
-    case "userCallAdmin": { /* forward message to admin */   break }
-    case "adminReply":    { /* forward reply to user */      break }
-    case "awaiting_name": { /* step 1 of registration */     break }
-    case "awaiting_age":  { /* step 2 of registration */     break }
+    case "userCallAdmin": {
+      /* forward message to admin */ break;
+    }
+    case "adminReply": {
+      /* forward reply to user */ break;
+    }
+    case "awaiting_name": {
+      /* step 1 of registration */ break;
+    }
+    case "awaiting_age": {
+      /* step 2 of registration */ break;
+    }
   }
-}
+};
 ```
 
 The function has no bounded scope — it owns the entire conversation state machine. Adding a new step means opening this function and modifying it. Changing one `case` risks regressions in all the others.
@@ -241,7 +252,7 @@ export const onReply = {
   awaiting_age: async ({ chat, event, state, session }: AppCtx) => {
     // Only responsibility: receive the age, complete the registration flow
   },
-}
+};
 ```
 
 Adding a new step is a new key. Modifying step 2 cannot break step 1. The same principle applies to `onReact` — each emoji maps to its own independent function, never sharing a dispatcher.
@@ -252,13 +263,18 @@ In classic frameworks, the code that sends a button and the code that handles it
 
 ```js
 // Mirai pattern — the send site and the handler site are structurally disconnected
-api.sendMessage('1. Confirm\n2. Cancel', threadID, (err, info) => {
-  global.client.handleReply.push({ type: "awaiting_confirm", messageID: info.messageID })
-})
+api.sendMessage("1. Confirm\n2. Cancel", threadID, (err, info) => {
+  global.client.handleReply.push({
+    type: "awaiting_confirm",
+    messageID: info.messageID,
+  });
+});
 
 module.exports.handleReply = async ({ handleReply, event, api }) => {
-  if (handleReply.type === "awaiting_confirm") { /* ... */ }
-}
+  if (handleReply.type === "awaiting_confirm") {
+    /* ... */
+  }
+};
 ```
 
 Reading the command that sends the buttons tells you nothing about what happens when they are clicked. You must track down the `handleReply` export, find the matching `type` string, and reason about global state — all before understanding a single user interaction.
@@ -268,22 +284,30 @@ In Cat-Bot, every button is a self-contained object. Its `id`, `label`, `style`,
 ```ts
 export const button = {
   confirm: {
-    label: '✅ Confirm',
+    label: "✅ Confirm",
     style: ButtonStyle.SUCCESS,
     onClick: async ({ chat, event }: AppCtx) => {
       // Only responsibility: what happens when Confirm is clicked
-      await chat.editMessage({ message_id_to_edit: event['messageID'] as string, message: '✅ Done!', button: [] })
+      await chat.editMessage({
+        message_id_to_edit: event["messageID"] as string,
+        message: "✅ Done!",
+        button: [],
+      });
     },
   },
   cancel: {
-    label: '❌ Cancel',
+    label: "❌ Cancel",
     style: ButtonStyle.DANGER,
     onClick: async ({ chat, event }: AppCtx) => {
       // Only responsibility: what happens when Cancel is clicked
-      await chat.editMessage({ message_id_to_edit: event['messageID'] as string, message: '❌ Cancelled.', button: [] })
+      await chat.editMessage({
+        message_id_to_edit: event["messageID"] as string,
+        message: "❌ Cancelled.",
+        button: [],
+      });
     },
   },
-}
+};
 ```
 
 A developer reading this file sees the complete contract for each button — what it is called, how it looks, and what it does — without scrolling to a distant handler or decoding a type flag.
@@ -301,16 +325,16 @@ This is the Single Responsibility Principle applied consistently at every level 
 
 ### Predictable Middleware Pipeline
 
-Most chatbot frameworks wire validation logic directly inside each dispatcher or command handler. Permission checks, cooldown guards, and ban enforcement end up scattered across individual command files — or worse, embedded inline inside the routing function that also decides *which* handler to call. When something fails, you have to chase through multiple dispatchers to find out which guard ran, in what order, and why it blocked execution.
+Most chatbot frameworks wire validation logic directly inside each dispatcher or command handler. Permission checks, cooldown guards, and ban enforcement end up scattered across individual command files — or worse, embedded inline inside the routing function that also decides _which_ handler to call. When something fails, you have to chase through multiple dispatchers to find out which guard ran, in what order, and why it blocked execution.
 
 **Cat-Bot's middleware pipeline is inspired by Express.js.** Guards are registered once as discrete middleware functions and run in a declared, auditable order before any dispatcher or command handler executes.
 
 ```ts
 // Cat-Bot middleware/index.ts — registered once at boot; applies to every command automatically
 use.onCommand([
-  enforceNotBanned,      // ← first: banned actors never reach any further check
-  enforcePermission,     // ← second: unauthorized users are rejected before cooldown is consumed
-  enforceCooldown,       // ← third: rate-limited after auth; options parsing never runs on blocked commands
+  enforceNotBanned, // ← first: banned actors never reach any further check
+  enforcePermission, // ← second: unauthorized users are rejected before cooldown is consumed
+  enforceCooldown, // ← third: rate-limited after auth; options parsing never runs on blocked commands
   validateCommandOptions, // ← fourth: parse and validate typed options only for commands that will actually run
 ]);
 ```
@@ -319,14 +343,22 @@ Each function in the chain calls `next()` to continue or returns early to halt �
 
 ```ts
 // src/engine/middleware/on-command.middleware.ts
-export const enforceNotBanned: MiddlewareFn<OnCommandCtx> = async (ctx, next) => {
-  const banned = await isUserBanned(sessionUserId, platform, sessionId, senderID)
+export const enforceNotBanned: MiddlewareFn<OnCommandCtx> = async (
+  ctx,
+  next,
+) => {
+  const banned = await isUserBanned(
+    sessionUserId,
+    platform,
+    sessionId,
+    senderID,
+  );
   if (banned) {
-    await ctx.chat.replyMessage({ message: 'you are unable to use bot' })
-    return  // ← omitting next() halts the chain; the command never executes
+    await ctx.chat.replyMessage({ message: "you are unable to use bot" });
+    return; // ← omitting next() halts the chain; the command never executes
   }
-  await next()
-}
+  await next();
+};
 ```
 
 Command modules never implement guards. They receive control only after the full pipeline has passed — ban cleared, permission granted, cooldown window open, options validated. Adding a new cross-cutting concern (audit logging, feature flags, IP filtering) means registering one middleware function, not editing every command file.
@@ -451,23 +483,23 @@ When a command does not execute, the failure belongs to exactly one middleware. 
 
 ## Features
 
-| Feature | Description |
-|---|---|
-| **Multi-platform** | One command module runs on Discord, Telegram, Facebook Page, and Facebook Messenger — no per-platform branches in your handler code |
-| **Multi-instance** | Run any number of independent bot sessions concurrently, each with its own credentials, prefix, and admin list |
-| **Unified Dashboard** | React 19 SPA — monitor live logs, toggle commands on/off per session, update credentials, start/stop/restart bots |
-| **Conversation State** | Scoped `onReply` and `onReact` flows replace the global-array anti-pattern; concurrent users never interfere with each other's flow |
-| **Interactive Buttons** | `export const button` in your command file — Discord gets `ActionRowBuilder`, Telegram gets inline keyboards, Messenger gets a numbered text menu, Facebook Page gets a Button Template |
-| **Admin Portal** | Independent admin dashboard with separate session cookies — ban users, halt their sessions, manage system admins |
-| **Pluggable Database** | Four interchangeable backends — JSON (zero dependencies), SQLite via Prisma, MongoDB, and Neon PostgreSQL — selected at runtime with a single `DATABASE_TYPE` environment variable; 12 bidirectional migration scripts cover every adapter pair so switching storage backends never means re-entering data |
-| **Role-Based Access** | Five role levels (`ANYONE`, `THREAD_ADMIN`, `BOT_ADMIN`, `PREMIUM`, `SYSTEM_ADMIN`) enforced by middleware before `onCommand` runs |
-| **Cooldown & Ban System** | Per-user cooldown and per-user/per-thread bans enforced by the middleware pipeline |
-| **Slash Command Sync** | Discord and Telegram slash menus stay current with a SHA-based idempotency gate — no redundant REST calls on restart |
-| **Economy API** | Built-in `currencies` context (`getMoney`, `increaseMoney`, `decreaseMoney`) backed by the active database adapter |
-| **AI Agent** | Groq-powered ReAct agent with `execute_command`, `test_command`, and `help` tools accessible from chat |
-| **Live Log Streaming** | Socket.IO pushes bot console output to the dashboard in real time with a 100-entry sliding window buffer |
-| **LRU Cache Layer** | A 2,000-entry LRU cache sits between the bot engine and every database adapter — permission checks, cooldown lookups, and credential reads are served from memory on repeated access; all writes are write-through so command handlers never observe stale data |
- 
+| Feature                   | Description                                                                                                                                                                                                                                                                                                |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Multi-platform**        | One command module runs on Discord, Telegram, Facebook Page, and Facebook Messenger — no per-platform branches in your handler code                                                                                                                                                                        |
+| **Multi-instance**        | Run any number of independent bot sessions concurrently, each with its own credentials, prefix, and admin list                                                                                                                                                                                             |
+| **Unified Dashboard**     | React 19 SPA — monitor live logs, toggle commands on/off per session, update credentials, start/stop/restart bots                                                                                                                                                                                          |
+| **Conversation State**    | Scoped `onReply` and `onReact` flows replace the global-array anti-pattern; concurrent users never interfere with each other's flow                                                                                                                                                                        |
+| **Interactive Buttons**   | `export const button` in your command file — Discord gets `ActionRowBuilder`, Telegram gets inline keyboards, Messenger gets a numbered text menu, Facebook Page gets a Button Template                                                                                                                    |
+| **Admin Portal**          | Independent admin dashboard with separate session cookies — ban users, halt their sessions, manage system admins                                                                                                                                                                                           |
+| **Pluggable Database**    | Four interchangeable backends — JSON (zero dependencies), SQLite via Prisma, MongoDB, and Neon PostgreSQL — selected at runtime with a single `DATABASE_TYPE` environment variable; 12 bidirectional migration scripts cover every adapter pair so switching storage backends never means re-entering data |
+| **Role-Based Access**     | Five role levels (`ANYONE`, `THREAD_ADMIN`, `BOT_ADMIN`, `PREMIUM`, `SYSTEM_ADMIN`) enforced by middleware before `onCommand` runs                                                                                                                                                                         |
+| **Cooldown & Ban System** | Per-user cooldown and per-user/per-thread bans enforced by the middleware pipeline                                                                                                                                                                                                                         |
+| **Slash Command Sync**    | Discord and Telegram slash menus stay current with a SHA-based idempotency gate — no redundant REST calls on restart                                                                                                                                                                                       |
+| **Economy API**           | Built-in `currencies` context (`getMoney`, `increaseMoney`, `decreaseMoney`) backed by the active database adapter                                                                                                                                                                                         |
+| **AI Agent**              | Groq-powered ReAct agent with `execute_command`, `test_command`, and `help` tools accessible from chat                                                                                                                                                                                                     |
+| **Live Log Streaming**    | Socket.IO pushes bot console output to the dashboard in real time with a 100-entry sliding window buffer                                                                                                                                                                                                   |
+| **LRU Cache Layer**       | A 2,000-entry LRU cache sits between the bot engine and every database adapter — permission checks, cooldown lookups, and credential reads are served from memory on repeated access; all writes are write-through so command handlers never observe stale data                                            |
+
 ---
 
 ## Architecture
@@ -580,130 +612,135 @@ Create a file in `packages/cat-bot/src/app/commands/`. The engine loads every `.
 
 ```ts
 // src/app/commands/hello.ts
-import type { AppCtx } from '@/engine/types/controller.types.js'
-import type { CommandConfig } from '@/engine/types/module-config.types.js'
-import { Role } from '@/engine/constants/role.constants.js'
-import { MessageStyle } from '@/engine/constants/message-style.constants.js'
+import type { AppCtx } from "@/engine/types/controller.types.js";
+import type { CommandConfig } from "@/engine/types/module-config.types.js";
+import { Role } from "@/engine/constants/role.constants.js";
+import { MessageStyle } from "@/engine/constants/message-style.constants.js";
 
 export const config: CommandConfig = {
-  name: 'hello',
-  version: '1.0.0',
+  name: "hello",
+  version: "1.0.0",
   role: Role.ANYONE,
-  author: 'your-name',
-  description: 'Says hello',
-  usage: '',
+  author: "your-name",
+  description: "Says hello",
+  usage: "",
   cooldown: 5,
   hasPrefix: true,
-}
+};
 
 export const onCommand = async ({ chat }: AppCtx): Promise<void> => {
   await chat.replyMessage({
     style: MessageStyle.MARKDOWN,
-    message: '👋 **Hello, world!**',
-  })
-}
+    message: "👋 **Hello, world!**",
+  });
+};
 ```
 
 ### CommandConfig fields
 
-| Field | Required | Description |
-|---|---|---|
-| `name` | ✅ | Command name (lowercase). Matched after the prefix is stripped. |
-| `version` | ✅ | Semantic version string. |
-| `role` | ✅ | Minimum role. Use `Role.ANYONE` for public commands. |
-| `author` | ✅ | Author name shown in help output. |
-| `description` | ✅ | One-line description; shown in Discord's `/` menu. |
-| `cooldown` | ✅ | Per-user cooldown in seconds. `0` disables. |
-| `aliases` | — | Alternative command names that map to the same handler. |
-| `platform` | — | Restrict to specific platforms. Absent = all platforms. |
-| `hasPrefix` | — | Set `false` for prefix-less (on-chat) commands. |
-| `options` | — | Named options for slash command typed arguments. |
-| `guide` | — | Multi-line usage guide shown by `ctx.usage()`. |
+| Field         | Required | Description                                                     |
+| ------------- | -------- | --------------------------------------------------------------- |
+| `name`        | ✅       | Command name (lowercase). Matched after the prefix is stripped. |
+| `version`     | ✅       | Semantic version string.                                        |
+| `role`        | ✅       | Minimum role. Use `Role.ANYONE` for public commands.            |
+| `author`      | ✅       | Author name shown in help output.                               |
+| `description` | ✅       | One-line description; shown in Discord's `/` menu.              |
+| `cooldown`    | ✅       | Per-user cooldown in seconds. `0` disables.                     |
+| `aliases`     | —        | Alternative command names that map to the same handler.         |
+| `platform`    | —        | Restrict to specific platforms. Absent = all platforms.         |
+| `hasPrefix`   | —        | Set `false` for prefix-less (on-chat) commands.                 |
+| `options`     | —        | Named options for slash command typed arguments.                |
+| `guide`       | —        | Multi-line usage guide shown by `ctx.usage()`.                  |
 
 ### Conversation flows
 
 ```ts
-const STATE = { awaiting_name: 'awaiting_name', awaiting_age: 'awaiting_age' }
+const STATE = { awaiting_name: "awaiting_name", awaiting_age: "awaiting_age" };
 
 export const onReply = {
   [STATE.awaiting_name]: async ({ chat, session, event, state }: AppCtx) => {
-    const name = event['message'] as string
+    const name = event["message"] as string;
     const msgId = await chat.replyMessage({
       style: MessageStyle.MARKDOWN,
-      message: '**How old are you?**',
-    })
-    state.delete(session.id)
+      message: "**How old are you?**",
+    });
+    state.delete(session.id);
     if (msgId) {
       state.create({
         id: state.generateID({ id: String(msgId) }),
         state: STATE.awaiting_age,
         context: { name },
-      })
+      });
     }
   },
   [STATE.awaiting_age]: async ({ chat, session, event, state }: AppCtx) => {
-    const { name } = session.context as { name: string }
-    state.delete(session.id)
+    const { name } = session.context as { name: string };
+    state.delete(session.id);
     await chat.replyMessage({
       style: MessageStyle.MARKDOWN,
-      message: `✅ Registered: **${name}**, age **${event['message'] as string}**`,
-    })
+      message: `✅ Registered: **${name}**, age **${event["message"] as string}**`,
+    });
   },
-}
+};
 
 export const onCommand = async ({ chat, state }: AppCtx) => {
   const msgId = await chat.replyMessage({
     style: MessageStyle.MARKDOWN,
-    message: '**Step 1/2:** What is your name?',
-  })
-  if (!msgId) return
+    message: "**Step 1/2:** What is your name?",
+  });
+  if (!msgId) return;
   state.create({
     id: state.generateID({ id: String(msgId) }),
     state: STATE.awaiting_name,
     context: {},
-  })
-}
+  });
+};
 ```
 
 ### Interactive buttons
 
 ```ts
-import { ButtonStyle } from '@/engine/constants/button-style.constants.js'
+import { ButtonStyle } from "@/engine/constants/button-style.constants.js";
+
+const BUTTON_ID = {
+  confirm: "confirm",
+  cancel: "cancel",
+};
 
 export const button = {
-  confirm: {
-    label: '✅ Confirm',
+  [BUTTON_ID.confirm]: {
+    label: "✅ Confirm",
     style: ButtonStyle.SUCCESS,
     onClick: async ({ chat, event }: AppCtx) => {
       await chat.editMessage({
-        message_id_to_edit: event['messageID'] as string,
-        message: '✅ Confirmed!',
-        button: [],  // clear buttons after the action
-      })
+        message_id_to_edit: event["messageID"] as string,
+        message: "✅ Confirmed!",
+        button: [], // clear buttons after the action
+      });
     },
   },
-  cancel: {
-    label: '❌ Cancel',
+  [BUTTON_ID.cancel]: {
+    label: "❌ Cancel",
     style: ButtonStyle.DANGER,
     onClick: async ({ chat, event }: AppCtx) => {
       await chat.editMessage({
-        message_id_to_edit: event['messageID'] as string,
-        message: '❌ Cancelled.',
+        message_id_to_edit: event["messageID"] as string,
+        message: "❌ Cancelled.",
         button: [],
-      })
+      });
     },
   },
-}
+};
 
 export const onCommand = async ({ chat, button: btn }: AppCtx) => {
-  const confirmId = btn.generateID({ id: 'confirm' })
-  const cancelId = btn.generateID({ id: 'cancel' })
+  const confirmId = btn.generateID({ id: BUTTON_ID.confirm });
+  const cancelId = btn.generateID({ id: BUTTON_ID.cancel });
   await chat.replyMessage({
     style: MessageStyle.MARKDOWN,
-    message: '**Are you sure?**',
+    message: "**Are you sure?**",
     button: [confirmId, cancelId],
-  })
-}
+  });
+};
 ```
 
 > On Discord this produces an `ActionRowBuilder` with two buttons. On Telegram it produces an inline keyboard. On Messenger it produces a numbered text menu. On Facebook Page it produces a Button Template. The same `button` export drives all four outcomes.
@@ -711,33 +748,33 @@ export const onCommand = async ({ chat, button: btn }: AppCtx) => {
 ### Platform filtering
 
 ```ts
-import { Platforms } from '@/engine/modules/platform/platform.constants.js'
+import { Platforms } from "@/engine/modules/platform/platform.constants.js";
 
 export const config: CommandConfig = {
   // ...
   platform: [Platforms.Discord, Platforms.Telegram],
-}
+};
 ```
 
 ### AppCtx quick reference
 
-| Field | Description |
-|---|---|
-| `chat` | Send, edit, react — `reply`, `replyMessage`, `editMessage`, `reactMessage`, `unsendMessage` |
-| `thread` | Group operations — `setName`, `setImage`, `addUser`, `removeUser`, `getInfo` |
-| `user` | `getInfo(uid)`, `getName(uid)`, `getAvatarUrl(uid)` |
-| `state` | Pending state CRUD — `generateID`, `create`, `delete` |
-| `button` | Button lifecycle — `generateID`, `createContext`, `update` |
-| `session` | Auto-resolved flow context in `onReply`/`onReact`/`onClick` — `id`, `state`, `context` |
-| `db` | Per-user and per-thread collections — `db.users.collection(uid)`, `db.threads.collection(tid)` |
-| `currencies` | Economy — `getMoney`, `increaseMoney`, `decreaseMoney` |
-| `args` | Token array after the command name |
-| `options` | Named slash-command / `key:value` options |
-| `event` | Raw unified event (`senderID`, `threadID`, `messageID`, `message`, …) |
-| `native` | Platform identity + raw platform object for SDK-level access |
-| `logger` | Session-scoped structured logger |
-| `prefix` | Active command prefix |
-| `usage` | Replies with the formatted usage guide |
+| Field        | Description                                                                                    |
+| ------------ | ---------------------------------------------------------------------------------------------- |
+| `chat`       | Send, edit, react — `reply`, `replyMessage`, `editMessage`, `reactMessage`, `unsendMessage`    |
+| `thread`     | Group operations — `setName`, `setImage`, `addUser`, `removeUser`, `getInfo`                   |
+| `user`       | `getInfo(uid)`, `getName(uid)`, `getAvatarUrl(uid)`                                            |
+| `state`      | Pending state CRUD — `generateID`, `create`, `delete`                                          |
+| `button`     | Button lifecycle — `generateID`, `createContext`, `update`                                     |
+| `session`    | Auto-resolved flow context in `onReply`/`onReact`/`onClick` — `id`, `state`, `context`         |
+| `db`         | Per-user and per-thread collections — `db.users.collection(uid)`, `db.threads.collection(tid)` |
+| `currencies` | Economy — `getMoney`, `increaseMoney`, `decreaseMoney`                                         |
+| `args`       | Token array after the command name                                                             |
+| `options`    | Named slash-command / `key:value` options                                                      |
+| `event`      | Raw unified event (`senderID`, `threadID`, `messageID`, `message`, …)                          |
+| `native`     | Platform identity + raw platform object for SDK-level access                                   |
+| `logger`     | Session-scoped structured logger                                                               |
+| `prefix`     | Active command prefix                                                                          |
+| `usage`      | Replies with the formatted usage guide                                                         |
 
 ---
 
@@ -747,41 +784,42 @@ Create a file in `packages/cat-bot/src/app/events/`.
 
 ```ts
 // src/app/events/join.ts
-import type { AppCtx } from '@/engine/types/controller.types.js'
-import type { EventConfig } from '@/engine/types/module-config.types.js'
-import { MessageStyle } from '@/engine/constants/message-style.constants.js'
+import type { AppCtx } from "@/engine/types/controller.types.js";
+import type { EventConfig } from "@/engine/types/module-config.types.js";
+import { MessageStyle } from "@/engine/constants/message-style.constants.js";
 
 export const config: EventConfig = {
-  name: 'join',
-  eventType: ['log:subscribe'],
-  version: '1.0.0',
-  author: 'your-name',
-  description: 'Welcomes new members',
-}
+  name: "join",
+  eventType: ["log:subscribe"],
+  version: "1.0.0",
+  author: "your-name",
+  description: "Welcomes new members",
+};
 
 export const onEvent = async ({ chat, event }: AppCtx): Promise<void> => {
-  const data = event['logMessageData'] as Record<string, unknown> | undefined
-  const added = (data?.['addedParticipants'] as Record<string, unknown>[]) ?? []
+  const data = event["logMessageData"] as Record<string, unknown> | undefined;
+  const added =
+    (data?.["addedParticipants"] as Record<string, unknown>[]) ?? [];
   for (const p of added) {
     await chat.replyMessage({
       style: MessageStyle.MARKDOWN,
-      message: `👋 Welcome **${String(p['fullName'] ?? p['firstName'] ?? 'new member')}**!`,
-    })
+      message: `👋 Welcome **${String(p["fullName"] ?? p["firstName"] ?? "new member")}**!`,
+    });
   }
-}
+};
 ```
 
 **Common `eventType` values:**
 
-| Value | Trigger |
-|---|---|
-| `log:subscribe` | Member(s) joined a group |
-| `log:unsubscribe` | Member left or was removed |
-| `log:thread-name` | Group name changed |
-| `log:thread-image` | Group photo changed |
-| `log:thread-icon` | Group emoji changed |
-| `log:user-nickname` | A nickname was changed |
-| `change_thread_admins` | Admin status changed |
+| Value                  | Trigger                    |
+| ---------------------- | -------------------------- |
+| `log:subscribe`        | Member(s) joined a group   |
+| `log:unsubscribe`      | Member left or was removed |
+| `log:thread-name`      | Group name changed         |
+| `log:thread-image`     | Group photo changed        |
+| `log:thread-icon`      | Group emoji changed        |
+| `log:user-nickname`    | A nickname was changed     |
+| `change_thread_admins` | Admin status changed       |
 
 ---
 
@@ -795,86 +833,88 @@ Every place the engine compares a value — role enforcement, platform filtering
 
 ```ts
 // ❌ Magic number — no autocomplete, no refactor safety, silently broken if Role values shift
-export const config = { role: 4 }
+export const config = { role: 4 };
 
 // ✅ Single source of truth — TypeScript flags a stale value immediately if the constant changes
-export const config = { role: Role.SYSTEM_ADMIN }
+export const config = { role: Role.SYSTEM_ADMIN };
 ```
 
 ### Role
 
 ```ts
-import { Role } from '@/engine/constants/role.constants.js'
+import { Role } from "@/engine/constants/role.constants.js";
 ```
 
-| Constant | Value | Who can invoke |
-|---|---|---|
-| `Role.ANYONE` | `0` | All users (default) |
-| `Role.THREAD_ADMIN` | `1` | Thread/group admins |
-| `Role.BOT_ADMIN` | `2` | Bot admins added via `/admin add` |
-| `Role.PREMIUM` | `3` | Premium users |
-| `Role.SYSTEM_ADMIN` | `4` | System-level admins; bypasses every role gate |
+| Constant            | Value | Who can invoke                                |
+| ------------------- | ----- | --------------------------------------------- |
+| `Role.ANYONE`       | `0`   | All users (default)                           |
+| `Role.THREAD_ADMIN` | `1`   | Thread/group admins                           |
+| `Role.BOT_ADMIN`    | `2`   | Bot admins added via `/admin add`             |
+| `Role.PREMIUM`      | `3`   | Premium users                                 |
+| `Role.SYSTEM_ADMIN` | `4`   | System-level admins; bypasses every role gate |
 
 Higher roles automatically inherit access to commands requiring lower roles.
 
 ### MessageStyle
 
 ```ts
-import { MessageStyle } from '@/engine/constants/message-style.constants.js'
+import { MessageStyle } from "@/engine/constants/message-style.constants.js";
 
 // ❌ Raw string — if the engine's value set changes, this silently stops rendering Markdown
-await chat.replyMessage({ style: 'markdown', message: '**Hello**' })
+await chat.replyMessage({ style: "markdown", message: "**Hello**" });
 
 // ✅ TypeScript flags any mismatch at compile time
-await chat.replyMessage({ style: MessageStyle.MARKDOWN, message: '**Hello**' })
+await chat.replyMessage({ style: MessageStyle.MARKDOWN, message: "**Hello**" });
 ```
 
-| Constant | Behaviour |
-|---|---|
+| Constant                | Behaviour                                                                                                    |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------ |
 | `MessageStyle.MARKDOWN` | Renders Markdown on Discord/Telegram; converts `**bold**` and `_italic_` to styled Unicode on Messenger/Page |
-| `MessageStyle.TEXT` | Escapes Markdown syntax — content displays literally |
+| `MessageStyle.TEXT`     | Escapes Markdown syntax — content displays literally                                                         |
 
 ### ButtonStyle
 
 ```ts
-import { ButtonStyle } from '@/engine/constants/button-style.constants.js'
+import { ButtonStyle } from "@/engine/constants/button-style.constants.js";
 
 export const button = {
   confirm: {
-    label: '✅ Confirm',
-    style: ButtonStyle.SUCCESS,   // not the raw string 'success'
-    onClick: async (ctx: AppCtx) => { /* ... */ },
+    label: "✅ Confirm",
+    style: ButtonStyle.SUCCESS, // not the raw string 'success'
+    onClick: async (ctx: AppCtx) => {
+      /* ... */
+    },
   },
-}
+};
 ```
 
-| Constant | Discord colour |
-|---|---|
-| `ButtonStyle.PRIMARY` | Blue |
+| Constant                | Discord colour              |
+| ----------------------- | --------------------------- |
+| `ButtonStyle.PRIMARY`   | Blue                        |
 | `ButtonStyle.SECONDARY` | Grey (default when omitted) |
-| `ButtonStyle.SUCCESS` | Green |
-| `ButtonStyle.DANGER` | Red |
+| `ButtonStyle.SUCCESS`   | Green                       |
+| `ButtonStyle.DANGER`    | Red                         |
 
 Telegram and Facebook Page render the button label only — `style` has no visual effect on those platforms.
 
 ### Platforms
 
 ```ts
-import { Platforms } from '@/engine/modules/platform/platform.constants.js'
+import { Platforms } from "@/engine/modules/platform/platform.constants.js";
 
 // ❌ Subtle capitalisation difference — 'Facebook-Messenger' never matches 'facebook-messenger'
-export const config = { platform: ['Facebook-Messenger'] }
+export const config = { platform: ["Facebook-Messenger"] };
 
 // ✅ Autocompleted, typo-proof, refactor-safe
-export const config = { platform: [Platforms.FacebookMessenger] }
+export const config = { platform: [Platforms.FacebookMessenger] };
 ```
 
-| Constant | Value |
-|---|---|
-| `Platforms.Discord` | `'discord'` |
-| `Platforms.Telegram` | `'telegram'` |
+| Constant                      | Value                  |
+| ----------------------------- | ---------------------- |
+| `Platforms.Discord`           | `'discord'`            |
+| `Platforms.Telegram`          | `'telegram'`           |
 | `Platforms.FacebookMessenger` | `'facebook-messenger'` |
-| `Platforms.FacebookPage` | `'facebook-page'` |
+| `Platforms.FacebookPage`      | `'facebook-page'`      |
 
 The same constants are used for runtime narrowing inside handlers:
 
@@ -883,7 +923,7 @@ export const onCommand = async ({ native, chat }: AppCtx) => {
   if (native.platform === Platforms.Telegram) {
     // Telegram-only logic
   }
-}
+};
 ```
 
 ### EventType Strings
@@ -892,21 +932,21 @@ The `eventType[]` array in `EventConfig` is matched against the engine's interna
 
 ```ts
 // ❌ 'log:subscibe' — one missing letter, handler silently receives zero events
-export const config: EventConfig = { eventType: ['log:subscibe'] }
+export const config: EventConfig = { eventType: ["log:subscibe"] };
 
 // ✅ Exact string matched against the LogMessageType registry
-export const config: EventConfig = { eventType: ['log:subscribe'] }
+export const config: EventConfig = { eventType: ["log:subscribe"] };
 ```
 
-| String | Trigger |
-|---|---|
-| `'log:subscribe'` | Member(s) joined a group |
-| `'log:unsubscribe'` | Member left or was removed |
-| `'log:thread-name'` | Group name changed |
-| `'log:thread-image'` | Group photo changed |
-| `'log:thread-icon'` | Group emoji changed |
-| `'log:user-nickname'` | A nickname was changed |
-| `'change_thread_admins'` | Admin status changed |
+| String                   | Trigger                    |
+| ------------------------ | -------------------------- |
+| `'log:subscribe'`        | Member(s) joined a group   |
+| `'log:unsubscribe'`      | Member left or was removed |
+| `'log:thread-name'`      | Group name changed         |
+| `'log:thread-image'`     | Group photo changed        |
+| `'log:thread-icon'`      | Group emoji changed        |
+| `'log:user-nickname'`    | A nickname was changed     |
+| `'change_thread_admins'` | Admin status changed       |
 
 The full reference — including `OptionType` constants for slash command options — is in [DOCS.md](DOCS.md).
 
@@ -931,12 +971,12 @@ It covers, among other things:
 
 ## Database Adapters
 
-| Adapter | `DATABASE_TYPE` | Best For | Notes |
-|---|---|---|---|
-| **JSON** | `json` | Local development, demos | Zero runtime deps; data in `packages/database/database/database.json`; not suitable for production |
-| **Prisma + SQLite** | *(unset)* | Single-server production | Requires `prisma generate` + `prisma migrate dev`; WAL mode enabled for concurrent reads |
-| **MongoDB** | `mongodb` | Production, cloud | Atlas M0 free tier supported; non-transactional on M0 |
-| **NeonDB** | `neondb` | Production, serverless | Schema auto-initialized at boot via `dbReady` promise; connection pooling via `pg.Pool` |
+| Adapter             | `DATABASE_TYPE` | Best For                 | Notes                                                                                              |
+| ------------------- | --------------- | ------------------------ | -------------------------------------------------------------------------------------------------- |
+| **JSON**            | `json`          | Local development, demos | Zero runtime deps; data in `packages/database/database/database.json`; not suitable for production |
+| **Prisma + SQLite** | _(unset)_       | Single-server production | Requires `prisma generate` + `prisma migrate dev`; WAL mode enabled for concurrent reads           |
+| **MongoDB**         | `mongodb`       | Production, cloud        | Atlas M0 free tier supported; non-transactional on M0                                              |
+| **NeonDB**          | `neondb`        | Production, serverless   | Schema auto-initialized at boot via `dbReady` promise; connection pooling via `pg.Pool`            |
 
 ### Switching adapters
 
@@ -990,25 +1030,25 @@ ENCRYPTION_KEY=                    # openssl rand -hex 32
 
 ### Monorepo root
 
-| Script | Description |
-|---|---|
-| `npm run dev` | Start bot engine in watch mode (`tsx watch`) |
-| `npm run dev:web` | Start Vite dev server for the dashboard |
-| `npm run build:db` | Compile the database package |
-| `npm run build` | Compile cat-bot (TypeScript + tsc-alias) |
-| `npm run build:web` | Compile the React dashboard |
-| `npm start` | Start the compiled production server |
-| `npm test` | Run Vitest unit and integration tests |
+| Script              | Description                                  |
+| ------------------- | -------------------------------------------- |
+| `npm run dev`       | Start bot engine in watch mode (`tsx watch`) |
+| `npm run dev:web`   | Start Vite dev server for the dashboard      |
+| `npm run build:db`  | Compile the database package                 |
+| `npm run build`     | Compile cat-bot (TypeScript + tsc-alias)     |
+| `npm run build:web` | Compile the React dashboard                  |
+| `npm start`         | Start the compiled production server         |
+| `npm test`          | Run Vitest unit and integration tests        |
 
 ### `packages/cat-bot`
 
-| Script | Description |
-|---|---|
-| `npm run seed:admin` | Create the initial system admin account |
-| `npm run reset:password` | Reset an admin account password |
-| `npm run lint` | ESLint |
-| `npm run format` | Prettier |
-| `npm run test:watch` | Vitest in watch mode |
+| Script                   | Description                             |
+| ------------------------ | --------------------------------------- |
+| `npm run seed:admin`     | Create the initial system admin account |
+| `npm run reset:password` | Reset an admin account password         |
+| `npm run lint`           | ESLint                                  |
+| `npm run format`         | Prettier                                |
+| `npm run test:watch`     | Vitest in watch mode                    |
 
 ---
 
