@@ -7,6 +7,7 @@
  *   • This makes the skip logic fully dynamic and future-proof if the command name ever changes.
  *   • All previous optimizations (direct attachment_url, try/finally, efficiency, no interruption)
  *     are preserved.
+ *   • Facebook downloader now uses the chocomilk API (ZTRdiamond - Zanixon Group).
  */
 
 import axios from 'axios';
@@ -31,13 +32,26 @@ interface TikTokDlResponse {
   result: TikTokResult;
 }
 
-interface FacebookDlResult {
-  hd?: string | null;
-  sd?: string | null;
+interface FacebookDlMediaItem {
+  type: string;
+  quality: string;
+  extension: string;
+  url: string;
+}
+interface FacebookDlData {
+  type: string;
   title?: string;
+  cover?: string;
+  media: {
+    videos: FacebookDlMediaItem[];
+    images: FacebookDlMediaItem[];
+  };
 }
 interface FacebookDlResponse {
-  data: FacebookDlResult;
+  code: number;
+  success: boolean;
+  data: FacebookDlData;
+  error: string | null;
 }
 
 interface PinterestResult {
@@ -201,21 +215,22 @@ async function downloadFacebook(rawUrl: string, ctx: AppCtx): Promise<void> {
   })) as string | undefined;
 
   try {
-    const apiUrl = createUrl('kuroneko', '/api/download/facebook', {
-      url: rawUrl,
-    });
-    if (!apiUrl) throw new Error('Failed to build API URL.');
+    const { data: res } = await axios.get<FacebookDlResponse>(
+      `https://chocomilk.amira.us.kg/v1/download/facebook?url=${encodeURIComponent(rawUrl)}`,
+      { timeout: 30000, headers: { Accept: 'application/json' } },
+    );
 
-    const { data: res } = await axios.get<FacebookDlResponse>(apiUrl, {
-      timeout: 30000,
-    });
-    const videoUrl = res?.data?.hd || res?.data?.sd;
-    if (!videoUrl)
+    if (!res?.success || !res?.data)
+      throw new Error('API returned an unsuccessful response.');
+
+    const videos = res.data.media?.videos ?? [];
+    if (videos.length === 0)
       throw new Error(
         'No downloadable video found. The video may be private or unsupported.',
       );
 
-    const quality = res.data.hd ? 'HD' : 'SD';
+    const best = videos[0]!;
+    const quality = best.quality?.toUpperCase() ?? 'HD';
     const title = res.data.title ?? 'Facebook Video';
     const fileName = safeFilename(title, 'mp4');
 
@@ -226,7 +241,7 @@ async function downloadFacebook(rawUrl: string, ctx: AppCtx): Promise<void> {
         `📝 **Title:** ${title}\n` +
         `🎞 **Quality:** ${quality}\n` +
         `🔗 ${rawUrl}`,
-      attachment_url: [{ name: fileName, url: videoUrl }],
+      attachment_url: [{ name: fileName, url: best.url }],
     });
   } catch (err) {
     const error = err as { message?: string };
