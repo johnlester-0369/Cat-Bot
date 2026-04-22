@@ -1,0 +1,1652 @@
+# Cat-Bot — Command & Event Developer Reference
+
+> **Audience:** Developers writing commands (`src/app/commands/`) and event handlers (`src/app/events/`).  
+> **Goal:** Understand every API available inside a handler so you can build features without reading engine source code.
+
+---
+
+## Table of Contents
+
+1. [Philosophy](#philosophy)
+2. [Quick Start](#quick-start)
+3. [Module Structure](#module-structure)
+   - [CommandConfig](#commandconfig)
+   - [EventConfig](#eventconfig)
+4. [The Context Object — `AppCtx`](#the-context-object--appctx)
+5. [Chat API](#chat-api)
+   - [chat.reply](#chatreply)
+   - [chat.replyMessage](#chatreply-message)
+   - [chat.editMessage](#chateditmessage)
+   - [chat.reactMessage](#chatreactmessage)
+   - [chat.unsendMessage](#chatunsendmessage)
+6. [State API — Conversation Flows](#state-api--conversation-flows)
+   - [state.generateID](#stategenerateid)
+   - [state.create](#statecreate)
+   - [state.delete](#statedelete)
+7. [Button API — Interactive Buttons](#button-api--interactive-buttons)
+   - [button.generateID](#buttongenerateid)
+   - [button.createContext](#buttoncreatecontext)
+   - [button.update / button.create](#buttonupdate--buttoncreate)
+8. [session — Auto-Resolved Flow Context](#session--auto-resolved-flow-context)
+9. [Lifecycle Hooks](#lifecycle-hooks)
+   - [onCommand](#oncommand)
+   - [onChat](#onchat)
+   - [onReply](#onreply)
+   - [onReact](#onreact)
+   - [onEvent](#onevent)
+   - [button.onClick](#buttononclick)
+10. [args and options](#args-and-options)
+11. [MessageStyle](#messagestyle)
+12. [Role](#role)
+13. [ButtonStyle](#buttonstyle)
+   14. [Platform Filtering](#platform-filtering)
+   15. [Database Collections](#database-collections)
+   16. [Native Platform Access](#native-platform-access)
+   17. [Remaining Context Fields](#remaining-context-fields)
+   18. [Full Examples](#full-examples)
+   19. [Migration Notes — From Global-Variable Bots](#migration-notes--from-global-variable-bots)
+   20. [Event Pipeline — Under the Hood](#event-pipeline--under-the-hood)
+   21. [Extending the Middleware Pipeline](#extending-the-middleware-pipeline)
+
+---
+
+## Philosophy
+
+Cat-Bot eliminates `global` variables for conversation state. The old pattern looked like this:
+
+```js
+// ❌ Old approach — fragile, shared mutable state, hard to debug
+global.client.handleReply.push({
+  name: 'quiz',
+  messageID: info.messageID,
+  author: event.senderID,
+  answer: 'True'
+})
+```
+
+Cat-Bot replaces this with scoped, typed, garbage-collected state:
+
+```ts
+// ✅ Cat-Bot approach — scoped to this message, auto-cleaned, type-safe
+state.create({
+  id: state.generateID({ id: String(messageID) }),
+  state: 'awaiting_answer',
+  context: { answer: 'True' },
+})
+```
+
+Every value you need in a follow-up handler arrives through the `session` object — no global lookup, no shared mutable arrays, no race conditions between concurrent conversations.
+
+The API is designed so that every parameter is **named** inside an object literal:
+
+```ts
+// ✅ Semantic — you know what each field does without reading docs
+await chat.replyMessage({
+  style: MessageStyle.MARKDOWN,
+  message: '**Hello!**',
+})
+
+// ❌ Positional — you have to count arguments and memorise order
+await message.reply(style, '**Hello!**', threadID)
+```
+
+---
+
+## Quick Start
+
+**Minimal command** (`src/app/commands/hello.ts`):
+
+```ts
+import type { AppCtx } from '@/engine/types/controller.types.js'
+import { Role } from '@/engine/constants/role.constants.js'
+import { MessageStyle } from '@/engine/constants/message-style.constants.js'
+import type { CommandConfig } from '@/engine/types/module-config.types.js'
+
+export const config: CommandConfig = {
+  name: 'hello',
+  version: '1.0.0',
+  role: Role.ANYONE,
+  author: 'your-name',
+  description: 'Says hello',
+  usage: '',
+  cooldown: 5,
+  hasPrefix: true,
+}
+
+export const onCommand = async ({ chat }: AppCtx): Promise<void> => {
+  await chat.replyMessage({
+    style: MessageStyle.MARKDOWN,
+    message: '👋 **Hello, world!**',
+  })
+}
+```
+
+**Minimal event handler** (`src/app/events/join.ts`):
+
+```ts
+import type { AppCtx } from '@/engine/types/controller.types.js'
+import { MessageStyle } from '@/engine/constants/message-style.constants.js'
+import type { EventConfig } from '@/engine/types/module-config.types.js'
+
+export const config: EventConfig = {
+  name: 'join',
+  eventType: ['log:subscribe'],
+  version: '1.0.0',
+  author: 'your-name',
+  description: 'Welcomes new members',
+}
+
+export const onEvent = async ({ chat, event }: AppCtx): Promise<void> => {
+  const data = event['logMessageData'] as Record<string, unknown> | undefined
+  const added = (data?.['addedParticipants'] as Record<string, unknown>[]) ?? []
+  for (const p of added) {
+    await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
+      message: `👋 Welcome **${String(p['fullName'] ?? p['firstName'] ?? 'new member')}**!`,
+    })
+  }
+}
+```
+
+---
+
+## Module Structure
+
+### CommandConfig
+
+All fields you can set on `export const config: CommandConfig`:
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | `string` | ✅ | Command name, lowercase. Matched after the prefix is stripped. |
+| `version` | `string` | ✅ | Semantic version (e.g. `'1.0.0'`). Shown in help output. |
+| `role` | `RoleLevel` | ✅ | Minimum role to invoke. Use `Role.ANYONE` for public commands. See [Role](#role). |
+| `author` | `string` | ✅ | Author name shown in help and error context. |
+| `description` | `string` | ✅ | One-line description shown in Discord's `/` menu and `help`. |
+| `cooldown` | `number` | ✅ | Per-user cooldown in **seconds**. `0` disables cooldown. |
+| `usage` | `string` | — | Argument pattern shown by `ctx.usage()`. e.g. `'<add|list|remove> [uid]'`. |
+| `hasPrefix` | `boolean` | — | Set `false` for prefix-less commands. Defaults to `true`. |
+| `aliases` | `string[]` | — | Alternative command names that map to the same handler. |
+| `category` | `string` | — | Display group in help output (e.g. `'Admin'`, `'Fun'`). |
+| `platform` | `PlatformName[]` | — | Restrict to specific platforms. Absent = all platforms. See [Platform Filtering](#platform-filtering). |
+| `options` | `CommandOption[]` | — | Typed named options for Discord slash commands and `key:value` parsing. See [args and options](#args-and-options). |
+| `guide` | `string[]` | — | Multi-line usage guide. Each string is one line. Takes precedence over `usage`. |
+
+### EventConfig
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | `string` | ✅ | Handler name registered in the dashboard. |
+| `eventType` | `string[]` | ✅ | Unified event type strings to subscribe to. A single module can subscribe to multiple types. |
+| `version` | `string` | ✅ | Semantic version. |
+| `author` | `string` | ✅ | Author name. |
+| `description` | `string` | ✅ | One-line description. |
+| `platform` | `PlatformName[]` | — | Restrict to specific platforms. |
+
+**Common `eventType` values:**
+
+| Value | Meaning |
+|---|---|
+| `'log:subscribe'` | Member(s) joined a group |
+| `'log:unsubscribe'` | Member left or was removed |
+| `'log:thread-name'` | Group name changed |
+| `'log:thread-image'` | Group photo changed |
+| `'log:thread-icon'` | Group emoji changed |
+| `'log:user-nickname'` | A nickname was changed |
+| `'change_thread_admins'` | Admin status changed |
+
+---
+
+## The Context Object — `AppCtx`
+
+Every handler (`onCommand`, `onChat`, `onReply`, `onReact`, `onEvent`, `button.onClick`) receives a single `AppCtx` object. Destructure exactly what you need:
+
+```ts
+export const onCommand = async ({
+  chat,
+  state,
+  args,
+  event,
+  native,
+  db,
+  prefix,
+}: AppCtx): Promise<void> => { /* ... */ }
+```
+
+Top-level fields:
+
+| Field | Type | Available in | Description |
+|---|---|---|---|
+| `chat` | `ChatContext` | All hooks | Send, edit, react to messages |
+| `thread` | `ThreadContext` | All hooks | Group operations (rename, set image, add/remove users) |
+| `user` | `UserContext` | All hooks | Look up user info and avatars |
+| `bot` | `BotContext` | All hooks | Get the bot's own platform user ID |
+| `state` | `StateContext['state']` | onCommand, onReply, onReact, onClick | Manage pending conversation states |
+| `button` | `ButtonContext['button']` | onCommand, onClick | Generate and manage interactive button IDs |
+| `session` | `{ id, context, command, state }` | onReply, onReact, onClick | Auto-resolved conversation context |
+| `args` | `string[]` | onCommand | Space-separated tokens after the command name |
+| `options` | `OptionsMap` | onCommand | Named options parsed from the message body or Discord slash interaction |
+| `parsed` | `{ name, args }` | onCommand | Parsed command name and raw args |
+| `event` | `Record<string, unknown>` | All hooks | The raw unified event (senderID, threadID, messageID, message, …) |
+| `native` | `NativeContext` | All hooks | Platform identity: `platform`, `userId`, `sessionId` |
+| `db` | `{ users, threads }` | All hooks | Per-user and per-thread data collections |
+| `logger` | `SessionLogger` | All hooks | Structured logger scoped to this session |
+| `prefix` | `string` | onCommand | The active command prefix (e.g. `'!'`, `'/'`) |
+| `usage` | `() => Promise<void>` | onCommand | Reply with a formatted usage guide for this command |
+| `currencies` | `CurrenciesContext` | onCommand, onReply, onReact, onClick | Economy: getMoney / increaseMoney / decreaseMoney |
+| `startTime` | `number` | All hooks | `Date.now()` at the moment the event entered the pipeline |
+| `messageID` | `string` | onReact, onClick | The message ID the reaction or button click targeted |
+| `emoji` | `string` | onReact | The emoji string that was reacted with |
+
+---
+
+## Chat API
+
+### chat.reply
+
+Sends a message to the current thread **without** threading it to any specific earlier message. Use this when you want a standalone reply that is not visually attached to the triggering message.
+
+```ts
+await chat.reply({
+  style: MessageStyle.MARKDOWN,
+  message: '📣 Announcement text',
+})
+```
+
+To send to a **different thread** (e.g. a DM to an admin), pass `thread_id`:
+
+```ts
+await chat.reply({
+  style: MessageStyle.MARKDOWN,
+  message: '📨 You have a new message',
+  thread_id: adminUserId,           // send to another thread
+})
+```
+
+To reply to a specific earlier message (quote-style), pass `reply_to_message_id` manually:
+
+```ts
+await chat.reply({
+  style: MessageStyle.MARKDOWN,
+  message: 'Responding to your question',
+  reply_to_message_id: event['messageID'] as string,
+})
+```
+
+### chat.replyMessage
+
+Sends a message **threaded** to the event's current message — the triggering message becomes the quote target automatically. You do not need to pass a message ID.
+
+```ts
+await chat.replyMessage({
+  style: MessageStyle.MARKDOWN,
+  message: '**Hello!**',
+})
+```
+
+**Key difference from `chat.reply`:** `replyMessage` automatically attaches `reply_to_message_id` using the event's `messageID`. It also **returns the sent message ID**, which you need for `state.create` and `button.createContext` in interactive flows.
+
+```ts
+const msgId = await chat.replyMessage({
+  style: MessageStyle.MARKDOWN,
+  message: '**What is your name?**',
+})
+
+if (!msgId) return  // platform did not return a message ID — onReply unavailable
+
+state.create({
+  id: state.generateID({ id: String(msgId) }),
+  state: 'awaiting_name',
+  context: {},
+})
+```
+
+**Common options for both `chat.reply` and `chat.replyMessage`:**
+
+| Option | Type | Description |
+|---|---|---|
+| `message` | `string` | Text content |
+| `style` | `MessageStyleValue` | `MessageStyle.MARKDOWN` or `MessageStyle.TEXT` |
+| `attachment` | `NamedStreamAttachment[]` | File attachments as streams or Buffers |
+| `attachment_url` | `NamedUrlAttachment[]` | File attachments as `{ name, url }` — downloaded before send |
+| `button` | `string[] \| string[][]` | Button IDs from `button.generateID()`. Flat = one row; nested = multiple rows |
+| `thread_id` / `threadID` | `string` | Override target thread (defaults to event thread) |
+| `reply_to_message_id` | `string` | Quote-reply to a specific message ID (`replyMessage` sets this automatically) |
+
+### chat.editMessage
+
+Edits a previously sent bot message in-place. Accepts `message_id_to_edit`. Use this for updating quiz results, ping latency refreshes, or replacing buttons after a choice is made.
+
+```ts
+await chat.editMessage({
+  style: MessageStyle.MARKDOWN,
+  message_id_to_edit: event['messageID'] as string,
+  message: '✅ Done!',
+  button: [refreshButtonId],     // replace buttons too
+})
+```
+
+| Option | Type | Description |
+|---|---|---|
+| `message_id_to_edit` | `string` | ID of the message to edit |
+| `message` | `string` | New text content |
+| `style` | `MessageStyleValue` | Rendering style |
+| `button` | `string[] \| string[][]` | New button layout |
+| `attachment` | `NamedStreamAttachment[]` | Replace file attachments |
+| `attachment_url` | `NamedUrlAttachment[]` | Replace with URL-based attachments |
+
+### chat.reactMessage
+
+Reacts to the triggering message with an emoji.
+
+```ts
+await chat.reactMessage('❤️')
+
+// Or with explicit options:
+await chat.reactMessage({ emoji: '❤️', messageID: someOtherMessageId })
+```
+
+### chat.unsendMessage
+
+Deletes a specific message by its ID (bot-sent messages only on most platforms).
+
+```ts
+await chat.unsendMessage(messageId)
+
+// Or:
+await chat.unsendMessage({ targetMessageID: messageId })
+```
+
+---
+
+## State API — Conversation Flows
+
+The state system lets a command "wait" for a user's next reply or reaction without polling or globals. The engine matches incoming events to registered states using the bot's sent message ID.
+
+### state.generateID
+
+Builds the composite key used to register and look up a pending state. You must call this to get the ID before calling `state.create`.
+
+```ts
+// Private (default): only the user who triggered the command can advance
+const id = state.generateID({ id: String(messageID) })
+
+// Public: anyone in the thread can advance (polls, shared flows)
+const id = state.generateID({ id: String(messageID), public: true })
+```
+
+**`public: false` (default):**  
+The key is `${messageID}:${senderID}`. Only the sender of the original command can trigger `onReply` or `onReact` for this state.
+
+**`public: true`:**  
+The key is `${messageID}:${threadID}`. Any member of the thread can reply or react to advance the flow.
+
+### state.create
+
+Registers a pending state against a key. The engine looks this up when a reply (`message_reply`) or reaction (`message_reaction`) event arrives.
+
+```ts
+state.create({
+  id: state.generateID({ id: String(messageID) }),
+  state: 'awaiting_name',          // string label; becomes the handler key in onReply
+  context: { step: 1 },            // arbitrary data carried into the handler via session.context
+})
+```
+
+For `onReact` flows, `state` can also be a **string array** acting as an emoji allowlist:
+
+```ts
+state.create({
+  id: state.generateID({ id: String(messageID) }),
+  state: ['❤️', '😢'],             // only these emojis advance this state
+  context: { question: 'Is water wet?' },
+})
+```
+
+### state.delete
+
+Removes a pending state. Always call this at the end of a flow (or before registering the next step in a multi-step reply chain) to prevent stale states from re-triggering.
+
+```ts
+state.delete(session.id)    // session.id is the matched key, auto-provided in onReply/onReact
+```
+
+---
+
+## Button API — Interactive Buttons
+
+Buttons work similarly to states but are embedded in a message as clickable components on Discord, Telegram, and Facebook Page. On Facebook Messenger (which has no native button components), the engine automatically renders a numbered text menu and routes the user's numeric reply to the appropriate `onClick` handler — your code stays identical across all platforms.
+
+### button.generateID
+
+Generates a fully qualified callback ID for a button. The ID must be used in two places: the `button.createContext` call and the `button` array in `chat.reply` / `chat.replyMessage`.
+
+```ts
+// Private: only the user who ran the command can click this button
+const btnId = button.generateID({ id: 'refresh' })
+
+// Public: any member of the thread can click
+const btnId = button.generateID({ id: 'vote', public: true })
+```
+
+The `id` you pass must match a key in the `export const button` object of your command module.
+
+### button.createContext
+
+Stores arbitrary data associated with a specific button instance. Retrieved as `session.context` inside the `onClick` handler.
+
+```ts
+button.createContext({
+  id: btnId,
+  context: {
+    answer: 'True',
+    difficulty: 'medium',
+  },
+})
+```
+
+### button.update / button.create
+
+Dynamically changes a button's label or style after it has been generated. Useful for counters like the ping refresh button.
+
+```ts
+button.update({
+  id: btnId,
+  label: `🔄 Refresh (${count})`,
+})
+```
+
+`button.create` adds a brand-new button definition at runtime (same signature as a static `export const button` entry).
+
+### Connecting buttons to handlers
+
+Buttons require an `export const button` object exported from your command file. Keys are the **base IDs** (without the scoped suffix generated by `button.generateID`).
+
+```ts
+// In your command file:
+
+const BUTTON_ID = { confirm: 'confirm', cancel: 'cancel' }
+
+export const button = {
+  [BUTTON_ID.confirm]: {
+    label: '✅ Confirm',
+    style: ButtonStyle.SUCCESS,
+    onClick: async ({ chat, session }: AppCtx) => {
+      // session.context holds what you passed to button.createContext()
+      const data = session.context as { itemName: string }
+      state.delete(session.id)
+      await chat.replyMessage({
+        style: MessageStyle.MARKDOWN,
+        message: `Confirmed: **${data.itemName}**`,
+      })
+    },
+  },
+  [BUTTON_ID.cancel]: {
+    label: '❌ Cancel',
+    style: ButtonStyle.DANGER,
+    onClick: async ({ chat }: AppCtx) => {
+      await chat.replyMessage({
+        style: MessageStyle.MARKDOWN,
+        message: 'Cancelled.',
+      })
+    },
+  },
+}
+
+export const onCommand = async ({ chat, button: btn }: AppCtx) => {
+  const confirmId = btn.generateID({ id: BUTTON_ID.confirm })
+  const cancelId = btn.generateID({ id: BUTTON_ID.cancel })
+
+  btn.createContext({
+    id: confirmId,
+    context: { itemName: 'my item' },
+  })
+
+  await chat.replyMessage({
+    style: MessageStyle.MARKDOWN,
+    message: '**Are you sure?**',
+    button: [confirmId, cancelId],
+  })
+}
+```
+
+---
+
+## session — Auto-Resolved Flow Context
+
+Inside `onReply`, `onReact`, and `button.onClick`, the `session` object is populated automatically by the engine — you never construct it yourself.
+
+```ts
+session: {
+  id: string                  // the matched state key (use for state.delete)
+  command: string             // the command name that registered this state
+  state: string | string[]    // the state label from state.create (or the emoji allowlist)
+  context: Record<string, unknown>  // whatever you passed as context in state.create / button.createContext
+}
+```
+
+Reading context data:
+
+```ts
+// In onReply:
+[STATE.awaiting_age]: async ({ chat, session, event, state }: AppCtx) => {
+  const name = session.context['name'] as string  // carried from previous step
+
+  state.delete(session.id)
+  await chat.replyMessage({
+    style: MessageStyle.MARKDOWN,
+    message: `Done! **${name}**, you entered: ${event['message'] as string}`,
+  })
+},
+```
+
+---
+
+## Lifecycle Hooks
+
+### onCommand
+
+Called when a user sends a message starting with the prefix followed by `config.name` (or one of its `aliases`).
+
+```ts
+export const onCommand = async ({ chat, args, event, native }: AppCtx): Promise<void> => {
+  // args[0] is the first token after the command name
+  // event['senderID'] is the platform user ID of the invoker
+  // native.platform is 'discord' | 'telegram' | 'facebook-messenger' | 'facebook-page'
+}
+```
+
+### onChat
+
+Called for **every incoming message** before prefix parsing and command dispatch. Use for passive cross-cutting features: XP trackers, word filters, auto-responders.
+
+```ts
+export const onChat = async ({ event, chat }: AppCtx): Promise<void> => {
+  const message = event['message'] as string
+  if (!message) return
+  if (message.toLowerCase().includes('hello')) {
+    await chat.reactMessage('👋')
+  }
+}
+```
+
+> Note: `onChat` runs even when the message is a command invocation — it fires before the prefix is checked.
+
+### onReply
+
+A map of state-label → handler function. The engine dispatches to the correct entry when a user quotes (replies to) the bot's registered message.
+
+```ts
+export const onReply = {
+  [STATE.awaiting_name]: async ({ chat, session, event, state }: AppCtx) => {
+    session.context.name = event['message']
+
+    const messageID = await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
+      message: '**How old are you?**',
+    })
+
+    state.delete(session.id)          // remove old state BEFORE creating next
+
+    if (messageID) {
+      state.create({
+        id: state.generateID({ id: String(messageID) }),
+        state: STATE.awaiting_age,
+        context: session.context,     // carry data forward
+      })
+    }
+  },
+
+  [STATE.awaiting_age]: async ({ chat, session, event, state }: AppCtx) => {
+    state.delete(session.id)
+    await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
+      message: `Done! **${session.context.name}**, age: ${event['message'] as string}`,
+    })
+  },
+}
+```
+
+### onReact
+
+A map of **emoji string** → handler function. The engine dispatches when a user reacts with a matching emoji to the bot's registered message.
+
+```ts
+const STATE = {
+  heart: '❤️',
+  laugh: '😂',
+}
+
+export const onReact = {
+  [STATE.heart]: async ({ chat, session, state }: AppCtx) => {
+    state.delete(session.id)
+    await chat.reply({
+      style: MessageStyle.MARKDOWN,
+      message: 'You chose: **love ❤️**',
+    })
+  },
+  [STATE.laugh]: async ({ chat, session, state }: AppCtx) => {
+    state.delete(session.id)
+    await chat.reply({
+      style: MessageStyle.MARKDOWN,
+      message: 'You chose: **funny 😂**',
+    })
+  },
+}
+```
+
+### onEvent
+
+Handles platform-level events (member join/leave, thread rename, etc.). The event type is matched to a handler by the `eventType` array in `config`.
+
+```ts
+export const onEvent = async ({ event, chat }: AppCtx): Promise<void> => {
+  const logMessageData = event['logMessageData'] as Record<string, unknown> | undefined
+  // Use logMessageData fields specific to the eventType you subscribed to
+}
+```
+
+### button.onClick
+
+Defined as methods inside `export const button`. Called when a user clicks (or text-selects on Messenger) the corresponding button.
+
+```ts
+export const button = {
+  refresh: {
+    label: '🔄 Refresh',
+    style: ButtonStyle.SECONDARY,
+    onClick: async ({ chat, event, button: btn, session }: AppCtx) => {
+      // session.context = what you passed to button.createContext()
+      await chat.editMessage({
+        message_id_to_edit: event['messageID'] as string,
+        style: MessageStyle.MARKDOWN,
+        message: `Updated content`,
+      })
+    },
+  },
+}
+```
+
+---
+
+## args and options
+
+### args
+
+Plain token array from the raw message body, after the command name is stripped:
+
+```
+User sends: !weather New York City
+args = ['New', 'York', 'City']
+args.join(' ') = 'New York City'
+```
+
+### options
+
+`config.options` defines **named** arguments. These work two ways:
+
+1. **Discord slash commands (`/` prefix):** The user fills in fields in Discord's native slash menu. Values are pre-resolved with type coercion.
+2. **All other platforms / prefix commands:** The engine scans the message body for `key:value` or `key: value` patterns.
+
+```ts
+options: [
+  { type: OptionType.string, name: 'action', description: 'add | list | remove', required: true },
+  { type: OptionType.string, name: 'uid', description: 'User ID', required: false },
+]
+```
+
+Reading options inside `onCommand`:
+
+```ts
+export const onCommand = async ({ options, args, usage }: AppCtx) => {
+  const action = options.get('action') ?? args[0]
+  const uid = options.get('uid') ?? args[1]
+  if (!action) return usage()
+}
+```
+
+`options.get(name)` returns `string | undefined`. For commands where Discord slash is not the primary use case, you can rely on `args` exclusively and omit `options`.
+
+---
+
+## MessageStyle
+
+Controls how message text is rendered on each platform:
+
+| Value | Discord | Telegram | Facebook Messenger / Page |
+|---|---|---|---|
+| `MessageStyle.MARKDOWN` | Renders natively | `MarkdownV2` parse mode | Converts `**bold**`, `_italic_`, `` `code` `` → Unicode styled text |
+| `MessageStyle.TEXT` | Markdown syntax is escaped — displays literally | No parse mode | Raw text sent as-is |
+
+```ts
+import { MessageStyle } from '@/engine/constants/message-style.constants.js'
+
+await chat.replyMessage({
+  style: MessageStyle.MARKDOWN,
+  message: '**Bold**, _italic_, `code`',
+})
+```
+
+When `style` is omitted, the historic platform default is preserved (backward compatible).
+
+---
+
+## Role
+
+Declared in `config.role`. Enforced before `onCommand` runs — no boilerplate needed inside the handler.
+
+| Constant | Value | Who can invoke |
+|---|---|---|
+| `Role.ANYONE` | `0` | All users (default) |
+| `Role.THREAD_ADMIN` | `1` | Thread/group admins only |
+| `Role.BOT_ADMIN` | `2` | Bot admins added via `/admin add` |
+| `Role.PREMIUM` | `3` | Premium users; inherits ANYONE + THREAD_ADMIN |
+| `Role.SYSTEM_ADMIN` | `4` | System-level admins; global authority |
+
+> **System Admin Setup:** System admin IDs are registered in the web dashboard at
+> `/admin/dashboard/settings`. Only users who are already system admins can grant or
+> revoke the role. System admins bypass every role gate — they can invoke any command
+> regardless of its declared `role` level, and this short-circuit fires before
+> `Role.THREAD_ADMIN`, `Role.BOT_ADMIN`, and `Role.PREMIUM` checks run.
+
+```ts
+import { Role } from '@/engine/constants/role.constants.js'
+
+export const config = {
+  // ...
+  role: Role.BOT_ADMIN,
+}
+```
+
+Higher roles automatically inherit access to commands requiring lower roles (e.g. a bot admin can always run thread-admin commands).
+
+---
+
+## ButtonStyle
+
+Visual hint for button appearance. Only meaningful on Discord; Telegram and Facebook Page use the label exclusively.
+
+| Constant | Discord color |
+|---|---|
+| `ButtonStyle.PRIMARY` | Blue |
+| `ButtonStyle.SECONDARY` | Grey (default) |
+| `ButtonStyle.SUCCESS` | Green |
+| `ButtonStyle.DANGER` | Red |
+
+```ts
+import { ButtonStyle } from '@/engine/constants/button-style.constants.js'
+
+export const button = {
+  confirm: {
+    label: '✅ Confirm',
+    style: ButtonStyle.SUCCESS,
+    onClick: async (ctx: AppCtx) => { /* ... */ },
+  },
+}
+```
+
+---
+
+## Platform Filtering
+
+Restrict a command or event to specific platforms using `config.platform`:
+
+```ts
+import { Platforms } from '@/engine/modules/platform/platform.constants.js'
+
+export const config = {
+  // ...
+  platform: [Platforms.Discord, Platforms.Telegram],
+}
+```
+
+**Platform identifiers:**
+
+| Constant | Value | Notes |
+|---|---|---|
+| `Platforms.Discord` | `'discord'` | |
+| `Platforms.Telegram` | `'telegram'` | |
+| `Platforms.FacebookMessenger` | `'facebook-messenger'` | fca-unofficial MQTT |
+| `Platforms.FacebookPage` | `'facebook-page'` | Webhook — no native buttons, no PSID |
+
+When `platform` is absent or an empty array, the command runs on all platforms.
+
+Checking the current platform at runtime:
+
+```ts
+export const onCommand = async ({ native, chat }: AppCtx) => {
+  if (native.platform === Platforms.FacebookPage) {
+    await chat.replyMessage({ message: 'This feature is not available on Facebook Page.' })
+    return
+  }
+  // platform-specific code
+}
+```
+
+For checking whether a platform supports native button components:
+
+```ts
+import { hasNativeButtons } from '@/engine/utils/ui-capabilities.util.js'
+
+await chat.replyMessage({
+  style: MessageStyle.MARKDOWN,
+  message: `🏓 Pong!`,
+  ...(hasNativeButtons(native.platform) ? { button: [refreshId] } : {}),
+})
+```
+
+---
+
+## Database Collections
+
+`db.users.collection(userId)` and `db.threads.collection(threadId)` give you a scoped JSON store per user or thread. Use them for per-user cooldowns, XP, preferences, and per-thread settings.
+
+> **Multi-instance Safety:** `db` is pre-scoped to the running bot's
+> `(sessionOwnerUserId, platform, sessionId)` triplet before it reaches your command
+> handler. Every read and write targets only records that belong to this exact session —
+> multiple bot instances sharing the same database (SQLite, MongoDB, NeonDB) never
+> collide or overwrite each other's data, even when executing the same command
+> simultaneously for different users on different sessions.
+
+```ts
+export const onCommand = async ({ db, event }: AppCtx) => {
+  const senderID = event['senderID'] as string
+  const userColl = db.users.collection(senderID)
+
+  // Create the 'xp' collection the first time
+  if (!(await userColl.isCollectionExist('xp'))) {
+    await userColl.createCollection('xp')
+  }
+
+  const xp = await userColl.getCollection('xp')
+
+  const current = (await xp.get('total')) as number ?? 0
+  await xp.set('total', current + 10)
+  await xp.set('lastSeen', Date.now())
+
+  await chat.replyMessage({
+    message: `Your XP: ${current + 10}`,
+  })
+}
+```
+
+**CollectionHandle methods** (all async, all operate on dot-path keys):
+
+| Method | Description |
+|---|---|
+| `get(path?)` | Read value at dot-path; no path = entire collection |
+| `set(path, value)` | Write value |
+| `update(path, value)` | Shallow-merge objects; overwrite primitives |
+| `delete(path?)` | Delete at path; no path = clear entire collection |
+| `increment(path, amount?)` | Numeric add (default +1) |
+| `decrement(path, amount?)` | Numeric subtract (default -1) |
+| `push(path, value)` | Append to array |
+| `pull(path, value)` | Remove matching element from array |
+| `exists(path)` | Returns `boolean` |
+| `keys(path?)` | Returns `string[]` of object keys |
+| `length(path)` | Array or object key count |
+| `clear(path?)` | Empty array or object at path |
+| `upsert(path, value)` | Unconditional set (alias for set, clearer intent) |
+| `merge(path, value)` | Always shallow-merge into object at path |
+| `find(path, predicate)` | Filter array elements |
+| `findOne(path, predicate)` | First matching element |
+
+**Per-thread collections** follow the same API via `db.threads.collection(threadId)`:
+
+```ts
+const threadID = event['threadID'] as string
+const threadColl = db.threads.collection(threadID)
+if (!(await threadColl.isCollectionExist('settings'))) {
+  await threadColl.createCollection('settings')
+}
+const settings = await threadColl.getCollection('settings')
+await settings.set('welcomeEnabled', true)
+```
+
+**Economy shortcut — `ctx.currencies`:**
+
+```ts
+await currencies.increaseMoney({ user_id: senderID, money: 100 })
+const balance = await currencies.getMoney(senderID)
+await settings.set('welcomeEnabled', true)
+```
+
+---
+
+## Native Platform Access
+
+Every handler receives a `native` object alongside the unified `ctx`. While the unified API (`ctx.chat`, `ctx.thread`, etc.) covers the vast majority of use cases, `native` gives you direct access to the underlying platform SDK objects when you need capabilities the unified API does not expose.
+
+> ⚠️ **Use sparingly.** Native access creates a hard dependency on a specific transport. Always guard with a platform check and wrap calls in `try/catch` — native errors are not absorbed by the engine's error pipeline.
+
+```ts
+import { Platforms } from '@/engine/modules/platform/platform.constants.js'
+
+export const onCommand = async ({ native, chat }: AppCtx) => {
+  if (native.platform === Platforms.Telegram) {
+    const { ctx } = native as { ctx: import('telegraf').Context }
+    // Full Telegraf Context is now available
+    const me = await ctx.telegram.getMe()
+    await chat.replyMessage({ message: `Bot username: @${me.username}` })
+  }
+}
+```
+
+---
+
+### Telegram
+
+The Telegram adapter uses **Telegraf v4**. Every event type delivers the same `ctx` — a full [`Context`](https://telegraf.js.org/) object bound to the current update.
+
+| Event | Native fields |
+|---|---|
+| `message`, `message_reply` | `ctx: Context` |
+| `event` (join / leave) | `ctx: Context` |
+| `message_reaction` | `ctx: Context` |
+| `button_action` (callback query) | `ctx: Context`, `ack(text?, showAlert?)` |
+
+**`ctx`** — The Telegraf `Context` for this update. Exposes `ctx.telegram` (every raw Bot API method), `ctx.chat`, `ctx.from`, `ctx.message`, and all Telegraf shortcut methods.
+
+```ts
+import { Platforms } from '@/engine/modules/platform/platform.constants.js'
+import type { Context } from 'telegraf'
+
+export const onCommand = async ({ native }: AppCtx) => {
+  if (native.platform === Platforms.Telegram) {
+    const { ctx } = native as { ctx: Context }
+
+    // Fetch member count directly from the Bot API
+    const count = await ctx.telegram.getChatMembersCount(ctx.chat!.id)
+
+    // Pin a message by its ID
+    await ctx.telegram.pinChatMessage(ctx.chat!.id, Number(someMessageId))
+
+    // Create a one-time invite link
+    const link = await ctx.telegram.createChatInviteLink(ctx.chat!.id, {
+      member_limit: 1,
+    })
+  }
+}
+```
+
+**`ack(text?, showAlert?)`** — Only present on `button_action` events. Calling it answers the Telegram `callback_query` (dismisses the loading spinner). `button.dispatcher` calls this automatically for normal button flows; only reach for it directly if you bypass the standard button pipeline.
+
+```ts
+export const onCommand = async ({ native }: AppCtx) => {
+  if (native.platform === Platforms.Telegram) {
+    const { ack } = native as { ack?: (text?: string, showAlert?: boolean) => Promise<void> }
+    // Show a popup modal visible only to the button clicker
+    await ack?.('You are not authorised to use this button.', true)
+  }
+}
+```
+
+---
+
+### Discord
+
+The Discord adapter uses **discord.js v14**. The `native` shape differs by event type because discord.js exposes different objects depending on the update (message vs. interaction vs. guild member event).
+
+#### Text-prefix message events (`message`, `message_reply`)
+
+| Field | Type |
+|---|---|
+| `message` | `discord.js Message` |
+| `userId` | `string` (bot owner's better-auth user ID) |
+| `sessionId` | `string` |
+
+```ts
+import { Platforms } from '@/engine/modules/platform/platform.constants.js'
+import type { Message } from 'discord.js'
+
+export const onCommand = async ({ native }: AppCtx) => {
+  if (native.platform === Platforms.Discord) {
+    const { message } = native as { message?: Message }
+    if (!message) return // slash command path has no message object
+
+    const guild = message.guild
+    if (guild) {
+      // Read guild-level data not exposed by ctx.thread
+      const boostTier = guild.premiumTier          // 0 | 1 | 2 | 3
+      const emojiCount = guild.emojis.cache.size
+      const memberCount = guild.memberCount
+    }
+
+    // Access the raw author object
+    const authorTag = `${message.author.username}#${message.author.discriminator}`
+  }
+}
+```
+
+#### Slash command interactions (`message` via `/` prefix)
+
+Slash commands are dispatched internally as `message` events. The `interaction` field replaces `message`.
+
+| Field | Type |
+|---|---|
+| `interaction` | `discord.js ChatInputCommandInteraction` |
+
+```ts
+import { Platforms } from '@/engine/modules/platform/platform.constants.js'
+import type { ChatInputCommandInteraction } from 'discord.js'
+
+export const onCommand = async ({ native }: AppCtx) => {
+  if (native.platform === Platforms.Discord) {
+    const { interaction } = native as { interaction?: ChatInputCommandInteraction }
+    if (!interaction) return // text-prefix path has no interaction object
+
+    // Access the guild where the command was invoked
+    const guildId = interaction.guildId
+
+    // Fetch the resolved User object from a user-type slash option
+    const targetUser = interaction.options.getUser('target')
+  }
+}
+```
+
+#### Button interactions (`button_action`)
+
+| Field | Type |
+|---|---|
+| `interaction` | `discord.js ButtonInteraction` (via `RepliableInteraction`) |
+| `ack(text?)` | Sends an ephemeral follow-up if `text` is provided |
+
+```ts
+import { Platforms } from '@/engine/modules/platform/platform.constants.js'
+import type { ButtonInteraction, MessageFlags } from 'discord.js'
+
+export const button = {
+  myButton: {
+    label: 'Click me',
+    onClick: async ({ native }: AppCtx) => {
+      if (native.platform === Platforms.Discord) {
+        const { interaction } = native as { interaction?: ButtonInteraction }
+        if (interaction) {
+          // Access the original message the button is attached to
+          const originalMsgId = interaction.message.id
+        }
+        // Send a private (ephemeral) message only the clicker sees
+        const { ack } = native as { ack?: (text?: string) => Promise<void> }
+        await ack?.('Only you can see this.')
+      }
+    },
+  },
+}
+```
+
+#### Guild member events (`event`)
+
+| Field | Type |
+|---|---|
+| `member` | `discord.js GuildMember \| PartialGuildMember` |
+
+```ts
+import { Platforms } from '@/engine/modules/platform/platform.constants.js'
+import type { GuildMember } from 'discord.js'
+
+export const onEvent = async ({ native }: AppCtx) => {
+  if (native.platform === Platforms.Discord) {
+    const { member } = native as { member?: GuildMember }
+    if (member) {
+      const joinedAt = member.joinedAt       // Date | null
+      const roles = [...member.roles.cache.values()].map(r => r.name)
+      const isAdmin = member.permissions.has('Administrator')
+    }
+  }
+}
+```
+
+#### Reaction events (`message_reaction`)
+
+| Field | Type |
+|---|---|
+| `reaction` | `discord.js MessageReaction` (fully fetched, not partial) |
+| `user` | `discord.js User` |
+
+```ts
+import { Platforms } from '@/engine/modules/platform/platform.constants.js'
+import type { MessageReaction, User } from 'discord.js'
+
+export const onEvent = async ({ native }: AppCtx) => {
+  if (native.platform === Platforms.Discord) {
+    const { reaction, user } = native as { reaction?: MessageReaction; user?: User }
+    if (reaction && user) {
+      const emoji = reaction.emoji.name      // Standard emoji or custom emoji name
+      const count = reaction.count           // Total reaction count on this message
+    }
+  }
+}
+```
+
+---
+
+### Facebook Messenger
+
+The Facebook Messenger adapter uses **fca-unofficial** over a persistent MQTT connection. Every event delivers the same two fields.
+
+| Event | Native fields |
+|---|---|
+| All event types | `api` (raw fca-unofficial api handle), `event` (raw MQTT event object) |
+
+**`api`** — The raw `fca-unofficial` api object. Exposes every fca method including ones not surfaced by Cat-Bot's `UnifiedApi`, such as `muteThread`, `changeBlockedStatus`, `createPoll`, etc.
+
+**`event`** — The raw MQTT event payload before normalisation. Contains every field fca-unofficial delivers, including fields the normaliser strips.
+
+```ts
+import { Platforms } from '@/engine/modules/platform/platform.constants.js'
+
+export const onCommand = async ({ event, native }: AppCtx) => {
+  if (native.platform === Platforms.FacebookMessenger) {
+    // fca-unofficial has no published TypeScript types — use Record<string, unknown>
+    const { api } = native as { api: Record<string, unknown> & {
+      muteThread: (threadID: string, muteSeconds: number, cb: (err: unknown) => void) => void
+    }}
+
+    const threadID = event['threadID'] as string
+
+    // Mute this thread for 1 hour (not available via UnifiedApi)
+    api.muteThread(threadID, 3600, (err) => {
+      if (err) console.error('muteThread failed', err)
+    })
+
+    // Inspect raw event fields stripped by the normaliser
+    const { event: rawEvent } = native as { event: Record<string, unknown> }
+    const rawTimestamp = rawEvent['timestamp']
+    const isUnread = rawEvent['isUnread']
+  }
+}
+```
+
+> ⚠️ **fca-unofficial is an unofficial library** — its API surface changes without notice and carries no TypeScript types. Always wrap native calls in `try/catch` and test after upgrading the `@johnlester-0369/fca-unofficial` package.
+
+---
+
+### Facebook Page
+
+The Facebook Page adapter is stateless and webhook-driven. Every event delivers the raw `messaging` entry exactly as received from the Meta Graph API.
+
+| Event | Native fields |
+|---|---|
+| All event types | `messaging` (raw Graph API `messaging[]` entry) |
+
+**`messaging`** — The unmodified webhook payload entry. Useful for accessing fields the normaliser does not map, such as NLP data, referral information, or opt-in payloads.
+
+```ts
+import { Platforms } from '@/engine/modules/platform/platform.constants.js'
+
+export const onCommand = async ({ native }: AppCtx) => {
+  if (native.platform === Platforms.FacebookPage) {
+    const { messaging } = native as { messaging: Record<string, unknown> }
+
+    // Raw sender PSID (same as event.senderID but from the webhook directly)
+    const sender = messaging['sender'] as { id: string } | undefined
+
+    // Access NLP entities if you have Wit.ai NLP enabled on your app
+    const message = messaging['message'] as Record<string, unknown> | undefined
+    const nlp = message?.['nlp'] as Record<string, unknown> | undefined
+    const intents = nlp?.['intents'] as Array<{ name: string; confidence: number }> | undefined
+
+    // Referral data — set when a user clicks a Messenger link with a ref parameter
+    const referral = messaging['referral'] as { ref?: string; source?: string } | undefined
+    if (referral?.ref) {
+      // User came from a specific referral link
+    }
+  }
+}
+```
+
+---
+
+### Safe-Narrowing Pattern
+
+Because `NativeContext` is a union of all platform shapes, using a `switch` statement gives TypeScript the best opportunity to narrow the type and catches unhandled platforms at compile time when `noImplicitReturns` is active.
+
+```ts
+import { Platforms } from '@/engine/modules/platform/platform.constants.js'
+import type { Context } from 'telegraf'
+import type { Message } from 'discord.js'
+
+export const onCommand = async ({ native, chat }: AppCtx) => {
+  switch (native.platform) {
+    case Platforms.Telegram: {
+      const { ctx } = native as { ctx: Context }
+      // Telegram-specific code here
+      break
+    }
+    case Platforms.Discord: {
+      const { message } = native as { message?: Message }
+      if (message?.guild) {
+        // Discord guild-specific code here
+      }
+      break
+    }
+    case Platforms.FacebookMessenger: {
+      const { api } = native as { api: Record<string, unknown> }
+      // fca-specific code here
+      break
+    }
+    case Platforms.FacebookPage: {
+      const { messaging } = native as { messaging: Record<string, unknown> }
+      // Graph API webhook data here
+      break
+    }
+  }
+}
+```
+
+---
+
+## Remaining Context Fields
+
+### thread
+
+Group/channel operations:
+
+```ts
+await thread.setName('New group name')
+await thread.setImage('https://example.com/image.jpg')
+await thread.removeImage()
+await thread.addUser(userId)
+await thread.removeUser(userId)
+await thread.setReaction('🔥')               // set the group's default reaction emoji
+await thread.setNickname({ user_id: userId, nickname: 'Cool Name' })
+const info = await thread.getInfo()          // returns UnifiedThreadInfo
+const name = await thread.getName()          // cache-first display name
+```
+
+### user
+
+User information queries:
+
+```ts
+const info = await user.getInfo(userId)      // returns UnifiedUserInfo
+const name = await user.getName(userId)      // display name (cache-first)
+const avatar = await user.getAvatarUrl(userId) // URL or null
+```
+
+### bot
+
+```ts
+const botId = await bot.getID()
+```
+
+### usage
+
+Sends a formatted usage guide derived from `config.guide` (or falls back to `config.usage` + `config.description`). Call it when an argument is missing or invalid:
+
+```ts
+export const onCommand = async ({ chat, args, usage }: AppCtx) => {
+  const action = args[0]
+  if (!action) return usage()   // replies with the usage guide and returns
+}
+```
+
+### logger
+
+Structured logger scoped to the current session:
+
+```ts
+logger.info('Processing request', { userId: senderID })
+logger.warn('Unexpected value', { value: someVar })
+logger.error('Operation failed', { error: err })
+```
+
+### db.users.getAll / db.threads.getGroupIds
+
+```ts
+// All user session rows for this bot session (useful for /top commands)
+const allUsers = await db.users.getAll()
+// [{ botUserId: '123', data: { xp: { total: 250 } } }, ...]
+
+// All group thread IDs (used for broadcasts)
+const groupIds = await db.threads.getGroupIds()
+```
+
+---
+
+## Full Examples
+
+### Example 1 — Two-Step Conversation (onReply)
+
+```ts
+import type { AppCtx } from '@/engine/types/controller.types.js'
+import { Role } from '@/engine/constants/role.constants.js'
+import { MessageStyle } from '@/engine/constants/message-style.constants.js'
+import type { CommandConfig } from '@/engine/types/module-config.types.js'
+
+export const config: CommandConfig = {
+  name: 'register',
+  version: '1.0.0',
+  role: Role.ANYONE,
+  author: 'you',
+  description: 'Registers your name and age',
+  usage: '',
+  cooldown: 5,
+  hasPrefix: true,
+}
+
+const STATE = {
+  awaiting_name: 'awaiting_name',
+  awaiting_age: 'awaiting_age',
+}
+
+export const onCommand = async ({ chat, state }: AppCtx) => {
+  const msgId = await chat.replyMessage({
+    style: MessageStyle.MARKDOWN,
+    message: '**Step 1/2:** What is your name?',
+  })
+  if (!msgId) return   // platform did not return a message ID
+
+  state.create({
+    id: state.generateID({ id: String(msgId) }),
+    state: STATE.awaiting_name,
+    context: {},
+  })
+}
+
+export const onReply = {
+  [STATE.awaiting_name]: async ({ chat, session, event, state }: AppCtx) => {
+    const name = event['message'] as string
+    const msgId = await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
+      message: '**Step 2/2:** How old are you?',
+    })
+    state.delete(session.id)
+    if (msgId) {
+      state.create({
+        id: state.generateID({ id: String(msgId) }),
+        state: STATE.awaiting_age,
+        context: { name },   // carry name into next step
+      })
+    }
+  },
+
+  [STATE.awaiting_age]: async ({ chat, session, event, state }: AppCtx) => {
+    const { name } = session.context as { name: string }
+    state.delete(session.id)
+    await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
+      message: `✅ Registered: **${name}**, age **${event['message'] as string}**`,
+    })
+  },
+}
+```
+
+### Example 2 — Emoji Reaction Flow (onReact)
+
+```ts
+export const onCommand = async ({ chat, state }: AppCtx) => {
+  const msgId = await chat.replyMessage({
+    style: MessageStyle.MARKDOWN,
+    message: '❤️ = Yes    😢 = No\n\nDo you like cats?',
+  })
+  if (!msgId) return
+
+  state.create({
+    id: state.generateID({ id: String(msgId) }),
+    state: ['❤️', '😢'],   // emoji allowlist — only these advance the flow
+    context: {},
+  })
+}
+
+export const onReact = {
+  ['❤️']: async ({ chat, session, state }: AppCtx) => {
+    state.delete(session.id)
+    await chat.reply({ style: MessageStyle.MARKDOWN, message: '🐱 Great taste!' })
+  },
+  ['😢']: async ({ chat, session, state }: AppCtx) => {
+    state.delete(session.id)
+    await chat.reply({ style: MessageStyle.MARKDOWN, message: '😢 Fair enough.' })
+  },
+}
+```
+
+### Example 3 — Interactive Buttons
+
+```ts
+import { ButtonStyle } from '@/engine/constants/button-style.constants.js'
+import { hasNativeButtons } from '@/engine/utils/ui-capabilities.util.js'
+
+const BUTTON_ID = { yes: 'yes', no: 'no' }
+
+export const button = {
+  [BUTTON_ID.yes]: {
+    label: '✅ Yes',
+    style: ButtonStyle.SUCCESS,
+    onClick: async ({ chat, session, state: _s }: AppCtx) => {
+      const { question } = session.context as { question: string }
+      await chat.editMessage({
+        message_id_to_edit: session.context['messageID'] as string,
+        style: MessageStyle.MARKDOWN,
+        message: `You said **Yes** to: _${question}_`,
+        button: [],   // remove buttons after answer
+      })
+    },
+  },
+  [BUTTON_ID.no]: {
+    label: '❌ No',
+    style: ButtonStyle.DANGER,
+    onClick: async ({ chat, session }: AppCtx) => {
+      await chat.editMessage({
+        message_id_to_edit: session.context['messageID'] as string,
+        style: MessageStyle.MARKDOWN,
+        message: `You said **No** to: _${session.context['question'] as string}_`,
+        button: [],
+      })
+    },
+  },
+}
+
+export const onCommand = async ({ chat, button: btn, native }: AppCtx) => {
+  const question = 'Do you want to continue?'
+  const yesId = btn.generateID({ id: BUTTON_ID.yes })
+  const noId = btn.generateID({ id: BUTTON_ID.no })
+
+  const msgId = await chat.replyMessage({
+    style: MessageStyle.MARKDOWN,
+    message: `**${question}**`,
+    ...(hasNativeButtons(native.platform) ? { button: [yesId, noId] } : {}),
+  })
+
+  if (msgId) {
+    const ctx = { question, messageID: String(msgId) }
+    btn.createContext({ id: yesId, context: ctx })
+    btn.createContext({ id: noId, context: ctx })
+  }
+}
+```
+
+### Example 4 — Per-User Data Store
+
+```ts
+export const onCommand = async ({ chat, db, event }: AppCtx) => {
+  const senderID = event['senderID'] as string
+  const userColl = db.users.collection(senderID)
+
+  if (!(await userColl.isCollectionExist('profile'))) {
+    await userColl.createCollection('profile')
+  }
+  const profile = await userColl.getCollection('profile')
+
+  const visits = ((await profile.get('visits')) as number) ?? 0
+  await profile.set('visits', visits + 1)
+  await profile.set('lastSeen', new Date().toISOString())
+
+  await chat.replyMessage({
+    style: MessageStyle.MARKDOWN,
+    message: `👤 You have used this bot **${visits + 1}** time(s).`,
+  })
+}
+```
+
+---
+
+## Event Pipeline — Under the Hood
+
+When a user sends a message or triggers an event, it travels through this fixed pipeline:
+
+```
+[User Event] → [Platform Transport] → [Middleware Chain] → [Controller Dispatch]
+```
+
+### Stage 1 — Platform Transport
+
+Platform adapters (Discord, Telegram, Facebook Messenger, Facebook Page) receive native
+SDK events and normalise them into the unified `UnifiedEvent` contract before emitting on
+the shared `EventEmitter`. Your command and event modules never import `discord.js`,
+`telegraf`, or `fca-unofficial` — the adapter layer absorbs every platform difference.
+
+The payload emitted to `app.ts` always has three fields:
+
+```
+{ api: UnifiedApi, event: Record<string, unknown>, native: NativeContext }
+```
+
+`api` is the platform write surface (`chat.replyMessage` etc.), `event` is the normalised
+event object, and `native` carries platform identity (`platform`, `userId`, `sessionId`)
+plus the raw platform object for consumers that need it directly.
+
+### Stage 2 — Middleware Chain
+
+Every `message` event passes through the `onChat` chain first, regardless of whether it
+triggers a command. If the message matches a command (prefixed or `hasPrefix: false`), the
+`onCommand` chain runs next. Each guard calls `next()` to continue or returns without
+calling it to halt:
+
+```
+onCommand: enforceNotBanned → enforcePermission → enforceCooldown → validateCommandOptions
+onChat:    chatPassthrough (thread/user DB sync) → chatLogThread
+onReply:   replyStateValidation
+onReact:   reactStateValidation
+onButtonClick: enforceButtonScope (tilde-scope ownership)
+```
+
+`chatPassthrough` is the middleware that keeps `db.users` and `db.threads` current — it
+upserts the thread and sender into the database on first encounter and re-syncs once per
+hour thereafter. This runs before any command handler, so `ctx.db` always reflects
+up-to-date records when your `onCommand` executes.
+
+### Stage 3 — Controller Dispatch
+
+After middleware, the controller layer routes to the correct handler based on event type:
+
+| Handler | Triggered by | What it does |
+|---|---|---|
+| `handleMessage` | `message`, `message_reply` | Runs `onChat` fan-out → checks `onReply` state → prefix-parses → dispatches `onCommand` |
+| `handleEvent` | `event`, `message_reaction`, `message_unsend` | Checks `onReact` state → routes by `logMessageType` to `onEvent` handlers |
+| `handleButtonAction` | `button_action` | Runs `onButtonClick` middleware → calls `button[id].onClick` |
+
+### Priority rules
+
+**`onReply` and `onReact` take precedence over new command dispatch.** When a user quotes
+a bot message that has a registered `state.create()` entry, the reply dispatcher intercepts
+it before prefix parsing — the user does not need to type a command prefix to continue a
+conversation flow. Similarly, a reaction on a pending bot message routes to `onReact`
+before any generic event handler sees it.
+
+**`onChat` always fires, even on command invocations.** If your module exports `onChat`, it
+receives every message in the thread regardless of prefix or command matching. Deduplicate
+by checking `event['message']` rather than relying on module-level call count — the engine
+skips duplicate calls for aliased modules automatically.
+
+---
+
+## Extending the Middleware Pipeline
+
+The middleware pipeline is the correct place for cross-cutting command-level concerns.
+Do not re-implement guards (auth checks, rate limiting, audit logging) inside individual
+command modules — add them once here and they apply to every command automatically.
+
+### Adding a custom guard
+
+```ts
+// src/engine/middleware/index.ts — append after the built-in registrations, or
+// call use.onCommand([...]) anywhere after the side-effect import in app.ts.
+
+import { use } from '@/engine/middleware/index.js'
+import type { MiddlewareFn, OnCommandCtx } from '@/engine/middleware/index.js'
+
+const myGuard: MiddlewareFn<OnCommandCtx> = async (ctx, next) => {
+  // ctx carries the full BaseCtx + parsed command info + current options
+  const senderID = ctx.event['senderID'] as string
+
+  if (/* your rejection condition */) {
+    await ctx.chat.replyMessage({ message: '🚫 Not allowed.' })
+    return   // ← omitting next() halts the chain; onCommand never executes
+  }
+
+  await next()  // ← passes control to the next middleware, then the final handler
+}
+
+use.onCommand([myGuard])
+```
+
+### Available registration hooks
+
+| Hook | Runs when | Common uses |
+|---|---|---|
+| `use.onCommand([...])` | After prefix match, before `onCommand` | Permission checks, rate limiting, feature flags |
+| `use.onChat([...])` | Every message before the `onChat` fan-out | Audit logging, spam detection, passive analytics |
+| `use.onReply([...])` | Reply flow matched, before the step handler | Conversation timeouts, input sanitisation |
+| `use.onReact([...])` | Reaction flow matched, before the emoji handler | Emoji allowlist enforcement, per-reaction cooldowns |
+| `use.onButtonClick([...])` | Button click matched, before `onClick` | Additional ownership or feature-flag checks |
+
+### Short-circuit contract
+
+A middleware that does **not** call `next()` halts the chain completely — no subsequent
+middleware and no final handler will execute. This is the standard pattern for guard
+clauses that need to reject a request and optionally send an error reply.
+
+`ctx.chat.replyMessage()` is available inside every middleware for sending user-facing
+rejection messages. For `onButtonClick`, `ctx.ack` (populated by `enforceButtonScope`)
+lets you send a private modal alert visible only to the button clicker on Telegram and
+Discord before halting:
+
+```ts
+const scopeGuard: MiddlewareFn<OnButtonClickCtx> = async (ctx, next) => {
+  // ctx.ack is the platform-native acknowledgement callback
+  if (/* not authorised */) {
+    await ctx.ack?.('🔒 You are not allowed to use this button.', true)
+    return
+  }
+  await next()
+}
+use.onButtonClick([scopeGuard])
+```
+
+### Execution order
+
+Middlewares execute in registration order within each hook. The engine's built-in chain
+runs first; your additions append to the end unless you edit `src/engine/middleware/index.ts`
+directly to insert at a specific position:
+
+```
+onCommand:    enforceNotBanned → enforcePermission → enforceCooldown
+              → validateCommandOptions → [your middlewares]
+onChat:       chatPassthrough → chatLogThread → [your middlewares]
+onReply:      replyStateValidation → [your middlewares]
+onReact:      reactStateValidation → [your middlewares]
+onButtonClick: enforceButtonScope → [your middlewares]
+```
+
+---
+
+## Migration Notes — From Global-Variable Bots
+
+If you are familiar with GoatBot, Mirai, or similar `global.client.handleReply` / `global.client.handleReaction` patterns, here is the direct mapping:
+
+| Old pattern | Cat-Bot equivalent |
+|---|---|
+| `global.client.handleReply.push({ name, messageID, author, ... })` | `state.create({ id: state.generateID({ id: messageID }), state: 'step_name', context: { ... } })` |
+| `global.client.handleReaction.push({ name, messageID, author, answer })` | `state.create({ id: state.generateID({ id: messageID }), state: [emoji1, emoji2], context: { answer } })` |
+| `module.exports.handleReply = async ({ handleReply }) => { switch (handleReply.type) }` | `export const onReply = { [STATE.step_name]: async ({ session }) => { ... } }` |
+| `module.exports.handleReaction = async ({ handleReaction }) => { if (event.reaction == '👍') }` | `export const onReact = { ['👍']: async ({ session }) => { ... } }` |
+| `api.sendMessage(body, threadID, callback)` | `await chat.replyMessage({ message: body })` |
+| `api.sendMessage(body, threadID, messageID)` | `await chat.reply({ message: body })` — thread-level, no quote-reply |
+| `api.sendMessage(body, adminUID)` | `await chat.reply({ message: body, thread_id: adminUID })` |
+| `const name = await usersData.getName(uid)` | `const name = await user.getName(uid)` |
+| `handleReply.author != event.senderID` | Not needed — `state.generateID({ public: false })` (default) scopes automatically |
+| `global.utils.randomString(10)` | `Math.random().toString(36).substring(2, 12)` |
+| `global.moduleData.shortcut = new Map()` | `db.threads.collection(threadID)` + collection API |
+
+**The single biggest difference:** Cat-Bot never puts state in `global`. Every pending state is scoped to a specific bot message ID and a specific user or thread. Two users running the same command at the same time get completely independent state entries with no interference.
