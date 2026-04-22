@@ -792,9 +792,136 @@ export const onEvent = async ({ chat, event }: AppCtx): Promise<void> => {
 
 ---
 
+## Constants & Type Safety
+
+Cat-Bot ships a set of **frozen const objects** that act as single sources of truth for every value the engine tests at runtime. Using these constants instead of raw string or numeric literals prevents silent failures — a typo like `'Discord'` instead of `'discord'` compiles cleanly but silently skips every platform check at runtime.
+
+### Why Constants Matter
+
+Every place the engine compares a value — role enforcement, platform filtering, event routing, message rendering — it tests against the exact values these constants define. A raw literal that differs by one character silently misses the comparison:
+
+```ts
+// ❌ Magic number — no autocomplete, no refactor safety, silently broken if Role values shift
+export const config = { role: 4 }
+
+// ✅ Single source of truth — TypeScript flags a stale value immediately if the constant changes
+export const config = { role: Role.SYSTEM_ADMIN }
+```
+
+### Role
+
+```ts
+import { Role } from '@/engine/constants/role.constants.js'
+```
+
+| Constant | Value | Who can invoke |
+|---|---|---|
+| `Role.ANYONE` | `0` | All users (default) |
+| `Role.THREAD_ADMIN` | `1` | Thread/group admins |
+| `Role.BOT_ADMIN` | `2` | Bot admins added via `/admin add` |
+| `Role.PREMIUM` | `3` | Premium users |
+| `Role.SYSTEM_ADMIN` | `4` | System-level admins; bypasses every role gate |
+
+Higher roles automatically inherit access to commands requiring lower roles.
+
+### MessageStyle
+
+```ts
+import { MessageStyle } from '@/engine/constants/message-style.constants.js'
+
+// ❌ Raw string — if the engine's value set changes, this silently stops rendering Markdown
+await chat.replyMessage({ style: 'markdown', message: '**Hello**' })
+
+// ✅ TypeScript flags any mismatch at compile time
+await chat.replyMessage({ style: MessageStyle.MARKDOWN, message: '**Hello**' })
+```
+
+| Constant | Behaviour |
+|---|---|
+| `MessageStyle.MARKDOWN` | Renders Markdown on Discord/Telegram; converts `**bold**` and `_italic_` to styled Unicode on Messenger/Page |
+| `MessageStyle.TEXT` | Escapes Markdown syntax — content displays literally |
+
+### ButtonStyle
+
+```ts
+import { ButtonStyle } from '@/engine/constants/button-style.constants.js'
+
+export const button = {
+  confirm: {
+    label: '✅ Confirm',
+    style: ButtonStyle.SUCCESS,   // not the raw string 'success'
+    onClick: async (ctx: AppCtx) => { /* ... */ },
+  },
+}
+```
+
+| Constant | Discord colour |
+|---|---|
+| `ButtonStyle.PRIMARY` | Blue |
+| `ButtonStyle.SECONDARY` | Grey (default when omitted) |
+| `ButtonStyle.SUCCESS` | Green |
+| `ButtonStyle.DANGER` | Red |
+
+Telegram and Facebook Page render the button label only — `style` has no visual effect on those platforms.
+
+### Platforms
+
+```ts
+import { Platforms } from '@/engine/modules/platform/platform.constants.js'
+
+// ❌ Subtle capitalisation difference — 'Facebook-Messenger' never matches 'facebook-messenger'
+export const config = { platform: ['Facebook-Messenger'] }
+
+// ✅ Autocompleted, typo-proof, refactor-safe
+export const config = { platform: [Platforms.FacebookMessenger] }
+```
+
+| Constant | Value |
+|---|---|
+| `Platforms.Discord` | `'discord'` |
+| `Platforms.Telegram` | `'telegram'` |
+| `Platforms.FacebookMessenger` | `'facebook-messenger'` |
+| `Platforms.FacebookPage` | `'facebook-page'` |
+
+The same constants are used for runtime narrowing inside handlers:
+
+```ts
+export const onCommand = async ({ native, chat }: AppCtx) => {
+  if (native.platform === Platforms.Telegram) {
+    // Telegram-only logic
+  }
+}
+```
+
+### EventType Strings
+
+The `eventType[]` array in `EventConfig` is matched against the engine's internal routing table. A single character off means the handler is registered but never called:
+
+```ts
+// ❌ 'log:subscibe' — one missing letter, handler silently receives zero events
+export const config: EventConfig = { eventType: ['log:subscibe'] }
+
+// ✅ Exact string matched against the LogMessageType registry
+export const config: EventConfig = { eventType: ['log:subscribe'] }
+```
+
+| String | Trigger |
+|---|---|
+| `'log:subscribe'` | Member(s) joined a group |
+| `'log:unsubscribe'` | Member left or was removed |
+| `'log:thread-name'` | Group name changed |
+| `'log:thread-image'` | Group photo changed |
+| `'log:thread-icon'` | Group emoji changed |
+| `'log:user-nickname'` | A nickname was changed |
+| `'change_thread_admins'` | Admin status changed |
+
+The full reference — including `OptionType` constants for slash command options — is in [DOCS.md](DOCS.md).
+
+---
+
 ## Developer Reference
 
-The complete API reference for command and event module authors — including every `AppCtx` field, the full Chat API, State API, Button API, conversation flow patterns, native platform access, database collections, middleware extension, and migration notes from GoatBot/Mirai — is in:
+The complete API reference for command and event module authors
 
 **[`DOCS.md`](DOCS.md)**
 
