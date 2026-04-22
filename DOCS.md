@@ -7,7 +7,6 @@
 
 ## Table of Contents
 
-1. [Philosophy](#philosophy)
 2. [Platform API Comparison: Native vs Unified](#platform-api-comparison-native-vs-unified)
 2. [Quick Start](#quick-start)
 3. [Module Structure](#module-structure)
@@ -48,48 +47,6 @@
    19. [Migration Notes — From Global-Variable Bots](#migration-notes--from-global-variable-bots)
    20. [Event Pipeline — Under the Hood](#event-pipeline--under-the-hood)
    21. [Extending the Middleware Pipeline](#extending-the-middleware-pipeline)
-
----
-
-## Philosophy
-
-Cat-Bot eliminates `global` variables for conversation state. The old pattern looked like this:
-
-```js
-// ❌ Old approach — fragile, shared mutable state, hard to debug
-global.client.handleReply.push({
-  name: 'quiz',
-  messageID: info.messageID,
-  author: event.senderID,
-  answer: 'True'
-})
-```
-
-Cat-Bot replaces this with scoped, typed, garbage-collected state:
-
-```ts
-// ✅ Cat-Bot approach — scoped to this message, auto-cleaned, type-safe
-state.create({
-  id: state.generateID({ id: String(messageID) }),
-  state: 'awaiting_answer',
-  context: { answer: 'True' },
-})
-```
-
-Every value you need in a follow-up handler arrives through the `session` object — no global lookup, no shared mutable arrays, no race conditions between concurrent conversations.
-
-The API is designed so that every parameter is **named** inside an object literal:
-
-```ts
-// ✅ Semantic — you know what each field does without reading docs
-await chat.replyMessage({
-  style: MessageStyle.MARKDOWN,
-  message: '**Hello!**',
-})
-
-// ❌ Positional — you have to count arguments and memorise order
-await message.reply(style, '**Hello!**', threadID)
-```
 
 ---
 
