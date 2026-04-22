@@ -39,14 +39,15 @@
 11. [MessageStyle](#messagestyle)
 12. [Role](#role)
 13. [ButtonStyle](#buttonstyle)
-   14. [Platform Filtering](#platform-filtering)
-   15. [Database Collections](#database-collections)
-   16. [Native Platform Access](#native-platform-access)
-   17. [Remaining Context Fields](#remaining-context-fields)
-   18. [Full Examples](#full-examples)
-   19. [Migration Notes — From Global-Variable Bots](#migration-notes--from-global-variable-bots)
-   20. [Event Pipeline — Under the Hood](#event-pipeline--under-the-hood)
-   21. [Extending the Middleware Pipeline](#extending-the-middleware-pipeline)
+14. [Platform Filtering](#platform-filtering)
+15. [Database Collections](#database-collections)
+16. [Native Platform Access](#native-platform-access)
+17. [Remaining Context Fields](#remaining-context-fields)
+18. [Full Examples](#full-examples)
+19. [Migration Notes — From Global-Variable Bots](#migration-notes--from-global-variable-bots)
+20. [Event Pipeline — Under the Hood](#event-pipeline--under-the-hood)
+21. [Extending the Middleware Pipeline](#extending-the-middleware-pipeline)
+22. [Adapters Models Reference — Event & Data Structures](#adapters-models-reference--event--data-structures)
 
 ---
 
@@ -2295,6 +2296,297 @@ onReply:      replyStateValidation → [your middlewares]
 onReact:      reactStateValidation → [your middlewares]
 onButtonClick: enforceButtonScope → [your middlewares]
 ```
+
+## Adapters Models Reference — Event & Data Structures
+
+The `packages/cat-bot/src/engine/adapters/models/` directory is the single source of truth for every data contract in the Cat-Bot engine. Platform adapters normalise their native events into these shapes before they reach your handler. This reference documents the shape of each event type, every attachment variant, and every interface so you can safely read raw `event[...]` fields without inspecting engine source code.
+
+---
+
+### EventType Enum
+
+`import { EventType } from '@/engine/adapters/models/enums/event-type.enum.js'`
+
+Discriminant values for the top-level `type` field on every event object.
+
+| Constant | Value | Description |
+|---|---|---|
+| `EventType.MESSAGE` | `'message'` | Standard chat message — text, attachments, or both |
+| `EventType.MESSAGE_REPLY` | `'message_reply'` | A reply to a specific earlier message in the thread |
+| `EventType.MESSAGE_REACTION` | `'message_reaction'` | Emoji reaction added to a message |
+| `EventType.MESSAGE_UNSEND` | `'message_unsend'` | A sent message was retracted by its sender |
+| `EventType.EVENT` | `'event'` | Thread-level administrative event; narrowed further by `logMessageType` |
+| `EventType.BUTTON_ACTION` | `'button_action'` | A user clicked an interactive button (Discord, Telegram, Facebook Page) |
+
+---
+
+### AttachmentType Enum
+
+`import { AttachmentType } from '@/engine/adapters/models/enums/attachment-type.enum.js'`
+
+Discriminant values for the `type` field on every attachment object inside `event['attachments']`.
+
+| Constant | Value | Description |
+|---|---|---|
+| `AttachmentType.PHOTO` | `'photo'` | Static image |
+| `AttachmentType.VIDEO` | `'video'` | Playable video file |
+| `AttachmentType.AUDIO` | `'audio'` | Playable audio file or voice message |
+| `AttachmentType.ANIMATED_IMAGE` | `'animated_image'` | Animated GIF or WebP image |
+
+---
+
+### LogMessageType Enum
+
+`import { LogMessageType } from '@/engine/adapters/models/enums/log-message-type.enum.js'`
+
+Discriminant values for the `logMessageType` field on `EventType.EVENT` objects. Use these strings as `eventType` values in your `EventConfig` to subscribe to specific thread administrative events.
+
+| Constant | Value | Description |
+|---|---|---|
+| `LogMessageType.SUBSCRIBE` | `'log:subscribe'` | One or more users were added to the group |
+| `LogMessageType.UNSUBSCRIBE` | `'log:unsubscribe'` | A user was removed or left the group |
+| `LogMessageType.THREAD_NAME` | `'log:thread-name'` | The conversation / group name was changed |
+| `LogMessageType.THREAD_COLOR` | `'log:thread-color'` | The group theme colour was changed |
+| `LogMessageType.THREAD_ICON` | `'log:thread-icon'` | The group emoji icon was changed |
+| `LogMessageType.THREAD_IMAGE` | `'log:thread-image'` | The group photo was changed or removed |
+| `LogMessageType.USER_NICKNAME` | `'log:user-nickname'` | A participant's nickname inside this thread was set or cleared |
+| `LogMessageType.CHANGE_THREAD_ADMINS` | `'change_thread_admins'` | A participant's admin status in the group was changed |
+
+---
+
+### UnifiedEvent — All Event Shapes
+
+Every event object your handler receives is one of the shapes below, discriminated on `event['type']`. `formatEvent()` in `event.model.ts` normalises all platform-native payloads into these contracts before they reach your code — you never receive a raw Discord `Message` or Telegraf `Context` through the `event` parameter.
+
+#### `message`
+
+Emitted for every standard chat message. Routed to `onChat` (all messages) and then to `onCommand` after prefix parsing.
+
+| Field | Type | Notes |
+|---|---|---|
+| `type` | `'message'` | Discriminant |
+| `senderID` | `string` | Platform user ID of the sender; use with `user.getInfo(senderID)` |
+| `message` | `string` | The message body text |
+| `threadID` | `string` | Platform thread/channel/chat ID; use with `db.threads.collection(threadID)` |
+| `messageID` | `string` | Platform-assigned message ID; use as the key for `state.create()` and `button.createContext()` |
+| `attachments` | `unknown[]` | Array of attachment objects — may be empty; narrow each item on `(att as {type:string}).type` (see [Attachment Data Shapes](#attachment-data-shapes)) |
+| `mentions` | `Record<string, string>` | Map of `userID → mentionedText` (e.g. `{ '12345': '@Alice' }`) |
+| `timestamp` | `string \| number \| null` | fca-unofficial sends a string ms timestamp; Discord/Telegram send a number; `null` when unavailable |
+| `isGroup` | `boolean` | `false` in 1:1 DMs; `true` in group chats, channels, and servers |
+
+---
+
+#### `message_reply`
+
+Emitted when a user sends a quote-reply to a specific earlier message. Checked against the `onReply` state store first; falls through to `onCommand` / `onChat` if no matching state is registered.
+
+| Field | Type | Notes |
+|---|---|---|
+| `type` | `'message_reply'` | Discriminant |
+| `threadID` | `string` | |
+| `messageID` | `string` | ID of the reply message itself (not the original) |
+| `senderID` | `string` | Who sent this reply |
+| `attachments` | `unknown[]` | Attachments on the reply |
+| `args` | `string[]` | Reply body split on whitespace — pre-tokenised |
+| `message` | `string` | The reply body text |
+| `isGroup` | `boolean` | |
+| `mentions` | `Record<string, string>` | |
+| `timestamp` | `number \| null` | |
+| `messageReply` | `object \| null` | The quoted/replied-to message (see nested shape below); `null` when the platform could not fetch it |
+
+**Nested `messageReply` object** (the original message being quoted):
+
+| Field | Type | Notes |
+|---|---|---|
+| `threadID` | `string` | Same as the outer `threadID` |
+| `messageID` | `string` | ID of the message being replied to — this is the key used in `state.create()` for `onReply` flows |
+| `senderID` | `string` | Who sent the original message |
+| `attachments` | `unknown[]` | Attachments on the original message |
+| `args` | `string[]` | Original message body split on whitespace |
+| `message` | `string` | Original message body text |
+| `isGroup` | `boolean` | |
+| `mentions` | `Record<string, string>` | |
+| `timestamp` | `number` | Number ms — fca-unofficial uses a number here, unlike the outer event which uses a string |
+
+---
+
+#### `message_reaction`
+
+Emitted when a user adds an emoji reaction to a message. Checked against the `onReact` state store; then falls through to generic event handling.
+
+| Field | Type | Notes |
+|---|---|---|
+| `type` | `'message_reaction'` | Discriminant |
+| `threadID` | `string` | Thread where the reaction occurred |
+| `messageID` | `string` | ID of the message that received the reaction |
+| `reaction` | `string` | The emoji string placed on the message, e.g. `'❤️'` |
+| `senderID` | `string` | Who placed the reaction |
+| `userID` | `string` | Whose message received the reaction (the original message author) |
+| `timestamp` | `number \| null` | Unix ms when the reaction was set; `null` when the platform does not surface it |
+
+---
+
+#### `message_unsend`
+
+Emitted when a sender retracts a previously sent message.
+
+| Field | Type | Notes |
+|---|---|---|
+| `type` | `'message_unsend'` | Discriminant |
+| `threadID` | `string` | |
+| `messageID` | `string` | ID of the retracted message |
+| `senderID` | `string` | Who retracted the message |
+| `deletionTimestamp` | `number` | Unix ms when the deletion occurred |
+| `timestamp` | `number \| undefined` | Original send timestamp — `undefined` (not `null`) intentionally preserves the fca-unofficial sentinel so consumers can distinguish "timestamp not present" from `timestamp === 0` |
+
+---
+
+#### `event` — Thread Administrative Events
+
+Emitted for group-level administrative actions. The top-level `type` is always `'event'`; the actual sub-type is in `logMessageType`. Register your `EventConfig.eventType` with one or more `LogMessageType` values to receive specific sub-events.
+
+| Field | Type | Notes |
+|---|---|---|
+| `type` | `'event'` | Discriminant |
+| `threadID` | `string` | |
+| `logMessageType` | `string` | One of the `LogMessageType` values — use this to distinguish sub-events |
+| `logMessageData` | `Record<string, unknown> \| null` | Payload shape varies by `logMessageType` (see table below) |
+| `logMessageBody` | `string` | Human-readable English description produced by the platform (e.g. `'Alice named the group …'`) |
+| `author` | `string` | userID of the actor who triggered this event |
+
+**`logMessageData` payload shape by `logMessageType`:**
+
+| `logMessageType` | `logMessageData` shape |
+|---|---|
+| `'log:subscribe'` | `{ addedParticipants: AddedParticipant[] }` |
+| `'log:unsubscribe'` | `{ leftParticipantFbId: string }` |
+| `'log:thread-name'` | `{ name: string }` |
+| `'log:thread-image'` | `{ image: { attachmentID: string \| null, width: number \| null, height: number \| null, url: string \| null } }` — `image` is `null` when a group photo is removed |
+| `'log:thread-color'` | Raw `untypedData` object (shape varies by Facebook API version) |
+| `'log:thread-icon'` | Raw `untypedData` object (shape varies by Facebook API version) |
+| `'log:user-nickname'` | `{ nickname: string, participant_id: string }` |
+| `'change_thread_admins'` | `{ TARGET_ID: string, ADMIN_TYPE: string }` |
+
+**`AddedParticipant` shape** (each item in `logMessageData['addedParticipants']` for `'log:subscribe'`):
+
+| Field | Type | Notes |
+|---|---|---|
+| `firstName` | `string` | |
+| `fullName` | `string` | Prefer over `firstName` — this is the display name shown in the UI |
+| `userFbId` | `string` | Platform user ID of the added member |
+
+**Reading `logMessageData` in `onEvent` handlers:**
+
+```ts
+export const onEvent = async ({ event }: AppCtx) => {
+  const type = event['logMessageType'] as string
+  const data = event['logMessageData'] as Record<string, unknown> | undefined
+
+  if (type === 'log:subscribe') {
+    const added = (data?.['addedParticipants'] as Record<string, unknown>[]) ?? []
+    for (const p of added) {
+      const name = String(p['fullName'] || p['firstName'] || `User ${p['userFbId']}`)
+    }
+  }
+  if (type === 'log:unsubscribe') {
+    const leftId = String(data?.['leftParticipantFbId'] ?? '')
+  }
+  if (type === 'log:thread-name') {
+    const newName = String(data?.['name'] ?? '')
+  }
+  if (type === 'log:thread-image') {
+    const img = data?.['image'] as { url: string | null } | undefined
+    const imageUrl = img?.url ?? null
+  }
+  if (type === 'log:user-nickname') {
+    const nickname = String(data?.['nickname'] ?? '')
+    const userId = String(data?.['participant_id'] ?? '')
+  }
+  if (type === 'change_thread_admins') {
+    const targetId = String(data?.['TARGET_ID'] ?? '')
+    const adminType = String(data?.['ADMIN_TYPE'] ?? '')
+  }
+}
+```
+
+---
+
+#### `button_action`
+
+Emitted when a user clicks an interactive button. Routed to `handleButtonAction` → `button[id].onClick`. In typical `onClick` handlers you read context via `session.context` rather than raw event fields.
+
+| Field | Type | Notes |
+|---|---|---|
+| `type` | `'button_action'` | Discriminant |
+| `platform` | `string` | Source platform identifier (e.g. `'discord'`, `'telegram'`) |
+| `threadID` | `string` | |
+| `senderID` | `string` | Who clicked the button |
+| `messageID` | `string` | ID of the message that contained the button |
+| `buttonId` | `string` | Fully-qualified ID in `"commandName:buttonId"` format; used by `handleButtonAction` for routing |
+| `timestamp` | `number \| null` | |
+
+---
+
+### Attachment Data Shapes
+
+Every item in `event['attachments']` carries a `type` field from `AttachmentType`. Always narrow on `type` before reading any other field to avoid accessing non-existent properties.
+
+```ts
+const attachments = event['attachments'] as Record<string, unknown>[]
+for (const att of attachments) {
+  switch (att['type'] as string) {
+    case 'photo': {
+      const url = att['url'] as string
+      break
+    }
+    case 'audio': {
+      const url = att['url'] as string
+      break
+    }
+    case 'video': {
+      const url = att['url'] as string
+      break
+    }
+    // ... narrow remaining types similarly
+  }
+}
+```
+
+#### `photo`
+
+| Field | Type | Notes |
+|---|---|---|
+| `type` | `'photo'` | |
+| `url` | `string` | Full-resolution URL |
+
+#### `video`
+
+| Field | Type | Notes |
+|---|---|---|
+| `type` | `'video'` | |
+| `url` | `string` | Playable video URL |
+
+#### `audio`
+
+| Field | Type | Notes |
+|---|---|---|
+| `type` | `'audio'` | |
+| `url` | `string` | |
+
+#### `file`
+
+| Field | Type | Notes |
+|---|---|---|
+| `type` | `'file'` | |
+| `url` | `string` | |
+
+
+#### `animated_image`
+
+| Field | Type | Notes |
+|---|---|---|
+| `type` | `'animated_image'` | |
+| `url` | `string` | URL of the animated GIF / WebP |
 
 ---
 
