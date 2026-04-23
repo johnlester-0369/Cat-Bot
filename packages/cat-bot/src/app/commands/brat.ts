@@ -24,7 +24,7 @@ export const config: CommandConfig = {
   role: Role.ANYONE,
   author: 'AjiroDesu',
   description:
-    'Generate a Brat-style image with your custom text (lime green on black).',
+    'Generate a Brat-style image with your custom text.',
   category: 'Image',
   usage: '<text>',
   cooldown: 5,
@@ -42,7 +42,7 @@ export const onCommand = async ({
 
   // Build the URL using the centralised api.util registry
   // (kuroneko baseURL = https://api.danzy.web.id is already registered)
-  const url = createUrl('kuroneko', '/api/maker/brat', { text });
+  const url = createUrl('deline', '/maker/brat', { text });
   if (!url) {
     await chat.replyMessage({
       style: MessageStyle.MARKDOWN,
