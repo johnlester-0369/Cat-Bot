@@ -327,6 +327,12 @@ export const onCommand = async ({
     const author = String(cfg['author'] ?? 'Unknown');
     // Compose the full usage line shown in the USAGE card section
     const usageLine = `${prefix}${name}${usage ? ` ${usage}` : ''}`;
+    // Render guide entries only when the module author explicitly provides them — the legacy
+    // `usage` string is still shown for all commands; guide is additive detail for multi-pattern commands
+    // like /afk, /transfer that have distinct argument signatures per invocation path.
+    const guideArr = Array.isArray(cfg['guide']) ? (cfg['guide'] as string[]) : [];
+    const guideLines: string[] =
+      guideArr.length > 0 ? [`**Guide:**`, ...guideArr.map((g) => `  • ${g}`)] : [];
 
     await chat.replyMessage({
       style: MessageStyle.MARKDOWN,
@@ -338,6 +344,7 @@ export const onCommand = async ({
         `**Category:** ${category}`,
         `**Aliases:** ${aliases}`,
         `**Usage:** \`${usageLine}\``,
+        ...guideLines,
         HR,
         `**Role:** ${role}`,
         `**Cooldown:** ${cooldown}`,
