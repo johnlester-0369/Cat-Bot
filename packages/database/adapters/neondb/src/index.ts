@@ -50,6 +50,20 @@ export {
   setThreadSessionData,
   getAllGroupThreadIds,
   getThreadSessionUpdatedAt,
+  // Discord server-isolated storage — channel ID maps to server ID so settings and data
+  // are stored at the Guild level rather than duplicated across every channel row.
+  upsertDiscordServer,
+  linkDiscordChannel,
+  getDiscordServerIdByChannel,
+  upsertDiscordServerSession,
+  getDiscordServerSessionUpdatedAt,
+  getDiscordServerSessionData,
+  setDiscordServerSessionData,
+  isDiscordServerAdmin,
+  getDiscordServerName,
+  getAllDiscordServerIds,
+  discordServerExists,
+  discordServerSessionExists,
 } from './cat-bot/threads.repo.js';
 
 export {

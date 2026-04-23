@@ -211,3 +211,124 @@ export async function getAllGroupThreadIds(
     return thread?.isGroup === true;
   });
 }
+
+// ── Discord Server Support ──────────────────────────────────────────────────
+
+export async function upsertDiscordServer(data: any): Promise<void> {
+  const db = await getDb();
+  const rec = db.botDiscordServer.find((s: any) => s.id === data.id);
+  if (rec) {
+    Object.assign(rec, {
+      name: data.name,
+      avatarUrl: data.avatarUrl,
+      memberCount: data.memberCount,
+      participants: data.participantIDs,
+      admins: data.adminIDs,
+    });
+  } else {
+    db.botDiscordServer.push({
+      id: data.id,
+      name: data.name,
+      avatarUrl: data.avatarUrl,
+      memberCount: data.memberCount,
+      participants: data.participantIDs,
+      admins: data.adminIDs,
+    });
+  }
+  await saveDb();
+}
+
+export async function linkDiscordChannel(serverId: string, threadId: string): Promise<void> {
+  const db = await getDb();
+  const rec = db.botDiscordChannel.find((c: any) => c.threadId === threadId);
+  if (rec) {
+    rec.serverId = serverId;
+  } else {
+    db.botDiscordChannel.push({ serverId, threadId });
+  }
+  await saveDb();
+}
+
+export async function getDiscordServerIdByChannel(threadId: string): Promise<string | null> {
+  const db = await getDb();
+  const rec = db.botDiscordChannel.find((c: any) => c.threadId === threadId);
+  return rec?.serverId ?? null;
+}
+
+export async function upsertDiscordServerSession(userId: string, sessionId: string, serverId: string): Promise<void> {
+  const db = await getDb();
+  const now = new Date().toISOString();
+  const rec = db.botDiscordServerSession.find(
+    (s: any) => s.userId === userId && s.sessionId === sessionId && s.botServerId === serverId
+  );
+  if (!rec) {
+    db.botDiscordServerSession.push({
+      userId,
+      sessionId,
+      botServerId: serverId,
+      lastUpdatedAt: now,
+    });
+  } else {
+    rec.lastUpdatedAt = now;
+  }
+  await saveDb();
+}
+
+export async function getDiscordServerSessionUpdatedAt(userId: string, sessionId: string, serverId: string): Promise<Date | null> {
+  const db = await getDb();
+  const rec = db.botDiscordServerSession.find(
+    (s: any) => s.userId === userId && s.sessionId === sessionId && s.botServerId === serverId
+  );
+  if (!rec?.lastUpdatedAt) return null;
+  return new Date(rec.lastUpdatedAt as string);
+}
+
+export async function getDiscordServerSessionData(userId: string, sessionId: string, serverId: string): Promise<Record<string, unknown>> {
+  const db = await getDb();
+  const rec = db.botDiscordServerSession.find(
+    (s: any) => s.userId === userId && s.sessionId === sessionId && s.botServerId === serverId
+  );
+  if (!rec?.data) return {};
+  try { return JSON.parse(rec.data as string) as Record<string, unknown>; } catch { return {}; }
+}
+
+export async function setDiscordServerSessionData(userId: string, sessionId: string, serverId: string, data: Record<string, unknown>): Promise<void> {
+  const db = await getDb();
+  const rec = db.botDiscordServerSession.find(
+    (s: any) => s.userId === userId && s.sessionId === sessionId && s.botServerId === serverId
+  );
+  if (rec) {
+    rec.data = JSON.stringify(data);
+    await saveDb();
+  }
+}
+
+export async function isDiscordServerAdmin(serverId: string, userId: string): Promise<boolean> {
+  const db = await getDb();
+  const rec = db.botDiscordServer.find((s: any) => s.id === serverId);
+  return rec ? rec.admins.includes(userId) : false;
+}
+
+export async function getDiscordServerName(serverId: string): Promise<string> {
+  const db = await getDb();
+  const rec = db.botDiscordServer.find((s: any) => s.id === serverId);
+  return rec?.name ?? 'Unknown server';
+}
+
+export async function getAllDiscordServerIds(userId: string, sessionId: string): Promise<string[]> {
+  const db = await getDb();
+  const rows = db.botDiscordServerSession.filter((s: any) => s.userId === userId && s.sessionId === sessionId);
+  return rows.map((r: any) => r.botServerId);
+}
+
+export async function discordServerExists(serverId: string): Promise<boolean> {
+  const db = await getDb();
+  return db.botDiscordServer.some((s: any) => s.id === serverId);
+}
+
+export async function discordServerSessionExists(userId: string, sessionId: string, serverId: string): Promise<boolean> {
+  const db = await getDb();
+  return db.botDiscordServerSession.some(
+    (s: any) => s.userId === userId && s.sessionId === sessionId && s.botServerId === serverId
+  );
+}

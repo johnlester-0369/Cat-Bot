@@ -62,6 +62,18 @@ export {
   setThreadSessionData,
   getAllGroupThreadIds,
   getThreadSessionUpdatedAt,
+  upsertDiscordServer,
+  linkDiscordChannel,
+  getDiscordServerIdByChannel,
+  upsertDiscordServerSession,
+  getDiscordServerSessionUpdatedAt,
+  getDiscordServerSessionData,
+  setDiscordServerSessionData,
+  isDiscordServerAdmin,
+  getDiscordServerName,
+  getAllDiscordServerIds,
+  discordServerExists,
+  discordServerSessionExists,
 } from '../adapters/prisma-sqlite/src/cat-bot/threads.repo.js';
 
 // --- USERS ---

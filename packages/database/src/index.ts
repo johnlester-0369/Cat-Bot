@@ -99,6 +99,30 @@ export const setThreadSessionData = m.setThreadSessionData;
 export const getAllGroupThreadIds = m.getAllGroupThreadIds;
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 export const getThreadSessionUpdatedAt = m.getThreadSessionUpdatedAt;
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+export const upsertDiscordServer = m.upsertDiscordServer;
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+export const linkDiscordChannel = m.linkDiscordChannel;
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+export const getDiscordServerIdByChannel = m.getDiscordServerIdByChannel;
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+export const upsertDiscordServerSession = m.upsertDiscordServerSession;
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+export const getDiscordServerSessionUpdatedAt = m.getDiscordServerSessionUpdatedAt;
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+export const getDiscordServerSessionData = m.getDiscordServerSessionData;
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+export const setDiscordServerSessionData = m.setDiscordServerSessionData;
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+export const isDiscordServerAdmin = m.isDiscordServerAdmin;
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+export const getDiscordServerName = m.getDiscordServerName;
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+export const getAllDiscordServerIds = m.getAllDiscordServerIds;
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+export const discordServerExists = m.discordServerExists;
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+export const discordServerSessionExists = m.discordServerSessionExists;
 
 // --- USERS ---
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment

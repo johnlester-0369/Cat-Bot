@@ -30,6 +30,8 @@ model BotUser {
   participatingThreads BotThread[] @relation("ThreadParticipants")
   adminOfThreads       BotThread[] @relation("ThreadAdmins")
   sessions             BotUserSession[] @relation("UserSessions")
+  participatingServers BotDiscordServer[] @relation("ServerParticipants")
+  adminOfServers       BotDiscordServer[] @relation("ServerAdmins")
 
   @@map("bot_users")
 }
@@ -97,6 +99,46 @@ model BotThreadSession {
 
   @@id([userId, platformId, sessionId, botThreadId])
   @@map("bot_threads_session")
+}
+
+// ── Bot Discord Server — isolated storage for Discord guilds ─────────────────
+// Discord servers contain multiple channels; storing settings purely by channel ID
+// incorrectly fragments server-wide balances and admin configurations.
+model BotDiscordServer {
+  id             String   @id
+  name           String?
+  avatarUrl      String?
+  memberCount    Int?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  participants   BotUser[] @relation("ServerParticipants")
+  admins         BotUser[] @relation("ServerAdmins")
+  channels       BotDiscordChannel[]
+  sessions       BotDiscordServerSession[]
+
+  @@map("bot_discord_server")
+}
+
+model BotDiscordChannel {
+  serverId String
+  threadId String @id
+  server   BotDiscordServer @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  @@map("bot_discord_channel")
+}
+
+model BotDiscordServerSession {
+  userId        String
+  sessionId     String
+  botServerId   String
+  lastUpdatedAt DateTime @default(now()) @updatedAt
+  data          String?
+
+  server BotDiscordServer @relation(fields: [botServerId], references: [id], onDelete: Cascade)
+
+  @@id([userId, sessionId, botServerId])
+  @@map("bot_discord_server_session")
 }
 
 // ── Better Auth — user, session, account, verification ────────────────────────

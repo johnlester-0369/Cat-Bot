@@ -99,6 +99,43 @@ CREATE TABLE IF NOT EXISTS bot_thread_admins (
   PRIMARY KEY (thread_id, user_id)
 );
 
+-- ── Discord Server & Channel mappings ────────────────────────────────────────
+-- Allows resolving threadID to serverID so settings act at the Server level.
+CREATE TABLE IF NOT EXISTS bot_discord_server (
+  id           TEXT PRIMARY KEY,
+  name         TEXT,
+  avatar_url   TEXT,
+  member_count INTEGER,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS bot_discord_channel (
+  thread_id TEXT PRIMARY KEY,
+  server_id TEXT NOT NULL REFERENCES bot_discord_server(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS bot_discord_server_participants (
+  server_id TEXT NOT NULL REFERENCES bot_discord_server(id) ON DELETE CASCADE,
+  user_id   TEXT NOT NULL REFERENCES bot_users(id) ON DELETE CASCADE,
+  PRIMARY KEY (server_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS bot_discord_server_admins (
+  server_id TEXT NOT NULL REFERENCES bot_discord_server(id) ON DELETE CASCADE,
+  user_id   TEXT NOT NULL REFERENCES bot_users(id) ON DELETE CASCADE,
+  PRIMARY KEY (server_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS bot_discord_server_session (
+  user_id         TEXT NOT NULL,
+  session_id      TEXT NOT NULL,
+  bot_server_id   TEXT NOT NULL REFERENCES bot_discord_server(id) ON DELETE CASCADE,
+  last_updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  data            TEXT,
+  PRIMARY KEY (user_id, session_id, bot_server_id)
+);
+
 -- ── Session-level config ─────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS bot_session (
   user_id     TEXT    NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,

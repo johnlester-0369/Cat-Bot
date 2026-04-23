@@ -52,6 +52,7 @@ export async function getFullThreadInfo(
     platform: Platforms.Discord,
     threadID,
     name: g.name,
+    serverID: g.id, // Propagate guild ID so the engine can store settings at the Server level
     isGroup: true,
     memberCount: g.memberCount ?? null,
     participantIDs: cachedMembers.map((m) => m.id),

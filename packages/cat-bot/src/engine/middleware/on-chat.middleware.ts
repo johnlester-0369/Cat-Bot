@@ -93,9 +93,10 @@ export const chatPassthrough: MiddlewareFn<OnChatCtx> = async function (
         }
         // Optimistic timestamp: stamp lastUpdatedAt immediately when the session row already
         // exists so concurrent messages racing the background API fetch don't each detect
-        // staleness and each fire redundant syncs. Only safe when the row exists (non-null)
-        // because the Prisma adapter enforces a FK from bot_thread_session → bot_thread;
-        // a brand-new thread (null) cannot have its session row written before upsertThread runs.
+        // staleness and each fire redundant syncs.
+        // WHY: Safe because the adapter enforces a FK from bot_thread_session → bot_thread.
+        // For Discord, upsertThreadSession intelligently intercepts and routes to bot_discord_server_session
+        // if the channel belongs to a guild, or bot_threads_session if it's a DM.
         if (threadUpdatedAt !== null) {
           void upsertThreadSession(
             sessionUserId,

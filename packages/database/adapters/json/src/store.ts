@@ -29,7 +29,10 @@ const DEFAULT_DB = {
   botThreadSession: [],
   botUserSession: [],
   botUserBanned: [],
-  botThreadBanned: [],
+  botThreadBanned:[],
+  botDiscordServer: [],
+  botDiscordServerSession: [],
+  botDiscordChannel:[],
   // better-auth core tables — required when DATABASE_TYPE=json so auth queries
   // find an initialised array instead of undefined on first boot.
   user: [],

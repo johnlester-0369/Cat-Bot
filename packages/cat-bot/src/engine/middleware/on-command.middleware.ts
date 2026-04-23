@@ -212,6 +212,8 @@ export const enforcePermission: MiddlewareFn<OnCommandCtx> = async function (
   if (role === Role.THREAD_ADMIN) {
     // Thread-admin gate: on-chat.middleware has already synced the thread before
     // any command dispatcher runs, so bot_threads should contain the admins list.
+    // WHY: For Discord, isThreadAdmin intercepts the call and checks the parent Server's admin
+    // list instead, meaning server admins automatically have permission in all its channels.
     let allowed = await isThreadAdmin(threadID, senderID);
 
     // Bot admins and premium users both inherit thread-admin privileges —
