@@ -96,15 +96,18 @@ export interface CommandConfig {
   /** Author name or handle — shown in help output and error context. */
   author: string;
 
-  /** One-line description of what the command does — shown in Discord's '/' menu. */
-  description: string;
+  /** Command name (lowercase). Matched against the prefix-stripped token. */
+  name: string;
 
   /**
-   * Usage pattern string (e.g. '<add|list|delete> [uid]').
+   * Usage pattern string or array of pattern strings.
    * Shown in the auto-generated usage reply when ctx.usage() is called.
+   * A single string (e.g. '<add|list|delete> [uid]') renders as one usage line.
+   * An array renders each item as its own prefixed bullet line — useful for
+   * commands with 2–3 distinct signatures that do not warrant a full guide[].
    * Commands that use config.guide[] instead may supply an empty string here.
    */
-  usage?: string;
+  usage?: string | string[];
 
   /** Per-user cooldown in seconds. Enforced by cooldown middleware. */
   cooldown: number;

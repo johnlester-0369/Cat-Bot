@@ -122,7 +122,7 @@ All fields you can set on `export const config: CommandConfig`:
 | `author` | `string` | ✅ | Author name shown in help and error context. |
 | `description` | `string` | ✅ | One-line description shown in Discord's `/` menu and `help`. |
 | `cooldown` | `number` | ✅ | Per-user cooldown in **seconds**. `0` disables cooldown. |
-| `usage` | `string` | — | Argument pattern shown by `ctx.usage()`. e.g. `'<add|list|remove> [uid]'`. |
+| `usage` | `string \| string[]` | — | Argument pattern(s) shown by `ctx.usage()`. A single string (e.g. `'<add\|list\|remove> [uid]'`) renders as one line; an array renders each item as its own prefixed bullet line — useful for commands with 2–3 distinct signatures. |
 | `hasPrefix` | `boolean` | — | Set `false` for prefix-less commands. Defaults to `true`. |
 | `aliases` | `string[]` | — | Alternative command names that map to the same handler. |
 | `category` | `string` | — | Display group in help output (e.g. `'Admin'`, `'Fun'`). |

@@ -323,13 +323,26 @@ export const onCommand = async ({
     const cooldown =
       cfg['cooldown'] != null ? `${String(cfg['cooldown'])}s` : 'None';
     const description = String(cfg['description'] ?? 'No description.');
-    const usage = String(cfg['usage'] ?? '');
     const author = String(cfg['author'] ?? 'Unknown');
-    // Compose the full usage line shown in the USAGE card section
-    const usageLine = `${prefix}${name}${usage ? ` ${usage}` : ''}`;
-    // Render guide entries only when the module author explicitly provides them — the legacy
-    // `usage` string is still shown for all commands; guide is additive detail for multi-pattern commands
-    // like /afk, /transfer that have distinct argument signatures per invocation path.
+    // Build usage display lines — string[] allows multiple usage patterns per command so
+    // authors with 2–3 distinct signatures can document all paths without a full guide[].
+    // Single-item arrays collapse to the same one-liner format as a plain string so existing
+    // commands migrating from string → string[] produce identical output at zero cost.
+    const rawUsage = cfg['usage'];
+    const usageLines: string[] = (() => {
+      if (Array.isArray(rawUsage)) {
+        const items = rawUsage as string[];
+        if (items.length <= 1) {
+          const u = String(items[0] ?? '');
+          return [`**Usage:** \`${prefix}${name}${u ? ` ${u}` : ''}\``];
+        }
+        return [`**Usage:**`, ...items.map((u) => `  • \`${prefix}${name}${u ? ` ${String(u)}` : ''}\``)];
+      }
+      const u = String(rawUsage ?? '');
+      return [`**Usage:** \`${prefix}${name}${u ? ` ${u}` : ''}\``];
+    })();
+    // Render guide entries only when the module author explicitly provides them —
+    // guide is additive detail for commands that document complex sub-command trees.
     const guideArr = Array.isArray(cfg['guide']) ? (cfg['guide'] as string[]) : [];
     const guideLines: string[] =
       guideArr.length > 0 ? [`**Guide:**`, ...guideArr.map((g) => `  • ${g}`)] : [];
@@ -343,7 +356,7 @@ export const onCommand = async ({
         HR,
         `**Category:** ${category}`,
         `**Aliases:** ${aliases}`,
-        `**Usage:** \`${usageLine}\``,
+        ...usageLines,
         ...guideLines,
         HR,
         `**Role:** ${role}`,
