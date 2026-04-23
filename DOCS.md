@@ -46,6 +46,7 @@
 19. [Event Pipeline — Under the Hood](#event-pipeline--under-the-hood)
 20. [Extending the Middleware Pipeline](#extending-the-middleware-pipeline)
 21. [Adapters Models Reference — Event & Data Structures](#adapters-models-reference--event--data-structures)
+22. [Repos Reference — Database Cache Layer](#repos-reference--database-cache-layer)
 
 ---
 
@@ -2154,6 +2155,255 @@ for (const att of attachments) {
 | `type` | `'animated_image'` | |
 | `url` | `string` | URL of the animated GIF / WebP |
 
+---
+
+## Repos Reference — Database Cache Layer
+
+The `packages/cat-bot/src/engine/repos/` directory is the **only correct way to read and write
+persistent bot data from inside engine code** (middleware, services, commands that import engine
+internals directly). Every repo file is a thin LRU cache layer over the `database` package adapter
+— the same adapter that backs `ctx.db`, `ctx.currencies`, and `ctx.chat`.
+
+> **Command authors using `ctx.db`:** You do not need to import repos. The `ctx.db.users` and
+> `ctx.db.threads` APIs already delegate through these repos internally. Import repos directly only
+> when you are writing engine-level code (custom middleware, services) that runs outside a normal
+> `AppCtx` handler.
+
+### Caching Contract
+
+All repos share the same design contract:
+
+- **Read functions** check the LRU cache first; on miss they query the database, store the result,
+  and return it. A cached `null` is a valid result (meaning "not found") — only `undefined` is a
+  cache miss.
+- **Write functions** call the database adapter, then immediately write the known post-write value
+  into cache (write-through) so the next read within the TTL window sees the fresh value without
+  a round-trip.
+- **Invalidation** is explicit — writes target exactly the keys they affect; unrelated keys survive.
+  TTL-based expiry provides eventual consistency for anything not explicitly invalidated.
+
+---
+
+### `banned.repo.ts` — User and Thread Bans
+
+Called on every command invocation via `enforceNotBanned` middleware. Caches ban booleans
+per (userId, platform, sessionId, botUserId/botThreadId) tuple.
+
+```ts
+import {
+  banUser, unbanUser, isUserBanned,
+  banThread, unbanThread, isThreadBanned,
+} from '@/engine/repos/banned.repo.js'
+```
+
+| Function | Signature | Description |
+|---|---|---|
+| `banUser` | `(userId, platform, sessionId, botUserId, reason?)` → `Promise<void>` | Bans a user; writes `true` to cache immediately |
+| `unbanUser` | `(userId, platform, sessionId, botUserId)` → `Promise<void>` | Removes ban; writes `false` to cache immediately |
+| `isUserBanned` | `(userId, platform, sessionId, botUserId)` → `Promise<boolean>` | Cache-first ban check |
+| `banThread` | `(userId, platform, sessionId, botThreadId, reason?)` → `Promise<void>` | Bans a thread; writes `true` to cache immediately |
+| `unbanThread` | `(userId, platform, sessionId, botThreadId)` → `Promise<void>` | Removes thread ban; writes `false` to cache immediately |
+| `isThreadBanned` | `(userId, platform, sessionId, botThreadId)` → `Promise<boolean>` | Cache-first thread ban check |
+
+**Parameters:**
+- `userId` — the bot owner's better-auth user ID (from `native.userId`)
+- `platform` — platform string e.g. `'discord'` (from `native.platform`)
+- `sessionId` — bot session ID (from `native.sessionId`)
+- `botUserId` / `botThreadId` — the platform user/thread ID to ban
+
+**Invalidation:** ban/unban mutations write the authoritative boolean directly into cache
+rather than evicting — the next `isUserBanned` call always sees the post-write state.
+
+---
+
+### `credentials.repo.ts` — Bot Credentials, Admins, and Prefix
+
+Covers Discord/Telegram/Facebook credentials, bot admin management, premium user management,
+and per-session prefix updates. Called at startup (credential loading) and on privileged
+command invocations.
+
+```ts
+import {
+  // Credentials
+  findDiscordCredentialState, updateDiscordCredentialCommandHash, findAllDiscordCredentials,
+  findTelegramCredentialState, updateTelegramCredentialCommandHash, findAllTelegramCredentials,
+  findAllFbPageCredentials, findAllFbMessengerCredentials, findAllBotSessions,
+  // Bot admins
+  isBotAdmin, addBotAdmin, removeBotAdmin, listBotAdmins,
+  // Premium
+  isBotPremium, addBotPremium, removeBotPremium, listBotPremiums,
+  // Prefix
+  updateBotSessionPrefix,
+  // Shared cache key
+  SESSIONS_ALL_KEY,
+} from '@/engine/repos/credentials.repo.js'
+```
+
+#### Discord / Telegram Credentials
+
+| Function | Description |
+|---|---|
+| `findDiscordCredentialState(userId, sessionId)` | Returns `{ isCommandRegister, commandHash } \| null`; cache-first |
+| `updateDiscordCredentialCommandHash(userId, sessionId, data)` | Updates command hash; clears discord state + all-discord list from cache |
+| `findAllDiscordCredentials()` | All Discord credentials; cached under a singleton key |
+| `findTelegramCredentialState(userId, sessionId)` | Returns `{ isCommandRegister, commandHash } \| null`; cache-first |
+| `updateTelegramCredentialCommandHash(userId, sessionId, data)` | Updates command hash; clears telegram state + all-telegram list from cache |
+| `findAllTelegramCredentials()` | All Telegram credentials; cached under a singleton key |
+| `findAllFbPageCredentials()` | All Facebook Page credentials; cached under a singleton key |
+| `findAllFbMessengerCredentials()` | All Facebook Messenger credentials; cached under a singleton key |
+| `findAllBotSessions()` | All bot sessions across all platforms; cached under `SESSIONS_ALL_KEY` |
+
+#### Bot Admin Management
+
+| Function | Signature | Description |
+|---|---|---|
+| `isBotAdmin` | `(userId, platform, sessionId, adminId)` → `Promise<boolean>` | Checks membership in the cached admin list (does not create a per-user cache entry) |
+| `addBotAdmin` | `(userId, platform, sessionId, adminId)` → `Promise<void>` | Adds admin; write-through patches the list cache; clears `bot:detail` and `bot:list` dashboard caches |
+| `removeBotAdmin` | `(userId, platform, sessionId, adminId)` → `Promise<void>` | Removes admin; write-through filters the list cache; clears dashboard caches |
+| `listBotAdmins` | `(userId, platform, sessionId)` → `Promise<string[]>` | Returns full admin ID array; cached per session |
+
+#### Premium User Management
+
+| Function | Signature | Description |
+|---|---|---|
+| `isBotPremium` | `(userId, platform, sessionId, premiumId)` → `Promise<boolean>` | Checks membership in the cached premium list |
+| `addBotPremium` | `(userId, platform, sessionId, premiumId)` → `Promise<void>` | Adds premium user; write-through patches list cache; clears dashboard caches |
+| `removeBotPremium` | `(userId, platform, sessionId, premiumId)` → `Promise<void>` | Removes premium user; write-through filters list cache; clears dashboard caches |
+| `listBotPremiums` | `(userId, platform, sessionId)` → `Promise<string[]>` | Returns full premium ID array; cached per session |
+
+#### Session Prefix
+
+| Function | Signature | Description |
+|---|---|---|
+| `updateBotSessionPrefix` | `(userId, platform, sessionId, prefix)` → `Promise<void>` | Persists new prefix; clears `SESSIONS_ALL_KEY` and dashboard caches so the next `findAllBotSessions` returns the updated prefix |
+
+**`SESSIONS_ALL_KEY`** is an exported string constant shared with `server/repos/bot.repo.ts` — both repos invalidate it on session mutations so `session-loader` always reads an up-to-date list.
+
+---
+
+### `session.repo.ts` — Bot Nickname
+
+Read on every AI command invocation and every passive `onChat` trigger phrase check.
+
+```ts
+import { getBotNickname } from '@/engine/repos/session.repo.js'
+```
+
+| Function | Signature | Description |
+|---|---|---|
+| `getBotNickname` | `(userId, platform, sessionId)` → `Promise<string \| null>` | Returns the configured display name for this session, or `null` when none is set. Callers should fall back to a generic identity when `null`. Cache-first. |
+
+**Invalidation:** uses TTL-based expiry only. Nickname updates flow through `bot.repo.ts` in the server layer (which clears `bot:detail` and `bot:list`) — the nickname key here expires on its own schedule, providing eventual consistency without cross-repo coupling.
+
+---
+
+### `system-admin.repo.ts` — System Admin Checks
+
+Called on every command dispatch via `enforcePermission` and `enforceNotBanned` middleware.
+Uses a single `Set<string>` cache entry instead of per-sender boolean entries to avoid
+crowding the LRU cache with O(unique_senders) false entries.
+
+```ts
+import { isSystemAdmin } from '@/engine/repos/system-admin.repo.js'
+```
+
+| Function | Signature | Description |
+|---|---|---|
+| `isSystemAdmin` | `(adminId: string)` → `Promise<boolean>` | Loads the full system admin ID set on first miss; subsequent calls for any sender resolve via `Set.has()` in O(1) without writing new cache entries |
+
+**Invalidation:** TTL-based only. System admin mutations happen through the web dashboard — the 5-minute TTL provides sufficient eventual consistency since these changes are infrequent.
+
+---
+
+### `threads.repo.ts` — Thread Data
+
+Called on every incoming message by `chatPassthrough` middleware (4–5 reads per message on the
+hot path). Caching these eliminates the majority of DB round-trips in steady state.
+
+```ts
+import {
+  upsertThread, threadExists, threadSessionExists,
+  upsertThreadSession, isThreadAdmin, getThreadName,
+  getThreadSessionData, setThreadSessionData,
+  getAllGroupThreadIds, getThreadSessionUpdatedAt,
+} from '@/engine/repos/threads.repo.js'
+```
+
+| Function | Signature | Description |
+|---|---|---|
+| `upsertThread(data)` | `(data: any)` → `Promise<void>` | Writes thread to DB; sets `threadExists=true` and populates a `Set<string>` of admin IDs in cache for O(1) `isThreadAdmin` lookups |
+| `threadExists(platform, threadId)` | → `Promise<boolean>` | Cache-first existence check |
+| `threadSessionExists(userId, platform, sessionId, threadId)` | → `Promise<boolean>` | Cache-first session row existence check |
+| `upsertThreadSession(userId, platform, sessionId, threadId)` | → `Promise<void>` | Creates/updates session row; stamps `sessionExists=true` and `updatedAt=now` in cache optimistically; evicts group IDs list |
+| `isThreadAdmin(threadId, userId)` | → `Promise<boolean>` | Resolves via cached `Set.has()` if `upsertThread` has run; falls through to DB on cold start |
+| `getThreadName(threadId)` | → `Promise<string>` | Cache-first thread display name |
+| `getThreadSessionData(userId, platform, sessionId, botThreadId)` | → `Promise<Record<string, unknown>>` | Cache-first per-thread-session data blob (prefix, toggles, etc.) |
+| `setThreadSessionData(userId, platform, sessionId, botThreadId, data)` | → `Promise<void>` | Writes data blob; shallow-copies into cache immediately |
+| `getAllGroupThreadIds(userId, platform, sessionId)` | → `Promise<string[]>` | Returns all group thread IDs for this session; used for broadcast commands |
+| `getThreadSessionUpdatedAt(userId, platform, sessionId, threadId)` | → `Promise<Date \| null>` | Returns last-sync timestamp; `null` means the thread has never been synced |
+
+**Admin ID caching strategy:** `upsertThread` stores `data.adminIDs` as a `Set<string>` under a single
+key rather than one boolean per (thread, user) pair. This keeps the cache at O(threads) entries
+instead of O(threads × participants).
+
+**Invalidation summary:**
+- `upsertThread` → refreshes exists + name; replaces admin Set
+- `upsertThreadSession` → stamps sessionExists + updatedAt; evicts group IDs list
+- `setThreadSessionData` → replaces data blob in cache
+
+---
+
+### `users.repo.ts` — User Data
+
+Mirrors the thread repo pattern for user data. Called on every message for sync gating and
+once per command for per-user data reads.
+
+```ts
+import {
+  upsertUser, userExists, userSessionExists,
+  upsertUserSession, getUserName, getUserSessionData,
+  setUserSessionData, getAllUserSessionData, getUserSessionUpdatedAt,
+} from '@/engine/repos/users.repo.js'
+```
+
+| Function | Signature | Description |
+|---|---|---|
+| `upsertUser(data)` | `(data: any)` → `Promise<void>` | Writes user to DB; sets `exists=true` and caches display name immediately |
+| `userExists(platform, userId)` | → `Promise<boolean>` | Cache-first existence check |
+| `userSessionExists(userId, platform, sessionId, botUserId)` | → `Promise<boolean>` | Cache-first session row check |
+| `upsertUserSession(userId, platform, sessionId, botUserId)` | → `Promise<void>` | Creates/updates session row; stamps `sessionExists=true` and `updatedAt=now` in cache |
+| `getUserName(userId)` | → `Promise<string>` | Cache-first display name |
+| `getUserSessionData(userId, platform, sessionId, botUserId)` | → `Promise<Record<string, unknown>>` | Cache-first per-user session data blob |
+| `setUserSessionData(userId, platform, sessionId, botUserId, data)` | → `Promise<void>` | Writes data blob; patches the matching slot in the aggregate `getAllUserSessionData` cache rather than evicting the whole list — rank leaderboard reads see fresh data without a full re-fetch |
+| `getAllUserSessionData(userId, platform, sessionId)` | → `Promise<Array<{ botUserId: string; data: Record<string, unknown> }>>` | Returns all user session blobs for this session; used for leaderboard/top commands |
+| `getUserSessionUpdatedAt(userId, platform, sessionId, botUserId)` | → `Promise<Date \| null>` | Returns last-sync timestamp; `null` means the user has never been synced |
+
+**Invalidation summary:**
+- `upsertUser` → refreshes exists + name
+- `upsertUserSession` → stamps sessionExists + updatedAt
+- `setUserSessionData` → patches individual blob + patches aggregate list in place; evicts aggregate only when the user has no existing entry in it
+
+---
+
+### `webhooks.repo.ts` — Facebook Page Webhook Verification
+
+Called on every incoming Facebook Page event to confirm the webhook handshake is complete.
+Verification transitions from `false` to `true` exactly once and never reverts — the cache
+provides a permanent hit after the first handshake.
+
+```ts
+import {
+  getFbPageWebhookVerification,
+  upsertFbPageWebhookVerification,
+} from '@/engine/repos/webhooks.repo.js'
+```
+
+| Function | Signature | Description |
+|---|---|---|
+| `getFbPageWebhookVerification(userId)` | → `Promise<{ isVerified: boolean } \| null>` | Cache-first verification record. `null` means no row exists yet (handshake not started). |
+| `upsertFbPageWebhookVerification(userId)` | → `Promise<void>` | Marks verification complete in DB; writes `{ isVerified: true }` to cache immediately |
+
+**Invalidation:** not needed — `isVerified` is write-once and never reverts to `false`.
 ---
 
 ## Migration Notes — From Global-Variable Bots
