@@ -1551,6 +1551,7 @@ export const config: CommandConfig = {
   role: Role.ANYONE,
   author: 'you',
   description: 'Registers your name and age',
+  category: 'Example'
   usage: '',
   cooldown: 5,
   hasPrefix: true,
