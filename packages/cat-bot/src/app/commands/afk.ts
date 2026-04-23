@@ -52,15 +52,11 @@ export const config: CommandConfig = {
   aliases: ['away'] as string[],
   version: '1.0.0',
   role: Role.ANYONE,
-  author: 'System',
+  author: 'AjiroDesu',
   description:
     'Mark yourself as AFK with an optional reason. Auto-clears when you next send a message.',
   category: 'Utility',
-  usage: '[reason]',
-  guide: [
-    '[reason]   — go AFK with an optional reason',
-    '           — run again while AFK to manually clear your status',
-  ],
+  usage: [ '[reason] — go AFK with an optional reason', '— run again while AFK to manually clear your status' ],
   cooldown: 5,
   hasPrefix: true,
   // Facebook Page posts are not user-level conversations — AFK has no meaningful
