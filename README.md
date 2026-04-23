@@ -47,20 +47,21 @@ The platform transport layer absorbs every SDK difference (discord.js gateway, T
 
 1. [Quick Start — 5 Minutes](#quick-start--5-minutes)
 2. [What Cat-Bot Provides](#what-cat-bot-provides)
-3. [Platform API Comparison: Native vs Unified](#platform-api-comparison-native-vs-unified)
-4. [Philosophy](#philosophy)
+3. [Philosophy](#philosophy)
+4. [Platform API Comparison: Native vs Unified](#platform-api-comparison-native-vs-unified)
 5. [Screenshots](#screenshots)
 6. [Features](#features)
 7. [Architecture](#architecture)
 8. [Production Setup](#production-setup)
 9. [Writing Commands](#writing-commands)
-10. [Writing Event Handlers](#writing-event-handlers)
-11. [Constants & Type Safety](#constants--type-safety)
-12. [Developer Reference](#developer-reference)
-13. [Database Adapters](#database-adapters)
-14. [Environment Variables](#environment-variables)
-15. [npm Scripts](#npm-scripts)
-16. [Authors](#authors)
+10. [Converting Existing Commands](#converting-existing-commands)
+11. [Writing Event Handlers](#writing-event-handlers)
+12. [Constants & Type Safety](#constants--type-safety)
+13. [Developer Reference](#developer-reference)
+14. [Database Adapters](#database-adapters)
+15. [Environment Variables](#environment-variables)
+16. [npm Scripts](#npm-scripts)
+17. [Authors](#authors)
 
 ---
 
@@ -207,6 +208,274 @@ state.create({
 ```
 
 Two users running the same flow simultaneously each have a completely independent state entry.
+
+---
+
+## Philosophy
+
+Cat-Bot is built on one foundational idea: **every handler owns exactly one responsibility.**
+
+This shapes the entire API — from how conversation states are defined to how button actions are declared.
+
+### One Handler, One Job
+
+In classic bot frameworks, all conversation flows are routed through a single monolithic dispatcher. Every step in a conversation adds another `case` to the same `switch`:
+
+```js
+// GoatBot / Mirai pattern — the entire state machine lives in one function
+module.exports.handleReply = async ({ event, handleReply, api }) => {
+  switch (handleReply.type) {
+    case "userCallAdmin": {
+      /* forward message to admin */ break;
+    }
+    case "adminReply": {
+      /* forward reply to user */ break;
+    }
+    case "awaiting_name": {
+      /* step 1 of registration */ break;
+    }
+    case "awaiting_age": {
+      /* step 2 of registration */ break;
+    }
+  }
+};
+```
+
+The function has no bounded scope — it owns the entire conversation state machine. Adding a new step means opening this function and modifying it. Changing one `case` risks regressions in all the others.
+
+Cat-Bot inverts this. Each state gets its own named function:
+
+```ts
+// Cat-Bot — each step is a self-contained function with one job
+export const onReply = {
+  awaiting_name: async ({ chat, event, state, session }: AppCtx) => {
+    // Only responsibility: receive the name, ask for age, register the next state
+  },
+  awaiting_age: async ({ chat, event, state, session }: AppCtx) => {
+    // Only responsibility: receive the age, complete the registration flow
+  },
+};
+```
+
+Adding a new step is a new key. Modifying step 2 cannot break step 1. The same principle applies to `onReact` — each emoji maps to its own independent function, never sharing a dispatcher.
+
+### One Button, One Object
+
+**discord.js v14** — Buttons require `ActionRowBuilder` and `ButtonBuilder`. The click handler is a global `interactionCreate` listener registered separately on the Client — the code that sends buttons and the code that handles clicks are structurally disconnected, linked only by a raw string ID embedded manually in `customId`. Every interaction must be acknowledged within 3 seconds or Discord shows "interaction failed":
+
+```js
+// discord.js v14 — send and handle are two separate registration sites
+const row = new ActionRowBuilder().addComponents(
+  new ButtonBuilder()
+    .setCustomId('confirm:12345')  // embed userId manually for ownership check
+    .setLabel('✅ Confirm')
+    .setStyle(ButtonStyle.Success),
+  new ButtonBuilder()
+    .setCustomId('cancel:12345')
+    .setLabel('❌ Cancel')
+    .setStyle(ButtonStyle.Danger)
+)
+await message.channel.send({ content: 'Are you sure?', components: [row] })
+
+// Registered globally on the Client — completely separate from the send site
+client.on('interactionCreate', async interaction => {
+  if (!interaction.isButton()) return
+  await interaction.deferUpdate()  // MUST call within 3 seconds
+  const [action, userId] = interaction.customId.split(':')
+  if (interaction.user.id !== userId) return  // manual ownership check
+  if (action === 'confirm') await interaction.editReply({ content: '✅ Confirmed!', components: [] })
+})
+```
+
+**Telegraf v4** — Inline keyboard buttons carry `callback_data` (max 64 bytes). Clicks arrive via `bot.on('callback_query')` registered separately from the command handler. `ctx.answerCbQuery()` must be called to dismiss the loading spinner:
+
+```js
+// Telegraf v4 — inline keyboard (send site and click handler are separate)
+await ctx.reply('Are you sure?', {
+  reply_markup: {
+    inline_keyboard: [[
+      { text: '✅ Confirm', callback_data: `confirm:${ctx.from.id}` },
+      { text: '❌ Cancel',  callback_data: `cancel:${ctx.from.id}` }
+    ]]
+  }
+})
+
+bot.on('callback_query', async ctx => {
+  await ctx.answerCbQuery()  // dismiss the loading spinner — must call explicitly
+  const [action, userId] = ctx.callbackQuery.data.split(':')
+  if (ctx.from.id.toString() !== userId) return
+  if (action === 'confirm') await ctx.editMessageText('✅ Confirmed!')
+})
+```
+
+**fca-unofficial** — No native button component exists on Messenger's MQTT protocol. Buttons must be emulated with numbered text menus. State is stored in a global mutable array shared across all concurrent commands, creating race conditions when two users invoke the same command simultaneously:
+
+```js
+// fca-unofficial — text menu + global handleReply array (no native buttons)
+api.sendMessage(
+  'Are you sure?\n1. ✅ Confirm\n2. ❌ Cancel',
+  threadID,
+  (err, info) => {
+    if (err) return
+    global.client.handleReply.push({
+      name: 'myCommand', messageID: info.messageID,
+      author: event.senderID, type: 'awaiting_confirm',
+    })
+  }
+)
+
+module.exports.handleReply = async ({ event, handleReply, api }) => {
+  if (handleReply.author !== event.senderID) return  // manual ownership check
+  const idx = global.client.handleReply.findIndex(r => r.messageID === handleReply.messageID)
+  global.client.handleReply.splice(idx, 1)  // manual cleanup — races with concurrent pushes
+  const choice = event.body.trim()
+  if (choice === '1') api.sendMessage('✅ Confirmed!', event.threadID, () => {})
+  else api.sendMessage('❌ Cancelled.', event.threadID, () => {})
+}
+```
+
+**Facebook Page Graph API** — The Button Template is the only interactive construct, limited to 3 buttons with titles capped at 20 characters. Clicks arrive as `postback` webhook events in a completely separate Express handler — there is no concept of collocating the send and the click handler:
+
+```js
+// Facebook Page — Button Template (max 3 buttons) + postback handler (separate file)
+await axios.post(`${GRAPH}?access_token=${TOKEN}`, {
+  recipient: { id: psid },
+  message: {
+    attachment: {
+      type: 'template',
+      payload: {
+        template_type: 'button', text: 'Are you sure?',
+        buttons: [
+          { type: 'postback', title: '✅ Confirm', payload: `CONFIRM_${psid}` },
+          { type: 'postback', title: '❌ Cancel',  payload: `CANCEL_${psid}` },
+        ]
+      }
+    }
+  }
+})
+
+app.post('/webhook', (req, res) => {
+  res.sendStatus(200)
+  req.body.entry.forEach(entry => entry.messaging.forEach(async event => {
+    if (!event.postback) return
+    const [action, userId] = event.postback.payload.split('_')
+    if (event.sender.id !== userId) return
+    if (action === 'CONFIRM') await axios.post(`${GRAPH}?access_token=${TOKEN}`,
+      { recipient: { id: event.sender.id }, message: { text: '✅ Confirmed!' } })
+  }))
+})
+```
+
+**Cat-Bot — all four platforms:**
+
+```ts
+const BUTTON_ID = { confirm: 'confirm', cancel: 'cancel' }
+
+export const button = {
+  [BUTTON_ID.confirm]: {
+    label: '✅ Confirm',
+    style: ButtonStyle.SUCCESS,
+    onClick: async ({ chat, event }: AppCtx) => {
+      await chat.editMessage({
+        message_id_to_edit: event['messageID'] as string,
+        message: '✅ Confirmed!',
+        button: [],
+      })
+    },
+  },
+  [BUTTON_ID.cancel]: {
+    label: '❌ Cancel',
+    style: ButtonStyle.DANGER,
+    onClick: async ({ chat, event }: AppCtx) => {
+      await chat.editMessage({
+        message_id_to_edit: event['messageID'] as string,
+        message: '❌ Cancelled.',
+        button: [],
+      })
+    },
+  },
+}
+
+export const onCommand = async ({ chat, button: btn }: AppCtx) => {
+  const confirmId = btn.generateID({ id: BUTTON_ID.confirm })
+  const cancelId  = btn.generateID({ id: BUTTON_ID.cancel })
+  await chat.replyMessage({
+    style: MessageStyle.MARKDOWN,
+    message: '**Are you sure?**',
+    button: [confirmId, cancelId],
+  })
+}
+```
+
+Every button is a self-contained object — its `label`, `style`, and `onClick` live in the same file as `onCommand`. On Discord: an `ActionRowBuilder` with `deferUpdate()` called by the adapter before `onClick` fires. On Telegram: an `inline_keyboard` with `answerCbQuery()` handled transparently. On Messenger: a numbered text menu routed to the matching `onClick`. On Facebook Page: a Button Template. Your command code is identical for all four outcomes.
+
+### Why This Matters
+
+When every handler has a single, bounded responsibility:
+
+- **Reading is linear.** Follow one function to understand one outcome — no `switch` to navigate.
+- **Changes are local.** Modifying `awaiting_age` cannot introduce a regression in `awaiting_name`.
+- **New features are additive.** A new reply step or a new button is a new key; existing logic is untouched.
+- **Bugs are isolated.** A failure in one `onClick` does not affect other buttons in the same command.
+
+This is the Single Responsibility Principle applied consistently at every level of the bot API: each state has one function, each button has one object, each function has one job.
+
+### Predictable Middleware Pipeline
+
+Most chatbot frameworks wire validation logic directly inside each dispatcher or command handler. Permission checks, cooldown guards, and ban enforcement end up scattered across individual command files — or worse, embedded inline inside the routing function that also decides _which_ handler to call. When something fails, you have to chase through multiple dispatchers to find out which guard ran, in what order, and why it blocked execution.
+
+**Cat-Bot's middleware pipeline is inspired by Express.js.** Guards are registered once as discrete middleware functions and run in a declared, auditable order before any dispatcher or command handler executes.
+
+```ts
+// Cat-Bot middleware/index.ts — registered once at boot; applies to every command automatically
+use.onCommand([
+  enforceNotBanned, // ← first: banned actors never reach any further check
+  enforcePermission, // ← second: unauthorized users are rejected before cooldown is consumed
+  enforceCooldown, // ← third: rate-limited after auth; options parsing never runs on blocked commands
+  validateCommandOptions, // ← fourth: parse and validate typed options only for commands that will actually run
+]);
+```
+
+Each function in the chain calls `next()` to continue or returns early to halt — exactly like Express middleware. The order is declared in one place and applies uniformly to every command:
+
+```ts
+// src/engine/middleware/on-command.middleware.ts
+export const enforceNotBanned: MiddlewareFn<OnCommandCtx> = async (
+  ctx,
+  next,
+) => {
+  const banned = await isUserBanned(
+    sessionUserId,
+    platform,
+    sessionId,
+    senderID,
+  );
+  if (banned) {
+    await ctx.chat.replyMessage({ message: "you are unable to use bot" });
+    return; // ← omitting next() halts the chain; the command never executes
+  }
+  await next();
+};
+```
+
+Command modules never implement guards. They receive control only after the full pipeline has passed — ban cleared, permission granted, cooldown window open, options validated. Adding a new cross-cutting concern (audit logging, feature flags, IP filtering) means registering one middleware function, not editing every command file.
+
+**The execution contract is always visible at the registration site:**
+
+```
+onCommand:    enforceNotBanned → enforcePermission → enforceCooldown
+              → validateCommandOptions → [your middlewares] → onCommand handler
+
+onChat:       chatPassthrough → chatLogThread → [your middlewares] → onChat fan-out
+
+onReply:      replyStateValidation → [your middlewares] → onReply handler
+
+onReact:      reactStateValidation → [your middlewares] → onReact handler
+
+onButtonClick: enforceButtonScope → [your middlewares] → button.onClick handler
+```
+
+When a command does not execute, the failure belongs to exactly one middleware. You do not grep through dispatcher files — you look at the registered chain and the function that did not call `next()`. The flow is linear, the order is explicit, and the extension point is always `use.onCommand([yourMiddleware])` in a single file.
 
 ---
 
@@ -789,274 +1058,6 @@ Your command module never imports `discord.js`. Your button handler never calls 
 
 ---
 
-## Philosophy
-
-Cat-Bot is built on one foundational idea: **every handler owns exactly one responsibility.**
-
-This shapes the entire API — from how conversation states are defined to how button actions are declared.
-
-### One Handler, One Job
-
-In classic bot frameworks, all conversation flows are routed through a single monolithic dispatcher. Every step in a conversation adds another `case` to the same `switch`:
-
-```js
-// GoatBot / Mirai pattern — the entire state machine lives in one function
-module.exports.handleReply = async ({ event, handleReply, api }) => {
-  switch (handleReply.type) {
-    case "userCallAdmin": {
-      /* forward message to admin */ break;
-    }
-    case "adminReply": {
-      /* forward reply to user */ break;
-    }
-    case "awaiting_name": {
-      /* step 1 of registration */ break;
-    }
-    case "awaiting_age": {
-      /* step 2 of registration */ break;
-    }
-  }
-};
-```
-
-The function has no bounded scope — it owns the entire conversation state machine. Adding a new step means opening this function and modifying it. Changing one `case` risks regressions in all the others.
-
-Cat-Bot inverts this. Each state gets its own named function:
-
-```ts
-// Cat-Bot — each step is a self-contained function with one job
-export const onReply = {
-  awaiting_name: async ({ chat, event, state, session }: AppCtx) => {
-    // Only responsibility: receive the name, ask for age, register the next state
-  },
-  awaiting_age: async ({ chat, event, state, session }: AppCtx) => {
-    // Only responsibility: receive the age, complete the registration flow
-  },
-};
-```
-
-Adding a new step is a new key. Modifying step 2 cannot break step 1. The same principle applies to `onReact` — each emoji maps to its own independent function, never sharing a dispatcher.
-
-### One Button, One Object
-
-**discord.js v14** — Buttons require `ActionRowBuilder` and `ButtonBuilder`. The click handler is a global `interactionCreate` listener registered separately on the Client — the code that sends buttons and the code that handles clicks are structurally disconnected, linked only by a raw string ID embedded manually in `customId`. Every interaction must be acknowledged within 3 seconds or Discord shows "interaction failed":
-
-```js
-// discord.js v14 — send and handle are two separate registration sites
-const row = new ActionRowBuilder().addComponents(
-  new ButtonBuilder()
-    .setCustomId('confirm:12345')  // embed userId manually for ownership check
-    .setLabel('✅ Confirm')
-    .setStyle(ButtonStyle.Success),
-  new ButtonBuilder()
-    .setCustomId('cancel:12345')
-    .setLabel('❌ Cancel')
-    .setStyle(ButtonStyle.Danger)
-)
-await message.channel.send({ content: 'Are you sure?', components: [row] })
-
-// Registered globally on the Client — completely separate from the send site
-client.on('interactionCreate', async interaction => {
-  if (!interaction.isButton()) return
-  await interaction.deferUpdate()  // MUST call within 3 seconds
-  const [action, userId] = interaction.customId.split(':')
-  if (interaction.user.id !== userId) return  // manual ownership check
-  if (action === 'confirm') await interaction.editReply({ content: '✅ Confirmed!', components: [] })
-})
-```
-
-**Telegraf v4** — Inline keyboard buttons carry `callback_data` (max 64 bytes). Clicks arrive via `bot.on('callback_query')` registered separately from the command handler. `ctx.answerCbQuery()` must be called to dismiss the loading spinner:
-
-```js
-// Telegraf v4 — inline keyboard (send site and click handler are separate)
-await ctx.reply('Are you sure?', {
-  reply_markup: {
-    inline_keyboard: [[
-      { text: '✅ Confirm', callback_data: `confirm:${ctx.from.id}` },
-      { text: '❌ Cancel',  callback_data: `cancel:${ctx.from.id}` }
-    ]]
-  }
-})
-
-bot.on('callback_query', async ctx => {
-  await ctx.answerCbQuery()  // dismiss the loading spinner — must call explicitly
-  const [action, userId] = ctx.callbackQuery.data.split(':')
-  if (ctx.from.id.toString() !== userId) return
-  if (action === 'confirm') await ctx.editMessageText('✅ Confirmed!')
-})
-```
-
-**fca-unofficial** — No native button component exists on Messenger's MQTT protocol. Buttons must be emulated with numbered text menus. State is stored in a global mutable array shared across all concurrent commands, creating race conditions when two users invoke the same command simultaneously:
-
-```js
-// fca-unofficial — text menu + global handleReply array (no native buttons)
-api.sendMessage(
-  'Are you sure?\n1. ✅ Confirm\n2. ❌ Cancel',
-  threadID,
-  (err, info) => {
-    if (err) return
-    global.client.handleReply.push({
-      name: 'myCommand', messageID: info.messageID,
-      author: event.senderID, type: 'awaiting_confirm',
-    })
-  }
-)
-
-module.exports.handleReply = async ({ event, handleReply, api }) => {
-  if (handleReply.author !== event.senderID) return  // manual ownership check
-  const idx = global.client.handleReply.findIndex(r => r.messageID === handleReply.messageID)
-  global.client.handleReply.splice(idx, 1)  // manual cleanup — races with concurrent pushes
-  const choice = event.body.trim()
-  if (choice === '1') api.sendMessage('✅ Confirmed!', event.threadID, () => {})
-  else api.sendMessage('❌ Cancelled.', event.threadID, () => {})
-}
-```
-
-**Facebook Page Graph API** — The Button Template is the only interactive construct, limited to 3 buttons with titles capped at 20 characters. Clicks arrive as `postback` webhook events in a completely separate Express handler — there is no concept of collocating the send and the click handler:
-
-```js
-// Facebook Page — Button Template (max 3 buttons) + postback handler (separate file)
-await axios.post(`${GRAPH}?access_token=${TOKEN}`, {
-  recipient: { id: psid },
-  message: {
-    attachment: {
-      type: 'template',
-      payload: {
-        template_type: 'button', text: 'Are you sure?',
-        buttons: [
-          { type: 'postback', title: '✅ Confirm', payload: `CONFIRM_${psid}` },
-          { type: 'postback', title: '❌ Cancel',  payload: `CANCEL_${psid}` },
-        ]
-      }
-    }
-  }
-})
-
-app.post('/webhook', (req, res) => {
-  res.sendStatus(200)
-  req.body.entry.forEach(entry => entry.messaging.forEach(async event => {
-    if (!event.postback) return
-    const [action, userId] = event.postback.payload.split('_')
-    if (event.sender.id !== userId) return
-    if (action === 'CONFIRM') await axios.post(`${GRAPH}?access_token=${TOKEN}`,
-      { recipient: { id: event.sender.id }, message: { text: '✅ Confirmed!' } })
-  }))
-})
-```
-
-**Cat-Bot — all four platforms:**
-
-```ts
-const BUTTON_ID = { confirm: 'confirm', cancel: 'cancel' }
-
-export const button = {
-  [BUTTON_ID.confirm]: {
-    label: '✅ Confirm',
-    style: ButtonStyle.SUCCESS,
-    onClick: async ({ chat, event }: AppCtx) => {
-      await chat.editMessage({
-        message_id_to_edit: event['messageID'] as string,
-        message: '✅ Confirmed!',
-        button: [],
-      })
-    },
-  },
-  [BUTTON_ID.cancel]: {
-    label: '❌ Cancel',
-    style: ButtonStyle.DANGER,
-    onClick: async ({ chat, event }: AppCtx) => {
-      await chat.editMessage({
-        message_id_to_edit: event['messageID'] as string,
-        message: '❌ Cancelled.',
-        button: [],
-      })
-    },
-  },
-}
-
-export const onCommand = async ({ chat, button: btn }: AppCtx) => {
-  const confirmId = btn.generateID({ id: BUTTON_ID.confirm })
-  const cancelId  = btn.generateID({ id: BUTTON_ID.cancel })
-  await chat.replyMessage({
-    style: MessageStyle.MARKDOWN,
-    message: '**Are you sure?**',
-    button: [confirmId, cancelId],
-  })
-}
-```
-
-Every button is a self-contained object — its `label`, `style`, and `onClick` live in the same file as `onCommand`. On Discord: an `ActionRowBuilder` with `deferUpdate()` called by the adapter before `onClick` fires. On Telegram: an `inline_keyboard` with `answerCbQuery()` handled transparently. On Messenger: a numbered text menu routed to the matching `onClick`. On Facebook Page: a Button Template. Your command code is identical for all four outcomes.
-
-### Why This Matters
-
-When every handler has a single, bounded responsibility:
-
-- **Reading is linear.** Follow one function to understand one outcome — no `switch` to navigate.
-- **Changes are local.** Modifying `awaiting_age` cannot introduce a regression in `awaiting_name`.
-- **New features are additive.** A new reply step or a new button is a new key; existing logic is untouched.
-- **Bugs are isolated.** A failure in one `onClick` does not affect other buttons in the same command.
-
-This is the Single Responsibility Principle applied consistently at every level of the bot API: each state has one function, each button has one object, each function has one job.
-
-### Predictable Middleware Pipeline
-
-Most chatbot frameworks wire validation logic directly inside each dispatcher or command handler. Permission checks, cooldown guards, and ban enforcement end up scattered across individual command files — or worse, embedded inline inside the routing function that also decides _which_ handler to call. When something fails, you have to chase through multiple dispatchers to find out which guard ran, in what order, and why it blocked execution.
-
-**Cat-Bot's middleware pipeline is inspired by Express.js.** Guards are registered once as discrete middleware functions and run in a declared, auditable order before any dispatcher or command handler executes.
-
-```ts
-// Cat-Bot middleware/index.ts — registered once at boot; applies to every command automatically
-use.onCommand([
-  enforceNotBanned, // ← first: banned actors never reach any further check
-  enforcePermission, // ← second: unauthorized users are rejected before cooldown is consumed
-  enforceCooldown, // ← third: rate-limited after auth; options parsing never runs on blocked commands
-  validateCommandOptions, // ← fourth: parse and validate typed options only for commands that will actually run
-]);
-```
-
-Each function in the chain calls `next()` to continue or returns early to halt — exactly like Express middleware. The order is declared in one place and applies uniformly to every command:
-
-```ts
-// src/engine/middleware/on-command.middleware.ts
-export const enforceNotBanned: MiddlewareFn<OnCommandCtx> = async (
-  ctx,
-  next,
-) => {
-  const banned = await isUserBanned(
-    sessionUserId,
-    platform,
-    sessionId,
-    senderID,
-  );
-  if (banned) {
-    await ctx.chat.replyMessage({ message: "you are unable to use bot" });
-    return; // ← omitting next() halts the chain; the command never executes
-  }
-  await next();
-};
-```
-
-Command modules never implement guards. They receive control only after the full pipeline has passed — ban cleared, permission granted, cooldown window open, options validated. Adding a new cross-cutting concern (audit logging, feature flags, IP filtering) means registering one middleware function, not editing every command file.
-
-**The execution contract is always visible at the registration site:**
-
-```
-onCommand:    enforceNotBanned → enforcePermission → enforceCooldown
-              → validateCommandOptions → [your middlewares] → onCommand handler
-
-onChat:       chatPassthrough → chatLogThread → [your middlewares] → onChat fan-out
-
-onReply:      replyStateValidation → [your middlewares] → onReply handler
-
-onReact:      reactStateValidation → [your middlewares] → onReact handler
-
-onButtonClick: enforceButtonScope → [your middlewares] → button.onClick handler
-```
-
-When a command does not execute, the failure belongs to exactly one middleware. You do not grep through dispatcher files — you look at the registered chain and the function that did not call `next()`. The flow is linear, the order is explicit, and the extension point is always `use.onCommand([yourMiddleware])` in a single file.
-
----
-
 ## Screenshots
 
 ### User Portal
@@ -1450,6 +1451,62 @@ export const config: CommandConfig = {
 | `logger`     | Session-scoped structured logger                                                               |
 | `prefix`     | Active command prefix                                                                          |
 | `usage`      | Replies with the formatted usage guide                                                         |
+
+---
+
+## Converting Existing Commands
+
+If you have command files from another bot project — GoatBot, Mirai, fca-unofficial-based bots, or any other framework — and want to port them to Cat-Bot, use the prompt below with [Claude AI](https://claude.ai).
+
+**How to use:**
+
+1. Open [Claude AI](https://claude.ai)
+2. Copy the entire prompt block below
+3. Replace `[your code]` at the bottom with the command file you want to convert
+4. Paste it into Claude and send
+
+~~~markdown
+
+> **⚠️ CRITICAL — Read Before Proceeding**
+>
+> You MUST fetch the documentation URL in Step 1 **before** writing any code.
+> The fetched documentation is your **only** source of truth.
+> Do NOT invent, assume, or borrow patterns from other bot frameworks (e.g. Discord.js, Telegraf, Baileys, or any other project). If it is not in the documentation, it does not exist in Cat Bot.
+
+---
+
+**## Task: Convert Code to Cat Bot**
+
+**### Step 1 — Fetch Documentation (Required)**
+
+Fetch the URL below and confirm it is successfully retrieved before doing anything else.
+
+- [ ] `https://raw.githubusercontent.com/johnlester-0369/Cat-Bot/refs/heads/main/docs/llms.txt?v=3`
+
+---
+
+**### Step 2 — Acknowledge & Ground Yourself**
+
+After fetching, confirm the following before proceeding:
+- Summarize Cat Bot's structure, code patterns, and conventions **as described in the documentation only**
+- Flag anything in the code to convert that has **no equivalent** in Cat Bot's documented API — do not silently fill gaps with assumptions
+
+---
+
+**### Step 3 — Convert the Code**
+
+Convert the code below into Cat Bot **strictly and exclusively** using what is documented in the fetched URL.
+
+**Rules:**
+- ✅ Only use APIs, methods, patterns, and structures that exist in the documentation
+- ❌ Do not invent helper functions or abstractions not shown in the docs
+- ❌ Do not mirror patterns from other frameworks even if they "seem right"
+- ❌ If something cannot be done within Cat Bot's documented API, say so explicitly — do not improvise
+
+```
+[your code]
+```
+~~~
 
 ---
 
