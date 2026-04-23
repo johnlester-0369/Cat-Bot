@@ -105,19 +105,15 @@ ENCRYPTION_KEY=your_64_hex_char_key_here
 ### 3. Create your admin account
 
 ```bash
-npm run seed:admin -w packages/cat-bot
+npm run seed:admin
 ```
 
-Follow the interactive prompt. This account works for both the user portal (`/login`) and the admin portal (`/admin`).
+This account works for both the user portal (`/login`) and the admin portal (`/admin`).
 
 ### 4. Start the bot engine and dashboard
 
 ```bash
-# Terminal 1 — bot engine
-npm run dev
-
-# Terminal 2 — web dashboard
-npm run dev:web
+npm run dev:all
 ```
 
 - **Dashboard:** http://localhost:5173
@@ -1243,15 +1239,13 @@ LOG_LEVEL=warn
 3. Seed the admin account:
 
 ```bash
-npm run seed:admin -w packages/cat-bot
+npm run seed:admin
 ```
 
 4. Build and start:
 
 ```bash
-npm run build:db      # compile the database package
-npm run build         # compile cat-bot
-npm run build:web     # compile the React dashboard
+npm run build:all     # compile cat-bot (includes database) + React dashboard
 npm start             # serves everything from one process
 ```
 
@@ -1766,9 +1760,12 @@ ENCRYPTION_KEY=                    # openssl rand -hex 32
 | `npm run dev:web`   | Start Vite dev server for the dashboard      |
 | `npm run build:db`  | Compile the database package                 |
 | `npm run build`     | Compile cat-bot (TypeScript + tsc-alias)     |
-| `npm run build:web` | Compile the React dashboard                  |
-| `npm start`         | Start the compiled production server         |
-| `npm test`          | Run Vitest unit and integration tests        |
+| `npm run format`    | Prettier                                     |
+| `npm run test`      | Run Vitest unit and integration tests        |
+| `npm run test:watch`| Vitest in watch mode                         |
+| `npm run seed:admin`| Create the initial system admin account      |
+| `npm run dev:all`   | Start bot engine + web dashboard concurrently |
+| `npm run build:all` | Compile bot + web dashboard concurrently      |
 
 ### `packages/cat-bot`
 

@@ -13,7 +13,10 @@
     "lint": "npm run lint --workspaces --if-present",
     "format": "npm run format --workspaces --if-present",
     "test": "npm run test -w packages/cat-bot",
-    "test:watch": "npm run test:watch -w packages/cat-bot"
+    "test:watch": "npm run test:watch -w packages/cat-bot",
+    "seed:admin": "npm run seed:admin -w packages/cat-bot",
+    "dev:all": "concurrently -n \"bot,web\" \"npm run dev\" \"npm run dev:web\"",
+    "build:all": "concurrently -n \"bot,web\" \"npm run build\" \"npm run build:web\""
   },
   "workspaces": [
     "packages/cat-bot",
@@ -22,5 +25,8 @@
     "packages/database/adapters/neondb",
     "packages/database/adapters/mongodb",
     "packages/web"
-  ]
+  ],
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
 }
