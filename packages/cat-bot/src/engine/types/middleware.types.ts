@@ -92,6 +92,18 @@ export interface OnButtonClickCtx extends BaseCtx {
   session: { id: string; context: Record<string, unknown> };
 }
 
+/**
+ * Context for onEvent middleware — passed once per handler invocation, not per fan-out.
+ * ctx.mod is the specific module about to be dispatched so middleware can gate on
+ * config.name without modifying module code or breaking other handlers on the same eventType.
+ */
+export interface OnEventCtx extends BaseCtx {
+  /** The event module currently being dispatched — inspect config.name to target specific modules. */
+  mod: CommandModule;
+  /** The unified event type key dispatched on (e.g. 'log:subscribe', 'log:unsubscribe'). */
+  eventType: string;
+}
+
 // ── Registration interface ────────────────────────────────────────────────────
 
 /**
@@ -105,4 +117,5 @@ export interface MiddlewareUse {
   onReply(middlewares: MiddlewareFn<OnReplyCtx>[]): void;
   onReact(middlewares: MiddlewareFn<OnReactCtx>[]): void;
   onButtonClick(middlewares: MiddlewareFn<OnButtonClickCtx>[]): void;
+  onEvent(middlewares: MiddlewareFn<OnEventCtx>[]): void;
 }

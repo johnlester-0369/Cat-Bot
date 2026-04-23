@@ -13,6 +13,12 @@ import type {
 import { isPlatformAllowed } from '@/engine/modules/platform/platform-filter.util.js';
 // Event registry check — honours bot admin toggle decisions in bot_session_events
 import { isEventEnabled } from '@/engine/modules/session/bot-session-events.repo.js';
+// Middleware infrastructure — wires the onEvent lifecycle hook introduced by on-event.middleware.ts
+import {
+  middlewareRegistry,
+  runMiddlewareChain,
+} from '@/engine/lib/middleware.lib.js';
+import type { OnEventCtx } from '@/engine/types/middleware.types.js';
 
 /**
  * Fires every registered handler for the given unified event type.
@@ -44,12 +50,22 @@ export async function dispatchEvent(
         )
           continue;
       }
-      try {
-        // Await handles both sync and async returns safely; catch blocks capture any rejections without assuming a .catch() method exists on the return value
-        await (mod['onEvent'] as (ctx: BaseCtx) => unknown)(ctx);
-      } catch (err: unknown) {
-        console.error(`❌ Event handler "${eventType}" failed`, err);
-      }
+      // Build a per-handler context and run the onEvent middleware chain.
+      // Each mod gets its own chain invocation so middleware (e.g. enforceWarnBan) can
+      // gate specific modules by name without short-circuiting the entire fan-out — other
+      // handlers on the same eventType (e.g. checkwarn.ts) continue to execute normally.
+      const eventCtx: OnEventCtx = { ...ctx, mod, eventType };
+      await runMiddlewareChain<OnEventCtx>(
+        middlewareRegistry.getOnEvent(),
+        eventCtx,
+        async () => {
+          try {
+            await (mod['onEvent'] as (ctx: BaseCtx) => unknown)(ctx);
+          } catch (err: unknown) {
+            console.error(`❌ Event handler "${eventType}" failed`, err);
+          }
+        },
+      );
     }
   }
 }
