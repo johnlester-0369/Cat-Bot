@@ -1466,18 +1466,16 @@ If you have command files from another bot project — GoatBot, Mirai, fca-unoff
 4. Paste it into Claude and send
 
 ~~~markdown
-
 > **⚠️ CRITICAL — Read Before Proceeding**
->
 > You MUST fetch the documentation URL in Step 1 **before** writing any code.
 > The fetched documentation is your **only** source of truth.
 > Do NOT invent, assume, or borrow patterns from other bot frameworks (e.g. Discord.js, Telegraf, Baileys, or any other project). If it is not in the documentation, it does not exist in Cat Bot.
 
 ---
 
-**## Task: Convert Code to Cat Bot**
+## Task: Convert Code to Cat Bot
 
-**### Step 1 — Fetch Documentation (Required)**
+### Step 1 — Fetch Documentation (Required)
 
 Fetch the URL below and confirm it is successfully retrieved before doing anything else.
 
@@ -1485,7 +1483,7 @@ Fetch the URL below and confirm it is successfully retrieved before doing anythi
 
 ---
 
-**### Step 2 — Acknowledge & Ground Yourself**
+### Step 2 — Acknowledge & Ground Yourself
 
 After fetching, confirm the following before proceeding:
 - Summarize Cat Bot's structure, code patterns, and conventions **as described in the documentation only**
@@ -1493,7 +1491,7 @@ After fetching, confirm the following before proceeding:
 
 ---
 
-**### Step 3 — Convert the Code**
+### Step 3 — Convert the Code
 
 Convert the code below into Cat Bot **strictly and exclusively** using what is documented in the fetched URL.
 
