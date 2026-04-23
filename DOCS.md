@@ -759,14 +759,24 @@ options: [
 Reading options inside `onCommand`:
 
 ```ts
-export const onCommand = async ({ options, args, usage }: AppCtx) => {
-  const action = options.get('action') ?? args[0]
-  const uid = options.get('uid') ?? args[1]
+import { Platforms } from '@/engine/modules/platform/platform.constants.js'
+
+export const onCommand = async ({ options, args, usage, native }: AppCtx) => {
+  // args is the reliable cross-platform token array — always populated regardless of prefix style or platform
+  let action = args[0]
+  let uid = args[1]
+  // options.get() resolves Discord slash inputs via the native interaction API;
+  // on all other platforms (Telegram, FB Messenger, FB Page) key:value body scanning
+  // is less predictable than positional args — guard explicitly to avoid silent failures
+  if (native.platform === Platforms.Discord) {
+    action = options.get('action') ?? action
+    uid = options.get('uid') ?? uid
+  }
   if (!action) return usage()
 }
 ```
 
-`options.get(name)` returns `string | undefined`. For commands where Discord slash is not the primary use case, you can rely on `args` exclusively and omit `options`.
+`args` is the recommended primary source for all platforms. Use `options.get(name)` only inside a `native.platform === Platforms.Discord` guard when you specifically need to read values pre-resolved from Discord's native slash command interaction API.
 
 ---
 
