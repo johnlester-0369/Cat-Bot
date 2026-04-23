@@ -96,6 +96,9 @@ export interface CommandConfig {
   /** Author name or handle — shown in help output and error context. */
   author: string;
 
+  /** One-line description of what the command does — shown in Discord's '/' menu. */
+  description: string;
+
   /**
    * Usage pattern string or array of pattern strings.
    * Shown in the auto-generated usage reply when ctx.usage() is called.
