@@ -25,6 +25,7 @@ export type {
   OnReplyCtx,
   OnReactCtx,
   OnButtonClickCtx,
+  OnEventCtx,
 } from '@/engine/types/middleware.types.js';
 
 import { use } from '@/engine/lib/middleware.lib.js';
@@ -38,6 +39,7 @@ import { chatPassthrough, chatLogThread } from './on-chat.middleware.js';
 import { replyStateValidation } from './on-reply.middleware.js';
 import { reactStateValidation } from './on-react.middleware.js';
 import { enforceButtonScope } from './on-button-click.middleware.js';
+import { enforceWarnBan } from './on-event.middleware.js';
 
 // ── Default middleware pipeline ────────────────────────────────────────────────
 
@@ -76,4 +78,10 @@ use.onReact([
 use.onButtonClick([
   // Scope ownership enforced here — non-owners receive a private ack() rejection invisible to the group.
   enforceButtonScope,
+]);
+
+use.onEvent([
+  // Suppresses join.ts welcome for warn-banned rejoining members — checkwarn.ts owns the
+  // kick notification for the same log:subscribe event; a simultaneous "Welcome!" contradicts it.
+  enforceWarnBan,
 ]);
