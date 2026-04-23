@@ -19,9 +19,12 @@ import { toBotThreadData } from '@/engine/models/threads.model.js';
 import {
   upsertThread,
   upsertThreadSession,
+  upsertDiscordServer,
+  linkDiscordChannel,
 } from '@/engine/repos/threads.repo.js';
 import { syncUsers } from '@/engine/services/users.service.js';
 import { logger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
+import { Platforms } from '@/engine/modules/platform/platform.constants.js';
 
 /**
  * Fetches full thread metadata, explicitly hydrates participants via
@@ -52,15 +55,29 @@ export async function syncThreadAndParticipants(
       await syncUsers(ctx, allUsersToSync, sessionUserId, sessionId);
     }
 
-    // Safely upsert after constraints are met
-    await upsertThread(toBotThreadData(info));
-    // Mark this session as having seen the thread — subsequent messages short-circuit here
-    await upsertThreadSession(
-      sessionUserId,
-      ctx.native.platform,
-      sessionId,
-      threadId,
-    );
+    // Intercept Discord channels to store them hierarchically by server to avoid duplicating server state per-channel.
+    if (ctx.native.platform === Platforms.Discord && info.serverID) {
+      await upsertDiscordServer({
+        id: info.serverID,
+        name: info.name,
+        avatarUrl: info.avatarUrl,
+        memberCount: info.memberCount,
+        participantIDs: info.participantIDs,
+        adminIDs: info.adminIDs,
+      });
+      await linkDiscordChannel(info.serverID, threadId);
+      // Call the existing method, threads.repo.ts intercepts Discord internally to write bot_discord_server_session
+      await upsertThreadSession(sessionUserId, ctx.native.platform, sessionId, threadId);
+    } else {
+      // Default platform handling (DMs, Telegram, Facebook)
+      await upsertThread(toBotThreadData(info));
+      await upsertThreadSession(
+        sessionUserId,
+        ctx.native.platform,
+        sessionId,
+        threadId,
+      );
+    }
   } catch (err: unknown) {
     logger.warn(
       // Embed message in the log string — Winston's JSON transport does not serialize
