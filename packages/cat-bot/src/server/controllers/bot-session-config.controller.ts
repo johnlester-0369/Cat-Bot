@@ -78,14 +78,18 @@ export class BotSessionConfigController {
     const platform = await resolvePlatform(userId, sessionId, res);
     if (!platform) return;
 
+    const page = parseInt(req.query['page'] as string, 10) || 1;
+    const limit = parseInt(req.query['limit'] as string, 10) || 12; // 12 fits 2-col/3-col grids beautifully
+    const search = (req.query['search'] as string | undefined || '').trim().toLowerCase();
+
     try {
       const rawCommands = await findSessionCommands(
         userId,
         platform,
         sessionId,
       );
-      // Enrich with metadata from the in-memory registry so the web UI can render details
-      const commands = rawCommands
+      
+      const enriched = rawCommands
         // Filter out commands that are structurally disallowed on this session's platform
         .filter((cmd: { commandName: string; isEnable: boolean }) => {
           const mod = commandRegistry.get(cmd.commandName.toLowerCase());
@@ -105,7 +109,18 @@ export class BotSessionConfigController {
             author: cfg?.['author'] as string | undefined,
           };
         });
-      res.status(200).json({ commands });
+
+      const filtered = search ? enriched.filter((cmd: any) => 
+        cmd.commandName.toLowerCase().includes(search) ||
+        (cmd.description || '').toLowerCase().includes(search) ||
+        (cmd.author || '').toLowerCase().includes(search)
+      ) : enriched;
+
+      const total = filtered.length;
+      const totalPages = Math.ceil(total / limit);
+      const paginated = filtered.slice((page - 1) * limit, page * limit);
+
+      res.status(200).json({ commands: paginated, total, page, limit, totalPages });
     } catch (error) {
       console.error('[BotSessionConfigController.getCommands]', error);
       res.status(500).json({ error: 'Failed to fetch commands' });
@@ -182,9 +197,13 @@ export class BotSessionConfigController {
     const platform = await resolvePlatform(userId, sessionId, res);
     if (!platform) return;
 
+    const page = parseInt(req.query['page'] as string, 10) || 1;
+    const limit = parseInt(req.query['limit'] as string, 10) || 12;
+    const search = (req.query['search'] as string | undefined || '').trim().toLowerCase();
+
     try {
       const rawEvents = await findSessionEvents(userId, platform, sessionId);
-      const events = rawEvents
+      const enriched = rawEvents
         // Filter out events that are structurally disallowed on this session's platform
         .filter((evt: { eventName: string; isEnable: boolean }) => {
           const mod = eventRegistry.get(evt.eventName.toLowerCase());
@@ -200,7 +219,18 @@ export class BotSessionConfigController {
             author: cfg?.['author'] as string | undefined,
           };
         });
-      res.status(200).json({ events });
+
+      const filtered = search ? enriched.filter((evt: any) => 
+        evt.eventName.toLowerCase().includes(search) ||
+        (evt.description || '').toLowerCase().includes(search) ||
+        (evt.author || '').toLowerCase().includes(search)
+      ) : enriched;
+
+      const total = filtered.length;
+      const totalPages = Math.ceil(total / limit);
+      const paginated = filtered.slice((page - 1) * limit, page * limit);
+
+      res.status(200).json({ events: paginated, total, page, limit, totalPages });
     } catch (error) {
       console.error('[BotSessionConfigController.getEvents]', error);
       res.status(500).json({ error: 'Failed to fetch events' });

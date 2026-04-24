@@ -20,6 +20,10 @@ export interface BotCommandItemDto {
 
 export interface GetBotCommandsResponseDto {
   commands: BotCommandItemDto[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
 }
 
 export interface BotEventItemDto {
@@ -32,6 +36,10 @@ export interface BotEventItemDto {
 
 export interface GetBotEventsResponseDto {
   events: BotEventItemDto[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
 }
 
 /** PUT body for both command and event toggles */

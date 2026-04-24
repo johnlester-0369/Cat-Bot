@@ -2,14 +2,42 @@ import type { Request, Response } from 'express';
 import { requireAdmin } from '@/server/validators/auth-session.validator.js';
 import { botRepo } from '@/server/repos/bot.repo.js';
 import { botService } from '@/server/services/bot.service.js';
-import { listSystemAdmins, addSystemAdmin, removeSystemAdmin } from 'database';
+import { listSystemAdmins, addSystemAdmin, removeSystemAdmin, listAllUsers } from 'database';
 import type { AddSystemAdminRequestDto } from '@/server/dtos/admin.dto.js';
 export class AdminController {
+  // GET /api/v1/admin/users — fetches all users, delegating pagination and search directly to the database.
+  async listUsers(req: Request, res: Response): Promise<void> {
+    if (!(await requireAdmin(req, res))) return;
+    try {
+      const page = parseInt(req.query['page'] as string, 10) || 1;
+      // Enforce a hard maximum to avoid massive performance drops from querying unlimited pages
+      const limit = Math.min(parseInt(req.query['limit'] as string, 10) || 10, 100);
+      const search = (req.query['search'] as string | undefined || '').trim();
+
+      // WHY: Search and pagination MUST happen in the packages/database layer natively (using SQL LIMIT/OFFSET,
+      // MongoDB $facet, or Prisma skip/take) rather than dynamically slicing arrays in the server layer.
+      // This ensures O(1) memory complexity and O(limit) time complexity even with 100k+ users.
+      const result = await listAllUsers(search, page, limit);
+
+      res.status(200).json(result);
+    } catch (error) {
+      console.error('[AdminController.listUsers]', error);
+      res.status(500).json({ error: 'Failed to fetch users' });
+    }
+  }
+
   // GET /api/v1/admin/bots — all bot sessions across all owners
   async listBots(req: Request, res: Response): Promise<void> {
     if (!(await requireAdmin(req, res))) return;
     try {
-      const result = await botRepo.listAll();
+      const page = parseInt(req.query['page'] as string, 10) || 1;
+      const limit = Math.min(parseInt(req.query['limit'] as string, 10) || 10, 100);
+      const search = (req.query['search'] as string | undefined || '').trim();
+
+      // WHY: Delegated to the database adapter. Never load the full bot_session table into memory
+      // to perform dynamic Array.prototype.slice pagination here.
+      const result = await botRepo.listAll(search, page, limit);
+
       res.status(200).json(result);
     } catch (error) {
       console.error('[AdminController.listBots]', error);

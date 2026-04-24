@@ -16,6 +16,11 @@ adminRouter.get('/bots', (req, res) => {
   void adminController.listBots(req, res);
 });
 
+// GET /api/v1/admin/users — all registered users (paginated + search)
+adminRouter.get('/users', (req, res) => {
+  void adminController.listUsers(req, res);
+});
+
 // GET /api/v1/admin/system-admins — list all global system admin IDs
 adminRouter.get('/system-admins', (req, res) => {
   void adminController.getSystemAdmins(req, res);

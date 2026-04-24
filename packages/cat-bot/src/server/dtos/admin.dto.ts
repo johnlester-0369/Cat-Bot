@@ -23,6 +23,17 @@ export interface GetAdminBotListItemDto {
 
 export interface GetAdminBotListResponseDto {
   bots: GetAdminBotListItemDto[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  stats: {
+    totalBots: number;
+    activeBots: number;
+    platformDist: Record<string, number>;
+    // Tracks active (isRunning=true) bots grouped by platform
+    platformActiveDist: Record<string, number>;
+  };
 }
 
 // System admin — global platform-native user IDs with highest authority
@@ -38,4 +49,26 @@ export interface GetSystemAdminsResponseDto {
 
 export interface AddSystemAdminRequestDto {
   adminId: string;
+}
+
+export interface AdminUserItemDto {
+  id: string;
+  name: string;
+  email: string;
+  role: string | null;
+  createdAt: string;
+  banned: boolean;
+}
+
+export interface GetAdminUserListResponseDto {
+  users: AdminUserItemDto[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  stats: {
+    totalUsers: number;
+    adminCount: number;
+    bannedCount: number;
+  };
 }
