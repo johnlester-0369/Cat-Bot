@@ -294,6 +294,155 @@ export const enforcePermission: MiddlewareFn<OnCommandCtx> = async function (
   await next();
 };
 
+// ── Admin-Only Enforcement (onlyadminbox + adminonly) ────────────────────────
+
+/**
+ * Enforces the two admin-only restriction modes managed by the
+ * adminonly / ignoreonlyad / onlyadminbox / ignoreonlyadbox commands.
+ *
+ *   1. Session-wide admin-only mode (adminonly):
+ *        db.users.collection(sessionUserId) → 'session_settings'
+ *          adminOnlyEnabled    : boolean
+ *          adminOnlyHideNoti   : boolean
+ *          adminOnlyIgnoreList : string[]
+ *      When enabled, only bot admins (and system admins) may run any command
+ *      not present on adminOnlyIgnoreList.
+ *
+ *   2. Per-thread admin-only mode (onlyadminbox):
+ *        db.threads.collection(threadID) → 'adminbox_settings'
+ *          enabled    : boolean
+ *          hideNoti   : boolean
+ *          ignoreList : string[]
+ *      When enabled, only thread admins (and bot/system admins) may run any
+ *      command in this thread not present on ignoreList.
+ *
+ * Bypass order (most → least privileged):
+ *   system admin → bot admin → thread admin (for thread-level only)
+ *
+ * Notification suppression mirrors the ban-check pattern: when hideNoti is
+ * false the user is informed, but the notice is rate-limited via cooldownStore
+ * so a flood of blocked invocations does not produce a flood of replies.
+ *
+ * Fail-open on any DB read error so a temporary outage does not lock everyone
+ * out — consistent with enforceNotBanned's defensive posture.
+ *
+ * Registered AFTER enforcePermission so commands that already require
+ * BOT_ADMIN / SYSTEM_ADMIN never re-check, and BEFORE enforceCooldown so a
+ * blocked user does not consume their cooldown window.
+ */
+export const enforceAdminOnly: MiddlewareFn<OnCommandCtx> = async function (
+  ctx,
+  next,
+): Promise<void> {
+  if (!ctx.parsed || !ctx.mod) {
+    await next();
+    return;
+  }
+
+  const sessionUserId = ctx.native.userId ?? '';
+  const sessionId     = ctx.native.sessionId ?? '';
+  const platform      = ctx.native.platform;
+  const senderID      = (ctx.event['senderID'] ??
+    ctx.event['userID'] ??
+    '') as string;
+  const threadID      = (ctx.event['threadID'] ?? '') as string;
+
+  // Resolve canonical command name from the module config so aliases share the
+  // same ignore-list entry (typing /adonly behaves the same as /adminonly).
+  const cfg     = ctx.mod['config'] as Record<string, unknown> | undefined;
+  const cmdName = (
+    (cfg?.['name'] as string | undefined) ?? ctx.parsed.name
+  ).toLowerCase();
+  const now     = Date.now();
+
+  // System admins bypass both gates unconditionally.
+  if (senderID && (await isSystemAdmin(senderID))) {
+    await next();
+    return;
+  }
+
+  // Bot-admin status is reused by both gates — resolve once.
+  const isAdmin =
+    senderID && sessionUserId && sessionId
+      ? await isBotAdmin(sessionUserId, platform, sessionId, senderID)
+      : false;
+
+  // ── Session-wide admin-only ─────────────────────────────────────────────
+  if (sessionUserId) {
+    try {
+      const userColl = ctx.db.users.collection(sessionUserId);
+      if (await userColl.isCollectionExist('session_settings')) {
+        const h = await userColl.getCollection('session_settings');
+        const enabled = (await h.get('adminOnlyEnabled')) as boolean | null;
+
+        if (enabled === true && !isAdmin) {
+          const ignoreList =
+            ((await h.get('adminOnlyIgnoreList')) as string[] | null) ?? [];
+          if (!ignoreList.includes(cmdName)) {
+            const hideNoti =
+              (await h.get('adminOnlyHideNoti')) as boolean | null;
+            if (hideNoti !== true) {
+              const key = `adminonly_noti:${sessionUserId}:${platform}:${sessionId}:${senderID}`;
+              if (cooldownStore.check(key, now) === null) {
+                await ctx.chat.replyMessage({
+                  message:
+                    '🚫 The bot is currently in admin-only mode. Only bot admins may use commands.',
+                });
+                cooldownStore.record(key, now, 15000);
+              }
+            }
+            return; // halt — handler never runs
+          }
+        }
+      }
+    } catch {
+      // fail-open — DB outage must not lock out the entire session
+    }
+  }
+
+  // ── Per-thread admin-only ───────────────────────────────────────────────
+  if (threadID) {
+    try {
+      const threadColl = ctx.db.threads.collection(threadID);
+      if (await threadColl.isCollectionExist('adminbox_settings')) {
+        const h = await threadColl.getCollection('adminbox_settings');
+        const enabled = (await h.get('enabled')) as boolean | null;
+
+        if (enabled === true) {
+          const ignoreList =
+            ((await h.get('ignoreList')) as string[] | null) ?? [];
+          if (!ignoreList.includes(cmdName)) {
+            // Bot admin already counts as allowed; otherwise check thread admin.
+            let allowed = isAdmin;
+            if (!allowed && senderID) {
+              allowed = await isThreadAdmin(threadID, senderID);
+            }
+            if (!allowed) {
+              const hideNoti =
+                (await h.get('hideNoti')) as boolean | null;
+              if (hideNoti !== true) {
+                const key = `adminbox_noti:${sessionUserId}:${platform}:${sessionId}:${threadID}:${senderID}`;
+                if (cooldownStore.check(key, now) === null) {
+                  await ctx.chat.replyMessage({
+                    message:
+                      '🚫 Only group admins can use the bot in this thread.',
+                  });
+                  cooldownStore.record(key, now, 15000);
+                }
+              }
+              return; // halt — handler never runs
+            }
+          }
+        }
+      }
+    } catch {
+      // fail-open — DB outage must not lock out the entire thread
+    }
+  }
+
+  await next();
+};
+
 // ── Ban Enforcement ───────────────────────────────────────────────────────────
 
 /**
