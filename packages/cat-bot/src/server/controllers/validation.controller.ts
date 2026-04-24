@@ -19,7 +19,7 @@
  */
 
 import type { Request, Response } from 'express';
-import { auth } from '@/server/lib/better-auth.lib.js';
+import { requireSession } from '@/server/validators/auth-session.validator.js';
 import { logger, createLogger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 import axios from 'axios';
 import { startBot } from '@/engine/adapters/platform/facebook-messenger/index.js';
@@ -28,25 +28,6 @@ import {
   withRetry,
   isNetworkError,
 } from '@/engine/lib/retry.lib.js';
-
-// ── Auth helper ───────────────────────────────────────────────────────────────
-
-async function requireAuth(
-  req: Request,
-  res: Response,
-): Promise<string | null> {
-  const headers = new Headers();
-  for (const [key, val] of Object.entries(req.headers)) {
-    if (val === undefined) continue;
-    headers.set(key, Array.isArray(val) ? val.join(', ') : val);
-  }
-  const session = await auth.api.getSession({ headers });
-  if (!session) {
-    res.status(401).json({ error: 'Unauthorized' });
-    return null;
-  }
-  return session.user.id;
-}
 
 // ── Discord ───────────────────────────────────────────────────────────────────
 
@@ -61,7 +42,7 @@ export async function validateDiscord(
   req: Request,
   res: Response,
 ): Promise<void> {
-  const userId = await requireAuth(req, res);
+  const userId = await requireSession(req, res);
   if (!userId) return;
 
   const { discordToken } = req.body as { discordToken?: string };
@@ -117,7 +98,7 @@ export async function validateTelegram(
   req: Request,
   res: Response,
 ): Promise<void> {
-  const userId = await requireAuth(req, res);
+  const userId = await requireSession(req, res);
   if (!userId) return;
 
   const { telegramToken } = req.body as { telegramToken?: string };
@@ -184,7 +165,7 @@ export async function validateFacebookMessenger(
   req: Request,
   res: Response,
 ): Promise<void> {
-  const userId = await requireAuth(req, res);
+  const userId = await requireSession(req, res);
   if (!userId) return;
 
   const { appstate } = req.body as { appstate?: string };

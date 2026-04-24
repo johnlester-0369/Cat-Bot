@@ -1,23 +1,13 @@
 import type { Request, Response } from 'express';
-import { auth } from '@/server/lib/better-auth.lib.js';
+import { requireSession } from '@/server/validators/auth-session.validator.js';
 import { getFbPageWebhookVerification } from '@/engine/repos/webhooks.repo.js';
 import { generateVerifyToken } from '@/server/utils/hash.util.js';
 
 export class WebhookController {
   async getFacebookInfo(req: Request, res: Response): Promise<void> {
-    const headers = new Headers();
-    for (const [key, val] of Object.entries(req.headers)) {
-      if (val === undefined) continue;
-      headers.set(key, Array.isArray(val) ? val.join(', ') : val);
-    }
+    const userId = await requireSession(req, res);
+    if (!userId) return;
 
-    const sessionData = await auth.api.getSession({ headers });
-    if (!sessionData) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
-
-    const userId = sessionData.user.id;
     const verifyToken = generateVerifyToken(userId);
 
     // Dynamically generate the external webhook address using Express request context

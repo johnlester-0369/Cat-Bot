@@ -15,7 +15,7 @@
  */
 
 import type { Request, Response } from 'express';
-import { auth } from '@/server/lib/better-auth.lib.js';
+import { requireSession } from '@/server/validators/auth-session.validator.js';
 import { botRepo } from '@/server/repos/bot.repo.js';
 import { ID_TO_PLATFORM } from '@/engine/modules/platform/platform.constants.js';
 import {
@@ -35,25 +35,6 @@ import type { ToggleEnabledRequestDto } from '@/server/dtos/bot-session-config.d
 // Resolves as a no-op for platforms without a registered sync (FB Messenger, FB Page) or stopped sessions.
 import { triggerSlashSync } from '@/engine/modules/prefix/slash-sync.lib.js';
 import { isPlatformAllowed } from '@/engine/modules/platform/platform-filter.util.js';
-
-// ── Shared Auth Helper ────────────────────────────────────────────────────────
-
-async function requireSession(
-  req: Request,
-  res: Response,
-): Promise<string | null> {
-  const headers = new Headers();
-  for (const [key, val] of Object.entries(req.headers)) {
-    if (val === undefined) continue;
-    headers.set(key, Array.isArray(val) ? val.join(', ') : val);
-  }
-  const sessionData = await auth.api.getSession({ headers });
-  if (!sessionData) {
-    res.status(401).json({ error: 'Unauthorized' });
-    return null;
-  }
-  return sessionData.user.id;
-}
 
 // ── Shared Ownership Resolver ─────────────────────────────────────────────────
 

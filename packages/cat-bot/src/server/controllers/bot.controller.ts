@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { auth } from '@/server/lib/better-auth.lib.js';
+import { requireSession } from '@/server/validators/auth-session.validator.js';
 import { botService } from '@/server/services/bot.service.js';
 import type {
   CreateBotRequestDto,
@@ -10,19 +10,8 @@ export class BotController {
   // Session verification happens before any business logic so the service layer
   // never receives unauthenticated requests — keeps services auth-agnostic and testable.
   async create(req: Request, res: Response): Promise<void> {
-    // better-auth's getSession expects the browser Headers API, not Node.js IncomingHttpHeaders.
-    // Manual conversion is framework-agnostic and doesn't require a separate adapter import.
-    const headers = new Headers();
-    for (const [key, val] of Object.entries(req.headers)) {
-      if (val === undefined) continue;
-      headers.set(key, Array.isArray(val) ? val.join(', ') : val);
-    }
-
-    const sessionData = await auth.api.getSession({ headers });
-    if (!sessionData) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
+    const userId = await requireSession(req, res);
+    if (!userId) return;
 
     const dto = req.body as CreateBotRequestDto;
 
@@ -44,7 +33,7 @@ export class BotController {
     }
 
     try {
-      const result = await botService.createBot(sessionData.user.id, dto);
+      const result = await botService.createBot(userId, dto);
       res.status(201).json(result);
     } catch (error) {
       // Log the full error server-side; return a generic message so internal
@@ -56,17 +45,8 @@ export class BotController {
 
   // GET /api/v1/bots/:id — Retrieves a single bot's details including credentials for the editing flow.
   async get(req: Request, res: Response): Promise<void> {
-    const headers = new Headers();
-    for (const [key, val] of Object.entries(req.headers)) {
-      if (val === undefined) continue;
-      headers.set(key, Array.isArray(val) ? val.join(', ') : val);
-    }
-
-    const sessionData = await auth.api.getSession({ headers });
-    if (!sessionData) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
+    const userId = await requireSession(req, res);
+    if (!userId) return;
 
     const sessionId = String(req.params['id']);
     if (!sessionId) {
@@ -75,7 +55,7 @@ export class BotController {
     }
 
     try {
-      const bot = await botService.getBot(sessionData.user.id, sessionId);
+      const bot = await botService.getBot(userId, sessionId);
       if (!bot) {
         res.status(404).json({ error: 'Bot not found' });
         return;
@@ -89,17 +69,8 @@ export class BotController {
 
   // PUT /api/v1/bots/:id — Replaces the identity and credentials for an existing bot.
   async update(req: Request, res: Response): Promise<void> {
-    const headers = new Headers();
-    for (const [key, val] of Object.entries(req.headers)) {
-      if (val === undefined) continue;
-      headers.set(key, Array.isArray(val) ? val.join(', ') : val);
-    }
-
-    const sessionData = await auth.api.getSession({ headers });
-    if (!sessionData) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
+    const userId = await requireSession(req, res);
+    if (!userId) return;
 
     const sessionId = String(req.params['id']);
     if (!sessionId) {
@@ -109,8 +80,8 @@ export class BotController {
 
     const dto = req.body as UpdateBotRequestDto;
     try {
-      await botService.updateBot(sessionData.user.id, sessionId, dto);
-      const bot = await botService.getBot(sessionData.user.id, sessionId);
+      await botService.updateBot(userId, sessionId, dto);
+      const bot = await botService.getBot(userId, sessionId);
       res.status(200).json(bot);
     } catch (error) {
       console.error('[BotController.update]', error);
@@ -119,23 +90,14 @@ export class BotController {
   }
 
   // GET /api/v1/bots — returns all bot sessions owned by the authenticated user.
-  // Identical header-conversion and auth-guard pattern to create: controller owns
-  // auth enforcement so the service layer stays pure and independently testable.
+  // Identical auth-guard pattern to create: controller owns auth enforcement so the
+  // service layer stays pure and independently testable.
   async list(req: Request, res: Response): Promise<void> {
-    const headers = new Headers();
-    for (const [key, val] of Object.entries(req.headers)) {
-      if (val === undefined) continue;
-      headers.set(key, Array.isArray(val) ? val.join(', ') : val);
-    }
-
-    const sessionData = await auth.api.getSession({ headers });
-    if (!sessionData) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
+    const userId = await requireSession(req, res);
+    if (!userId) return;
 
     try {
-      const result = await botService.listBots(sessionData.user.id);
+      const result = await botService.listBots(userId);
       res.status(200).json(result);
     } catch (error) {
       console.error('[BotController.list]', error);
@@ -145,16 +107,8 @@ export class BotController {
 
   // POST /api/v1/bots/:id/start — persists isRunning = true and boots the transport
   async start(req: Request, res: Response): Promise<void> {
-    const headers = new Headers();
-    for (const [key, val] of Object.entries(req.headers)) {
-      if (val === undefined) continue;
-      headers.set(key, Array.isArray(val) ? val.join(', ') : val);
-    }
-    const sessionData = await auth.api.getSession({ headers });
-    if (!sessionData) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
+    const userId = await requireSession(req, res);
+    if (!userId) return;
 
     const sessionId = String(req.params['id']);
     if (!sessionId) {
@@ -163,7 +117,7 @@ export class BotController {
     }
 
     try {
-      await botService.startBot(sessionData.user.id, sessionId);
+      await botService.startBot(userId, sessionId);
       res.status(200).json({ status: 'started' });
     } catch (error) {
       console.error('[BotController.start]', error);
@@ -173,16 +127,8 @@ export class BotController {
 
   // POST /api/v1/bots/:id/stop — persists isRunning = false and tears down the transport
   async stop(req: Request, res: Response): Promise<void> {
-    const headers = new Headers();
-    for (const [key, val] of Object.entries(req.headers)) {
-      if (val === undefined) continue;
-      headers.set(key, Array.isArray(val) ? val.join(', ') : val);
-    }
-    const sessionData = await auth.api.getSession({ headers });
-    if (!sessionData) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
+    const userId = await requireSession(req, res);
+    if (!userId) return;
 
     const sessionId = String(req.params['id']);
     if (!sessionId) {
@@ -191,7 +137,7 @@ export class BotController {
     }
 
     try {
-      await botService.stopBot(sessionData.user.id, sessionId);
+      await botService.stopBot(userId, sessionId);
       res.status(200).json({ status: 'stopped' });
     } catch (error) {
       console.error('[BotController.stop]', error);
@@ -201,16 +147,8 @@ export class BotController {
 
   // POST /api/v1/bots/:id/restart — restarts the live transport; isRunning unchanged
   async restart(req: Request, res: Response): Promise<void> {
-    const headers = new Headers();
-    for (const [key, val] of Object.entries(req.headers)) {
-      if (val === undefined) continue;
-      headers.set(key, Array.isArray(val) ? val.join(', ') : val);
-    }
-    const sessionData = await auth.api.getSession({ headers });
-    if (!sessionData) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
+    const userId = await requireSession(req, res);
+    if (!userId) return;
 
     const sessionId = String(req.params['id']);
     if (!sessionId) {
@@ -219,7 +157,7 @@ export class BotController {
     }
 
     try {
-      await botService.restartBot(sessionData.user.id, sessionId);
+      await botService.restartBot(userId, sessionId);
       res.status(200).json({ status: 'restarted' });
     } catch (error) {
       console.error('[BotController.restart]', error);
@@ -229,17 +167,8 @@ export class BotController {
 
   // DELETE /api/v1/bots/:id — permanently removes the bot session and all its data.
   async delete(req: Request, res: Response): Promise<void> {
-    const headers = new Headers();
-    for (const [key, val] of Object.entries(req.headers)) {
-      if (val === undefined) continue;
-      headers.set(key, Array.isArray(val) ? val.join(', ') : val);
-    }
-
-    const sessionData = await auth.api.getSession({ headers });
-    if (!sessionData) {
-      res.status(401).json({ error: 'Unauthorized' });
-      return;
-    }
+    const userId = await requireSession(req, res);
+    if (!userId) return;
 
     const sessionId = String(req.params['id']);
     if (!sessionId) {
@@ -248,7 +177,7 @@ export class BotController {
     }
 
     try {
-      await botService.deleteBot(sessionData.user.id, sessionId);
+      await botService.deleteBot(userId, sessionId);
       res.status(200).json({ status: 'deleted' });
     } catch (error) {
       console.error('[BotController.delete]', error);

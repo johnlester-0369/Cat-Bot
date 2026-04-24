@@ -1,43 +1,9 @@
 import type { Request, Response } from 'express';
-import { adminAuth } from '@/server/lib/better-auth.lib.js';
+import { requireAdmin } from '@/server/validators/auth-session.validator.js';
 import { botRepo } from '@/server/repos/bot.repo.js';
 import { botService } from '@/server/services/bot.service.js';
 import { listSystemAdmins, addSystemAdmin, removeSystemAdmin } from 'database';
 import type { AddSystemAdminRequestDto } from '@/server/dtos/admin.dto.js';
-
-// Reusable header conversion — same pattern as bot.controller.ts.
-// better-auth expects the browser Headers API, not Node IncomingHttpHeaders.
-function toHeaders(req: Request): Headers {
-  const h = new Headers();
-  for (const [key, val] of Object.entries(req.headers)) {
-    if (val === undefined) continue;
-    h.set(key, Array.isArray(val) ? val.join(', ') : val);
-  }
-  return h;
-}
-
-// Verifies adminAuth session AND role === 'admin'.
-// Using adminAuth (not auth) so the ba-admin.session_token cookie is checked — the
-// user portal's better-auth.session_token is never accepted here, keeping the two
-// auth surfaces strictly isolated.
-async function requireAdmin(
-  req: Request,
-  res: Response,
-): Promise<{ id: string } | null> {
-  const sessionData = await adminAuth.api.getSession({
-    headers: toHeaders(req),
-  });
-  if (!sessionData) {
-    res.status(401).json({ error: 'Unauthorized' });
-    return null;
-  }
-  if (sessionData.user.role !== 'admin') {
-    res.status(403).json({ error: 'Forbidden: admin role required' });
-    return null;
-  }
-  return { id: sessionData.user.id };
-}
-
 export class AdminController {
   // GET /api/v1/admin/bots — all bot sessions across all owners
   async listBots(req: Request, res: Response): Promise<void> {
