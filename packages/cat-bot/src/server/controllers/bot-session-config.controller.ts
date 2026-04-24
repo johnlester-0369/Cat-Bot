@@ -114,7 +114,11 @@ export class BotSessionConfigController {
 
       const filtered = search
         ? enriched.filter(
-            (cmd: { commandName: string; description?: string; author?: string }) =>
+            (cmd: {
+              commandName: string;
+              description?: string;
+              author?: string;
+            }) =>
               cmd.commandName.toLowerCase().includes(search) ||
               (cmd.description || '').toLowerCase().includes(search) ||
               (cmd.author || '').toLowerCase().includes(search),
@@ -231,7 +235,11 @@ export class BotSessionConfigController {
 
       const filtered = search
         ? enriched.filter(
-            (evt: { eventName: string; description?: string; author?: string }) =>
+            (evt: {
+              eventName: string;
+              description?: string;
+              author?: string;
+            }) =>
               evt.eventName.toLowerCase().includes(search) ||
               (evt.description || '').toLowerCase().includes(search) ||
               (evt.author || '').toLowerCase().includes(search),
