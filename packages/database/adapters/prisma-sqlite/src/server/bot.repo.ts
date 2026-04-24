@@ -298,28 +298,78 @@ export class BotRepo {
 
   // Returns every bot session across all owners — used only by admin dashboard endpoints.
   // No userId filter intentional: admin needs a global view of platform health.
-  async listAll(): Promise<GetAdminBotListResponseDto> {
-    // Include the owning user's name and email in a single query via the existing
-    // BotSession → user relation — avoids a separate lookup for every session row.
-    const rows = await prisma.botSession.findMany({
-      orderBy: { userId: 'asc' },
-      include: { user: true },
-    });
+  async listAll(search: string = '', page: number = 1, limit: number = 10): Promise<GetAdminBotListResponseDto> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const where: any = {};
+    if (search) {
+      const platformIdMatches: number[] = [];
+      for (const [idStr, platStr] of Object.entries(ID_TO_PLATFORM)) {
+        if ((platStr as string).toLowerCase().includes(search.toLowerCase())) {
+          platformIdMatches.push(parseInt(idStr, 10));
+        }
+      }
+      
+      where.OR =[
+        { nickname: { contains: search } },
+        { user: { name: { contains: search } } },
+        { user: { email: { contains: search } } }
+      ];
+      // Expand platform ID checks if they typed 'telegram' or 'discord' 
+      if (platformIdMatches.length > 0) {
+        where.OR.push({ platformId: { in: platformIdMatches } });
+      }
+    }
+
+    const [rows, total, statsRows] = await Promise.all([
+      prisma.botSession.findMany({
+        where,
+        orderBy: { userId: 'asc' },
+        skip: (page - 1) * limit,
+        take: limit,
+        include: { user: true }
+      }),
+      prisma.botSession.count({ where }),
+      prisma.botSession.groupBy({
+        by: ['platformId', 'isRunning'],
+        _count: { _all: true }
+      })
+    ]);
+
+    let totalBots = 0;
+    let activeBots = 0;
+    const platformDist: Record<string, number> = {};
+    const platformActiveDist: Record<string, number> = {};
+
+    for (const b of statsRows) {
+      const platStr = (ID_TO_PLATFORM as Record<number, string>)[b.platformId] ?? '';
+      const count = b._count._all;
+      
+      totalBots += count;
+      platformDist[platStr] = (platformDist[platStr] || 0) + count;
+      
+      if (b.isRunning) {
+        activeBots += count;
+        platformActiveDist[platStr] = (platformActiveDist[platStr] || 0) + count;
+      }
+    }
+
     return {
-      bots: rows.map((row) => ({
+      bots: rows.map(row => ({
         sessionId: row.sessionId,
         userId: row.userId,
         platformId: row.platformId,
-        platform:
-          (ID_TO_PLATFORM as Record<number, string>)[row.platformId] ?? '',
+        platform: (ID_TO_PLATFORM as Record<number, string>)[row.platformId] ?? '',
         nickname: row.nickname ?? '',
         prefix: row.prefix ?? '',
         isRunning: row.isRunning,
-        // Safe navigation guards against orphaned sessions. Use ?? undefined to ensure empty
-        // strings are preserved, preventing the frontend from rendering raw IDs when name is blank.
         userName: row.user?.name ?? undefined,
         userEmail: row.user?.email ?? undefined,
       })),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      stats: { totalBots, activeBots, platformDist, platformActiveDist }
     };
   }
 

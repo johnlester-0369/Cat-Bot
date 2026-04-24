@@ -368,78 +368,167 @@ export class BotRepo {
   }
 
   // Returns every bot session across all owners — used only by admin dashboard endpoints.
-  async listAll(): Promise<GetAdminBotListResponseDto> {
+  async listAll(search: string = '', page: number = 1, limit: number = 10): Promise<GetAdminBotListResponseDto> {
     const db = getMongoDb();
+    
+    // Execute filtering, joining, and pagination completely within the MongoDB engine.
+    // Handle ObjectID mapping and fallback to 'users' collection to ensure owner is found.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const rows = await db
-      .collection<any>('botSessions')
-      .find({})
-      .sort({ userId: 1 })
-      .toArray();
-    // Batch-fetch owners by unique userId to avoid N queries against the user collection.
-    // better-auth stores the user's `id` field as a plain document field (not MongoDB _id).
-    const uniqueUserIds = [...new Set(rows.map((r) => r.userId as string))];
-
-    // Handle potential ObjectId conversion for the `_id` lookup in case better-auth used native ObjectIds
-    const objectIds = uniqueUserIds
-      .filter((id) => ObjectId.isValid(id))
-      .map((id) => new ObjectId(id));
-    const queryOr: any[] = [
-      { _id: { $in: uniqueUserIds } },
-      { id: { $in: uniqueUserIds } },
-    ];
-    // Only push the ObjectId clause if there are valid ObjectIds to prevent query errors
-    if (objectIds.length > 0) {
-      queryOr.push({ _id: { $in: objectIds } });
-    }
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let userDocs: any[] = [];
-    if (uniqueUserIds.length > 0) {
-      userDocs = await db
-        .collection<any>('user')
-        .find({ $or: queryOr })
-        .toArray();
-      // Fallback: Check 'users' collection if 'user' yielded no results. Some DB viewers or
-      // custom better-auth setups automatically pluralize collection names.
-      if (userDocs.length === 0) {
-        userDocs = await db
-          .collection<any>('users')
-          .find({ $or: queryOr })
-          .toArray();
+    const pipeline: any[] = [
+      {
+        $lookup: {
+          from: 'user',
+          let: { uid: '$userId' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $or: [
+                    { $eq: ['$_id', '$$uid'] },
+                    { $eq: ['$id', '$$uid'] },
+                    { $eq: [{ $toString: '$_id' }, '$$uid'] }
+                  ]
+                }
+              }
+            }
+          ],
+          as: 'owner_user'
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          let: { uid: '$userId' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $or: [
+                    { $eq: ['$_id', '$$uid'] },
+                    { $eq: ['$id', '$$uid'] },
+                    { $eq: [{ $toString: '$_id' }, '$$uid'] }
+                  ]
+                }
+              }
+            }
+          ],
+          as: 'owner_users'
+        }
+      },
+      {
+        $addFields: {
+          // Prefer the 'user' collection result, fallback to 'users'
+          owner: {
+            $cond: {
+              if: { $gt: [{ $size: '$owner_user' }, 0] },
+              then: { $arrayElemAt: ['$owner_user', 0] },
+              else: {
+                $cond: {
+                  if: { $gt: [{ $size: '$owner_users' }, 0] },
+                  then: { $arrayElemAt: ['$owner_users', 0] },
+                  else: null
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          owner_user: 0,
+          owner_users: 0
+        }
       }
+    ];
+
+    if (search) {
+      // WHY: Escape regex characters to prevent SyntaxError crashes and ReDoS attacks
+      const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const searchRegex = new RegExp(escapedSearch, 'i');
+      const platformIdMatches: number[] =[];
+      for (const [idStr, platStr] of Object.entries(ID_TO_PLATFORM)) {
+        if ((platStr as string).toLowerCase().includes(search.toLowerCase())) {
+          platformIdMatches.push(parseInt(idStr, 10));
+        }
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const matchOr: any[] =[
+        { nickname: { $regex: searchRegex } },
+        { 'owner.name': { $regex: searchRegex } },
+        { 'owner.email': { $regex: searchRegex } }
+      ];
+
+      if (platformIdMatches.length > 0) {
+        matchOr.push({ platformId: { $in: platformIdMatches } });
+      }
+
+      pipeline.push({ $match: { $or: matchOr } });
     }
 
-    const userMap = new Map<string, { name: string; email: string }>(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      userDocs.map((u: any) => [
-        // Prefer `id` (cuid2 string from better-auth) over `_id` (ObjectId) for the map key
-        // so lookups via r.userId (also cuid2) succeed. _id.toString() yields a 24-char hex
-        // string that never matches a cuid2 userId, causing all owner lookups to return undefined.
-        u.id ?? u._id?.toString(),
-        { name: u.name as string, email: u.email as string },
-      ]),
-    );
+    // Process skip, limit, and total count simultaneously using MongoDB Facets
+    pipeline.push({
+      $facet: {
+        metadata: [{ $count: 'total' }],
+        data:[
+          { $sort: { userId: 1 } },
+          { $skip: (page - 1) * limit },
+          { $limit: limit }
+        ]
+      }
+    });
+
+    const [result] = await db.collection('botSessions').aggregate(pipeline).toArray();
+    
+    const total = result?.metadata[0]?.total ?? 0;
+    const paginated = result?.data ??[];
+
+    const statsPipeline =[
+      {
+        $group: {
+          _id: '$platformId',
+          total: { $sum: 1 },
+          active: { $sum: { $cond: ['$isRunning', 1, 0] } }
+        }
+      }
+    ];
+    
+    const statsResult = await db.collection('botSessions').aggregate(statsPipeline).toArray();
+
+    const platformDist: Record<string, number> = {};
+    const platformActiveDist: Record<string, number> = {};
+    let totalBots = 0;
+    let activeBots = 0;
+
+    for (const stat of statsResult) {
+      const platStr = (ID_TO_PLATFORM as Record<number, string>)[stat._id as number] ?? '';
+      platformDist[platStr] = stat.total;
+      platformActiveDist[platStr] = stat.active;
+      totalBots += stat.total;
+      activeBots += stat.active;
+    }
+
     return {
-      bots: rows.map((r) => {
-        const owner = userMap.get(r.userId as string);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      bots: paginated.map((r: any) => {
         return {
           sessionId: r.sessionId as string,
           userId: r.userId as string,
           platformId: r.platformId as number,
           platform:
-            (ID_TO_PLATFORM as Record<number, string>)[
-              r.platformId as number
-            ] ?? '',
+            (ID_TO_PLATFORM as Record<number, string>)[r.platformId as number] ?? '',
           nickname: (r.nickname as string | undefined) ?? '',
           prefix: (r.prefix as string | undefined) ?? '',
           isRunning: (r.isRunning as boolean | undefined) ?? false,
-          // Use ?? undefined to ensure empty strings are preserved,
-          // preventing the frontend from rendering raw user IDs when name is blank.
-          userName: owner?.name ?? undefined,
-          userEmail: owner?.email ?? undefined,
+          userName: r.owner?.name ?? undefined,
+          userEmail: r.owner?.email ?? undefined,
         };
       }),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      stats: { totalBots, activeBots, platformDist, platformActiveDist }
     };
   }
 

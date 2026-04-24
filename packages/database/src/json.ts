@@ -117,4 +117,5 @@ export {
   addSystemAdmin,
   removeSystemAdmin,
   isSystemAdmin,
+  listAllUsers,
 } from '../adapters/json/src/server/system-admin.repo.js';

@@ -362,7 +362,40 @@ export class BotRepo {
   }
 
   // Returns every bot session regardless of owner — admin-only view.
-  async listAll(): Promise<GetAdminBotListResponseDto> {
+  async listAll(search: string = '', page: number = 1, limit: number = 10): Promise<GetAdminBotListResponseDto> {
+    const offset = (page - 1) * limit;
+    let whereClause = '';
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const queryParams: any[] = [];
+
+    if (search) {
+      const searchPattern = `%${search}%`;
+      queryParams.push(searchPattern);
+      
+      const platformIdMatches: number[] = [];
+      for (const[idStr, platStr] of Object.entries(ID_TO_PLATFORM)) {
+        if ((platStr as string).toLowerCase().includes(search.toLowerCase())) {
+          platformIdMatches.push(parseInt(idStr, 10));
+        }
+      }
+      
+      whereClause = `WHERE bs.nickname ILIKE $1 OR u.name ILIKE $1 OR u.email ILIKE $1`;
+      if (platformIdMatches.length > 0) {
+        whereClause += ` OR bs.platform_id IN (${platformIdMatches.join(',')})`;
+      }
+    }
+
+    const countRes = await pool.query<{ count: string }>(`
+      SELECT COUNT(*)
+      FROM bot_session bs
+      LEFT JOIN "user" u ON u.id = bs.user_id
+      ${whereClause}
+    `, queryParams);
+
+    const queryParamsPaginated = [...queryParams, limit, offset];
+    const limitIdx = queryParamsPaginated.length - 1;
+    const offsetIdx = queryParamsPaginated.length;
+    
     const res = await pool.query<{
       user_id: string;
       session_id: string;
@@ -374,27 +407,57 @@ export class BotRepo {
       user_email: string | null;
     }>(`
       SELECT bs.user_id, bs.session_id, bs.platform_id, bs.nickname, bs.prefix, bs.is_running,
-             u.name  AS user_name,
+             u.name AS user_name,
              u.email AS user_email
       FROM bot_session bs
       LEFT JOIN "user" u ON u.id = bs.user_id
+      ${whereClause}
       ORDER BY bs.user_id
+      LIMIT $${limitIdx} OFFSET $${offsetIdx}
+    `, queryParamsPaginated);
+
+    const statsRes = await pool.query<{ platform_id: number, total: string, active: string }>(`
+      SELECT platform_id,
+             COUNT(*) as total,
+             COUNT(*) FILTER (WHERE is_running = true) as active
+      FROM bot_session
+      GROUP BY platform_id
     `);
+
+    const total = parseInt(countRes.rows[0]?.count ?? '0', 10);
+
+    let totalBots = 0;
+    let activeBots = 0;
+    const platformDist: Record<string, number> = {};
+    const platformActiveDist: Record<string, number> = {};
+
+    for (const b of statsRes.rows) {
+      const platStr = (ID_TO_PLATFORM as Record<number, string>)[b.platform_id] ?? '';
+      const t = parseInt(b.total, 10);
+      const a = parseInt(b.active, 10);
+      platformDist[platStr] = t;
+      if (a > 0) platformActiveDist[platStr] = a;
+      totalBots += t;
+      activeBots += a;
+    }
+
     return {
       bots: res.rows.map((r) => ({
         sessionId: r.session_id,
         userId: r.user_id,
         platformId: r.platform_id,
-        platform:
-          (ID_TO_PLATFORM as Record<number, string>)[r.platform_id] ?? '',
+        platform: (ID_TO_PLATFORM as Record<number, string>)[r.platform_id] ?? '',
         nickname: r.nickname ?? '',
         prefix: r.prefix ?? '',
         isRunning: r.is_running,
-        // Use ?? undefined to ensure empty strings are preserved,
-        // preventing the frontend from rendering raw IDs if a user's name is saved as an empty string.
         userName: r.user_name ?? undefined,
         userEmail: r.user_email ?? undefined,
       })),
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      stats: { totalBots, activeBots, platformDist, platformActiveDist }
     };
   }
 

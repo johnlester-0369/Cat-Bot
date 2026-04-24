@@ -123,4 +123,5 @@ export {
   addSystemAdmin,
   removeSystemAdmin,
   isSystemAdmin,
+  listAllUsers,
 } from '../adapters/prisma-sqlite/src/server/system-admin.repo.js';

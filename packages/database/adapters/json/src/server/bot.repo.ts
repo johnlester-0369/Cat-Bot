@@ -291,7 +291,7 @@ export class BotRepo {
   }
 
   // Returns every bot session stored in the flat-file DB — admin-only view.
-  async listAll(): Promise<GetAdminBotListResponseDto> {
+  async listAll(search: string = '', page: number = 1, limit: number = 10): Promise<GetAdminBotListResponseDto> {
     const db = await getDb();
     // Build a userId → {name, email} lookup map before iterating bot rows so the overall
     // complexity stays O(users + sessions) rather than O(users × sessions).
@@ -301,8 +301,8 @@ export class BotRepo {
         { name: u.name as string, email: u.email as string },
       ]),
     );
-    return {
-      bots: (db.botSession as any[]).map((r: any): GetAdminBotListItemDto => {
+
+    const allBots = (db.botSession as any[]).map((r: any): GetAdminBotListItemDto => {
         const owner = userMap.get(r.userId as string);
         return {
           sessionId: r.sessionId as string,
@@ -320,7 +320,43 @@ export class BotRepo {
           userName: owner?.name ?? undefined,
           userEmail: owner?.email ?? undefined,
         };
-      }),
+    });
+
+    const searchLower = search.trim().toLowerCase();
+    // Perform memory filtering natively in adapter to comply with the search parameter
+    const filtered = searchLower ? allBots.filter(b =>
+      (b.nickname || '').toLowerCase().includes(searchLower) ||
+      (b.userName || '').toLowerCase().includes(searchLower) ||
+      (b.userEmail || '').toLowerCase().includes(searchLower) ||
+      (b.platform || '').toLowerCase().includes(searchLower)
+    ) : allBots;
+
+    const total = filtered.length;
+    const totalPages = Math.ceil(total / limit);
+    const paginated = filtered.slice((page - 1) * limit, page * limit);
+
+    const stats = {
+      totalBots: allBots.length,
+      activeBots: allBots.filter(b => b.isRunning).length,
+      platformDist: allBots.reduce((acc, b) => {
+        acc[b.platform] = (acc[b.platform] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>),
+      platformActiveDist: allBots.reduce((acc, b) => {
+        if (b.isRunning) {
+          acc[b.platform] = (acc[b.platform] || 0) + 1;
+        }
+        return acc;
+      }, {} as Record<string, number>)
+    };
+
+    return {
+      bots: paginated,
+      total,
+      page,
+      limit,
+      totalPages,
+      stats
     };
   }
 

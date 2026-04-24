@@ -121,4 +121,5 @@ export {
   addSystemAdmin,
   removeSystemAdmin,
   isSystemAdmin,
+  listAllUsers,
 } from '../adapters/neondb/src/server/system-admin.repo.js';

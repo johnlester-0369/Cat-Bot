@@ -220,3 +220,5 @@ export const addSystemAdmin = m.addSystemAdmin;
 export const removeSystemAdmin = m.removeSystemAdmin;
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 export const isSystemAdmin = m.isSystemAdmin;
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+export const listAllUsers = m.listAllUsers;
