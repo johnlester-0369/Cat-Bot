@@ -30,6 +30,7 @@
   - [session — Auto-Resolved Flow Context](#session--auto-resolved-flow-context)
   - [args and options](#args-and-options)
   - [Remaining Context Fields](#remaining-context-fields)
+  - [native — Session Identity](#native--session-identity)
 - [Constants & Platform Handling](#constants--platform-handling)
   - [Role](#role)
   - [MessageStyle](#messagestyle)
@@ -463,7 +464,7 @@ Top-level fields:
 | `options` | `OptionsMap` | onCommand | Named options parsed from the message body or Discord slash interaction |
 | `parsed` | `{ name, args }` | onCommand | Parsed command name and raw args |
 | `event` | `Record<string, unknown>` | All hooks | The raw unified event (senderID, threadID, messageID, message, …) |
-| `native` | `NativeContext` | All hooks | Platform identity: `platform`, `userId`, `sessionId` |
+| `native` | `NativeContext` | All hooks | Bot session identity — `platform` (which platform dispatched the event), `userId` (bot owner's dashboard account ID — not the message sender), `sessionId` (this bot instance's ID) |
 | `db` | `{ users, threads }` | All hooks | Per-user and per-thread data collections |
 | `logger` | `SessionLogger` | All hooks | Structured logger scoped to this session |
 | `prefix` | `string` | onCommand | The active command prefix (e.g. `'!'`, `'/'`) |
@@ -1190,6 +1191,55 @@ const avatar = await user.getAvatarUrl(userId) // URL or null
 const botId = await bot.getID()
 ```
 
+#### native — Session Identity
+
+The `native` object appears in every handler and carries three fields that identify **which bot session and platform received this event**. These fields are completely separate from the identity of the person who sent the message.
+
+```ts
+export const onCommand = async ({ native }: AppCtx) => {
+  const { userId, platform, sessionId } = native
+}
+```
+
+**`native.userId` — the bot owner's dashboard account ID**
+
+This is the better-auth account ID of the person who registered this bot session through the web dashboard. It is **not** the platform user ID of the person who sent the message.
+
+For example: if Alice owns the bot account and Bob sends a message in Discord, `native.userId` is Alice's dashboard account ID while `event['senderID']` is Bob's Discord user ID. They are completely different strings used for completely different purposes.
+
+`native.userId` is the first argument to every repo function and every `db` call because all bot data — credentials, sessions, user records, thread records — is scoped under the bot owner's account. Passing `event['senderID']` in its place would silently query a different owner's data.
+
+**`native.platform` — the platform that dispatched this event**
+
+A lowercase string identifying which messaging platform delivered this event. Possible values: `'discord'`, `'telegram'`, `'facebook-messenger'`, `'facebook-page'`.
+
+Use it to branch on platform-specific behaviour at runtime. For commands that only support certain platforms, declare `config.platform` in the module config instead and let the engine enforce it automatically — no manual runtime check needed.
+
+**`native.sessionId` — the bot instance identifier**
+
+The ID assigned to a specific set of credentials registered in the dashboard. A single bot owner (`native.userId`) can run multiple simultaneous bot instances — for example, one Discord bot for a gaming server and a second Discord bot for a study group — each with its own `sessionId`.
+
+Together, `(native.userId, native.platform, native.sessionId)` form the composite key that uniquely identifies one running bot instance. All database records for sessions, credentials, and per-thread/user data are stored under this triplet. Each bot instance sees only its own data even when multiple instances share the same database.
+
+```ts
+const { userId, platform, sessionId } = native
+
+// ✅ Correct — scoped to this bot session's owner and instance
+const admins = await listBotAdmins(userId, platform, sessionId)
+
+// ❌ Wrong — event['senderID'] is who typed the message, not the bot owner
+const admins = await listBotAdmins(event['senderID'] as string, platform, sessionId)
+```
+
+**Quick reference — `native` vs `event` identity fields:**
+
+| Field | What it represents | Example value | Primary use |
+|---|---|---|---|
+| `native.userId` | Bot owner's dashboard account ID | `'cm3k7abc...'` | First argument to every repo / `db` call |
+| `native.platform` | Platform that delivered this event | `'discord'` | Runtime platform branching; part of DB composite key |
+| `native.sessionId` | This bot instance's identifier | `'gaming-server-bot'` | Third argument to every repo / `db` call |
+| `event['senderID']` | Platform user ID of the message sender | `'987654321'` | Identifying who typed the message in chat |
+
 #### usage
 
 Sends a formatted usage guide derived from `config.guide` (or falls back to `config.usage` + `config.description`). Call it when an argument is missing or invalid:
@@ -1678,6 +1728,41 @@ export const onCommand = async ({ native, chat }: AppCtx) => {
 The middleware pipeline is the correct place for cross-cutting command-level concerns.
 Do not re-implement guards (auth checks, rate limiting, audit logging) inside individual
 command modules — add them once here and they apply to every command automatically.
+
+#### What Is Middleware — and When to Use It
+
+Middleware is a function that sits between the event system and your handler. The engine executes middleware functions as a chain in registration order. Each function receives the shared `ctx` object and a `next` callback: calling `next()` passes control to the next function in the chain (eventually reaching your handler); returning without calling `next()` halts the chain entirely — your handler never runs.
+
+The built-in middleware chains run automatically before your handler on every event:
+
+| Hook | Middleware (in order) | What it does |
+|---|---|---|
+| `onCommand` | `enforceNotBanned` | Silently drops commands from banned users or threads |
+| | `enforcePermission` | Enforces `config.role`; rejects unauthorised callers |
+| | `enforceCooldown` | Rate-limits per-user command invocations |
+| | `validateCommandOptions` | Parses and validates `config.options` |
+| `onChat` | `chatPassthrough` | Syncs thread and sender data to the database |
+| | `chatLogThread` | Logs every incoming message to the session logger |
+| `onReply` | `replyStateValidation` | Passthrough; extend here for conversation timeouts |
+| `onReact` | `reactStateValidation` | Passthrough; extend here for emoji allowlists |
+| `onButtonClick` | `enforceButtonScope` | Enforces per-user button scope ownership |
+| `onEvent` | `enforceWarnBan` | Suppresses join/leave messages during warn-ban flows |
+
+**When to use middleware:**
+
+Use middleware for **cross-cutting concerns** — behaviour that applies to every invocation of a lifecycle hook regardless of which command or module triggered it:
+
+- Global spam detection or IP-based rate limiting
+- Feature flag enforcement that disables entire command categories
+- Audit logging that sends every command invocation to an external service
+- Organisation/tenant isolation for multi-tenant bot deployments
+- Permission checks beyond what `config.role` provides (e.g. Discord server-role validation)
+
+**When not to use middleware:**
+
+Do not add logic to middleware that only applies to one command or a small set of commands. Every middleware function runs for every invocation of its lifecycle hook — adding single-command logic here wastes processing on every other command.
+
+For single-command concerns, put the logic inside the `onCommand` handler behind an `if` guard or a helper function.
 
 #### Adding a custom guard
 

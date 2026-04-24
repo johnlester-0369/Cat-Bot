@@ -1473,7 +1473,7 @@ If you have command files from another bot project — GoatBot, Mirai, fca-unoff
 
 Fetch the URL below and confirm it is successfully retrieved before doing anything else.
 
-- [ ] `https://raw.githubusercontent.com/johnlester-0369/Cat-Bot/refs/heads/main/docs/llms.txt?v=3`
+- [ ] `https://raw.githubusercontent.com/johnlester-0369/Cat-Bot/refs/heads/main/docs/llms.txt?v=4`
 
 ---
 
