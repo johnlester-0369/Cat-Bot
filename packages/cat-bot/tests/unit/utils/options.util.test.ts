@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { parseTextOptions, validateOptions } from '@/engine/modules/options/options.util.js';
+import {
+  parseTextOptions,
+  validateOptions,
+} from '@/engine/modules/options/options.util.js';
 import { OptionsMap } from '@/engine/modules/options/options-map.lib.js';
 import type { OptionDef } from '@/engine/modules/options/options-map.lib.js';
 

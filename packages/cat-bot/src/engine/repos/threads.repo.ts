@@ -89,16 +89,21 @@ export async function upsertDiscordServer(data: any): Promise<void> {
   // Pre-seed admin map into cache so isThreadAdmin looks up from memory
   lruCache.set(
     threadAdminsSetKey(data.id),
-    new Set<string>((data.adminIDs as string[] | undefined) ??[]),
+    new Set<string>((data.adminIDs as string[] | undefined) ?? []),
   );
 }
 
-export async function linkDiscordChannel(serverId: string, threadId: string): Promise<void> {
+export async function linkDiscordChannel(
+  serverId: string,
+  threadId: string,
+): Promise<void> {
   await _linkDiscordChannel(serverId, threadId);
   lruCache.set(`discord:channel:${threadId}`, serverId);
 }
 
-export async function getDiscordServerIdByChannel(threadId: string): Promise<string | null> {
+export async function getDiscordServerIdByChannel(
+  threadId: string,
+): Promise<string | null> {
   const key = `discord:channel:${threadId}`;
   const cached = lruCache.get<string | null>(key);
   if (cached !== undefined) return cached;
@@ -159,7 +164,11 @@ export async function threadSessionExists(
       const key = threadSessionExistsKey(userId, platform, sessionId, serverId);
       const cached = lruCache.get<boolean>(key);
       if (cached !== undefined) return cached;
-      const result = await _discordServerSessionExists(userId, sessionId, serverId);
+      const result = await _discordServerSessionExists(
+        userId,
+        sessionId,
+        serverId,
+      );
       lruCache.set(key, result);
       return result;
     }
@@ -225,7 +234,7 @@ export async function isThreadAdmin(
 ): Promise<boolean> {
   const set = lruCache.get<Set<string>>(threadAdminsSetKey(threadId));
   if (set !== undefined) return set.has(userId);
-  
+
   // Opportunistically verify against the parent Discord server's admin list
   const serverId = await getDiscordServerIdByChannel(threadId);
   if (serverId) {
@@ -245,7 +254,7 @@ export async function getThreadName(threadId: string): Promise<string> {
   const key = threadNameKey(threadId);
   const cached = lruCache.get<string>(key);
   if (cached !== undefined) return cached;
-  
+
   let result: string;
   const serverId = await getDiscordServerIdByChannel(threadId);
   if (serverId) {
@@ -270,12 +279,16 @@ export async function getThreadSessionData(
       const skey = threadSessionDataKey(userId, platform, sessionId, serverId);
       const scached = lruCache.get<Record<string, unknown>>(skey);
       if (scached !== undefined) return scached;
-      const sresult = await _getDiscordServerSessionData(userId, sessionId, serverId);
+      const sresult = await _getDiscordServerSessionData(
+        userId,
+        sessionId,
+        serverId,
+      );
       lruCache.set(skey, sresult);
       return sresult;
     }
   }
-  
+
   const key = threadSessionDataKey(userId, platform, sessionId, botThreadId);
   const cached = lruCache.get<Record<string, unknown>>(key);
   if (cached !== undefined) return cached;
@@ -300,11 +313,14 @@ export async function setThreadSessionData(
     const serverId = await getDiscordServerIdByChannel(botThreadId);
     if (serverId) {
       await _setDiscordServerSessionData(userId, sessionId, serverId, data);
-      lruCache.set(threadSessionDataKey(userId, platform, sessionId, serverId), { ...data });
+      lruCache.set(
+        threadSessionDataKey(userId, platform, sessionId, serverId),
+        { ...data },
+      );
       return;
     }
   }
-  
+
   await _setThreadSessionData(userId, platform, sessionId, botThreadId, data);
   // Write the new data blob into cache immediately — reads after this call see the fresh
   // value without touching the DB. Shallow copy prevents external mutation of the
@@ -322,14 +338,14 @@ export async function getAllGroupThreadIds(
   const key = threadGroupsKey(userId, platform, sessionId);
   const cached = lruCache.get<string[]>(key);
   if (cached !== undefined) return cached;
-  
+
   let result = await _getAllGroupThreadIds(userId, platform, sessionId);
   // Map Discord servers as broadcastable "groups" as well
   if (platform === Platforms.Discord) {
     const discordServers = await _getAllDiscordServerIds(userId, sessionId);
     result = [...result, ...discordServers];
   }
-  
+
   lruCache.set(key, result);
   return result;
 }
@@ -343,10 +359,19 @@ export async function getThreadSessionUpdatedAt(
   if (platform === Platforms.Discord) {
     const serverId = await getDiscordServerIdByChannel(threadId);
     if (serverId) {
-      const skey = threadSessionUpdatedAtKey(userId, platform, sessionId, serverId);
+      const skey = threadSessionUpdatedAtKey(
+        userId,
+        platform,
+        sessionId,
+        serverId,
+      );
       const scached = lruCache.get<Date | null>(skey);
       if (scached !== undefined) return scached;
-      const sresult = await _getDiscordServerSessionUpdatedAt(userId, sessionId, serverId);
+      const sresult = await _getDiscordServerSessionUpdatedAt(
+        userId,
+        sessionId,
+        serverId,
+      );
       lruCache.set(skey, sresult);
       return sresult;
     }

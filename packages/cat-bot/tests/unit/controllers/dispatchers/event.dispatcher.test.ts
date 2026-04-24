@@ -22,7 +22,9 @@ describe('Event Dispatcher', () => {
     const eventModules = new Map();
 
     // No throw
-    await dispatchEvent(eventModules, 'unknown_event_type', { native: { platform: 'discord' } } as any);
+    await dispatchEvent(eventModules, 'unknown_event_type', {
+      native: { platform: 'discord' },
+    } as any);
   });
 
   it('should skip modules if platform is explicitly filtered out', async () => {

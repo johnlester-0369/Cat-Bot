@@ -126,7 +126,9 @@ export const button = {
       const ranked = allSessions
         .map(({ botUserId, data }) => {
           // Coins live in data['money']['coins'] — written by /daily via currencies.lib
-          const moneyData = data?.['money'] as Record<string, unknown> | undefined;
+          const moneyData = data?.['money'] as
+            | Record<string, unknown>
+            | undefined;
           const coins =
             moneyData && typeof moneyData['coins'] === 'number'
               ? (moneyData['coins'] as number)
@@ -143,7 +145,9 @@ export const button = {
         const entry = ranked[i]!; // safe: i is always < ranked.length
         // getUserName is LRU-cached — repeated calls here hit memory, not the DB
         const name = await user.getName(entry.botUserId);
-        lines.push(`${position(i)} **${name}** — ${entry.coins.toLocaleString()} coins`);
+        lines.push(
+          `${position(i)} **${name}** — ${entry.coins.toLocaleString()} coins`,
+        );
       }
       if (ranked.length === 0) lines.push('No users have earned coins yet.');
 
@@ -180,7 +184,9 @@ export const button = {
         .sort((a, b) => b.exp - a.exp)
         .slice(0, DEFAULT_LIMIT);
 
-      const lines: string[] = [`🏆 **Top ${ranked.length} Highest Level Users**`];
+      const lines: string[] = [
+        `🏆 **Top ${ranked.length} Highest Level Users**`,
+      ];
       for (let i = 0; i < ranked.length; i++) {
         const entry = ranked[i]!; // safe: i is always < ranked.length
         const name = await user.getName(entry.botUserId);
@@ -238,7 +244,9 @@ export const onCommand = async ({
     const allSessions = await db.users.getAll();
     const ranked = allSessions
       .map(({ botUserId, data }) => {
-        const moneyData = data?.['money'] as Record<string, unknown> | undefined;
+        const moneyData = data?.['money'] as
+          | Record<string, unknown>
+          | undefined;
         const coins =
           moneyData && typeof moneyData['coins'] === 'number'
             ? (moneyData['coins'] as number)
@@ -253,7 +261,9 @@ export const onCommand = async ({
     for (let i = 0; i < ranked.length; i++) {
       const entry = ranked[i]!; // safe: i is always < ranked.length
       const name = await user.getName(entry.botUserId);
-      lines.push(`${position(i)} **${name}** — ${entry.coins.toLocaleString()} coins`);
+      lines.push(
+        `${position(i)} **${name}** — ${entry.coins.toLocaleString()} coins`,
+      );
     }
     if (ranked.length === 0) lines.push('No users have earned coins yet.');
 

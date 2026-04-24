@@ -78,7 +78,8 @@ async function formatOutput(value: unknown): Promise<string> {
   if (value === null) return 'null';
 
   if (typeof value === 'object') {
-    if (value instanceof Map) value = mapToObject(value as Map<unknown, unknown>);
+    if (value instanceof Map)
+      value = mapToObject(value as Map<unknown, unknown>);
     try {
       return JSON.stringify(value, null, 2);
     } catch {

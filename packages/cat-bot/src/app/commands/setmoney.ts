@@ -32,9 +32,11 @@ export const config: CommandConfig = {
   // lower privilege would let anyone print unlimited coins.
   role: Role.BOT_ADMIN,
   author: 'System',
-  description: 'Set the coin balance of yourself, a @mentioned user, or a user by ID',
+  description:
+    'Set the coin balance of yourself, a @mentioned user, or a user by ID',
   category: 'Admin',
-  usage: 'me <amount> | del me | del @mention | @mention <amount> | uid <id> <amount>',
+  usage:
+    'me <amount> | del me | del @mention | @mention <amount> | uid <id> <amount>',
   cooldown: 5,
   hasPrefix: true,
 };
@@ -132,7 +134,10 @@ export const onCommand = async ({
     if (mentionIDs.length === 1) {
       // Non-null assertion safe: length check above guarantees index 0 exists
       const mentionID = mentionIDs[0]!;
-      const displayName = (mentions?.[mentionID] ?? mentionID).replace(/^@/, '');
+      const displayName = (mentions?.[mentionID] ?? mentionID).replace(
+        /^@/,
+        '',
+      );
 
       const userColl = db.users.collection(mentionID);
       if (!(await userColl.isCollectionExist('money'))) {

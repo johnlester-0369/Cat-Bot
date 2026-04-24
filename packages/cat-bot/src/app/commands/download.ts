@@ -231,7 +231,9 @@ async function downloadFacebook(rawUrl: string, ctx: AppCtx): Promise<void> {
   })) as string | undefined;
 
   try {
-    const apiUrl = createUrl('chocomilk', '/v1/download/facebook', { url: rawUrl });
+    const apiUrl = createUrl('chocomilk', '/v1/download/facebook', {
+      url: rawUrl,
+    });
     if (!apiUrl) throw new Error('Failed to build API URL.');
 
     const { data: res } = await axios.get<FacebookDlResponse>(apiUrl, {
@@ -242,10 +244,9 @@ async function downloadFacebook(rawUrl: string, ctx: AppCtx): Promise<void> {
     if (!res?.success || !res?.data)
       throw new Error('API returned an unsuccessful response.');
 
-    const videos =
-      res.data.media?.videos?.length
-        ? res.data.media.videos
-        : (res.data.media?.all ?? []).filter((m) => m.type === 'video');
+    const videos = res.data.media?.videos?.length
+      ? res.data.media.videos
+      : (res.data.media?.all ?? []).filter((m) => m.type === 'video');
 
     if (videos.length === 0)
       throw new Error(
@@ -346,15 +347,20 @@ async function downloadYouTube(rawUrl: string, ctx: AppCtx): Promise<void> {
       throw new Error('No video URL returned from API.');
 
     const result = data.data;
-    const fileName = result.filename || safeFilename(result.title ?? 'video', 'mp4');
+    const fileName =
+      result.filename || safeFilename(result.title ?? 'video', 'mp4');
 
     await chat.replyMessage({
       style: MessageStyle.MARKDOWN,
       message:
         `🎬 **${result.title ?? 'YouTube Video'}**\n` +
         (result.author ? `👤 Author: ${result.author}\n` : '') +
-        (typeof result.duration === 'number' ? `⏱ Duration: ${result.duration}s\n` : '') +
-        (typeof result.quality === 'number' ? `🎞 Quality: ${result.quality}p\n` : '') +
+        (typeof result.duration === 'number'
+          ? `⏱ Duration: ${result.duration}s\n`
+          : '') +
+        (typeof result.quality === 'number'
+          ? `🎞 Quality: ${result.quality}p\n`
+          : '') +
         `🔗 ${rawUrl}`,
       attachment_url: [{ name: fileName, url: result.download }],
     });

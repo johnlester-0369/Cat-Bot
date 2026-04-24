@@ -15,22 +15,20 @@ export async function banUser(
 ): Promise<void> {
   const db = getMongoDb();
   const platformId = toPlatformNumericId(platform);
-  await db
-    .collection('botUserBanned')
-    .updateOne(
-      { userId, platformId, sessionId, botUserId },
-      {
-        $set: {
-          userId,
-          platformId,
-          sessionId,
-          botUserId,
-          isBanned: true,
-          reason: reason ?? null,
-        },
+  await db.collection('botUserBanned').updateOne(
+    { userId, platformId, sessionId, botUserId },
+    {
+      $set: {
+        userId,
+        platformId,
+        sessionId,
+        botUserId,
+        isBanned: true,
+        reason: reason ?? null,
       },
-      { upsert: true },
-    );
+    },
+    { upsert: true },
+  );
 }
 
 /**
@@ -89,22 +87,20 @@ export async function banThread(
 ): Promise<void> {
   const db = getMongoDb();
   const platformId = toPlatformNumericId(platform);
-  await db
-    .collection('botThreadBanned')
-    .updateOne(
-      { userId, platformId, sessionId, botThreadId },
-      {
-        $set: {
-          userId,
-          platformId,
-          sessionId,
-          botThreadId,
-          isBanned: true,
-          reason: reason ?? null,
-        },
+  await db.collection('botThreadBanned').updateOne(
+    { userId, platformId, sessionId, botThreadId },
+    {
+      $set: {
+        userId,
+        platformId,
+        sessionId,
+        botThreadId,
+        isBanned: true,
+        reason: reason ?? null,
       },
-      { upsert: true },
-    );
+    },
+    { upsert: true },
+  );
 }
 
 /** Lifts a thread ban. Preserves the row so reason is retained for audit. */

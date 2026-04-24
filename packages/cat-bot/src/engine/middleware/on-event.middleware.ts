@@ -77,7 +77,8 @@ export const enforceWarnBan: MiddlewareFn<OnEventCtx> = async function (
       | Record<string, unknown>
       | undefined;
     const added =
-      (logMessageData?.['addedParticipants'] as Record<string, unknown>[]) ?? [];
+      (logMessageData?.['addedParticipants'] as Record<string, unknown>[]) ??
+      [];
 
     try {
       const coll = ctx.db.threads.collection(threadID);

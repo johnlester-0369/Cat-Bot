@@ -214,26 +214,39 @@ export async function upsertDiscordServer(data: any): Promise<void> {
       },
       $setOnInsert: { createdAt: new Date() },
     },
-    { upsert: true }
+    { upsert: true },
   );
 }
 
-export async function linkDiscordChannel(serverId: string, threadId: string): Promise<void> {
+export async function linkDiscordChannel(
+  serverId: string,
+  threadId: string,
+): Promise<void> {
   const db = getMongoDb();
-  await db.collection('botDiscordChannels').updateOne(
-    { threadId },
-    { $set: { serverId, threadId } },
-    { upsert: true }
-  );
+  await db
+    .collection('botDiscordChannels')
+    .updateOne(
+      { threadId },
+      { $set: { serverId, threadId } },
+      { upsert: true },
+    );
 }
 
-export async function getDiscordServerIdByChannel(threadId: string): Promise<string | null> {
+export async function getDiscordServerIdByChannel(
+  threadId: string,
+): Promise<string | null> {
   const db = getMongoDb();
-  const rec = await db.collection('botDiscordChannels').findOne({ threadId }, { projection: { serverId: 1, _id: 0 } });
+  const rec = await db
+    .collection('botDiscordChannels')
+    .findOne({ threadId }, { projection: { serverId: 1, _id: 0 } });
   return rec?.serverId ?? null;
 }
 
-export async function upsertDiscordServerSession(userId: string, sessionId: string, serverId: string): Promise<void> {
+export async function upsertDiscordServerSession(
+  userId: string,
+  sessionId: string,
+  serverId: string,
+): Promise<void> {
   const db = getMongoDb();
   await db.collection('botDiscordServerSessions').updateOne(
     { userId, sessionId, botServerId: serverId },
@@ -241,63 +254,110 @@ export async function upsertDiscordServerSession(userId: string, sessionId: stri
       $set: { lastUpdatedAt: new Date() },
       $setOnInsert: { userId, sessionId, botServerId: serverId },
     },
-    { upsert: true }
+    { upsert: true },
   );
 }
 
-export async function getDiscordServerSessionUpdatedAt(userId: string, sessionId: string, serverId: string): Promise<Date | null> {
+export async function getDiscordServerSessionUpdatedAt(
+  userId: string,
+  sessionId: string,
+  serverId: string,
+): Promise<Date | null> {
   const db = getMongoDb();
-  const rec = await db.collection<{ lastUpdatedAt: Date }>('botDiscordServerSessions').findOne(
-    { userId, sessionId, botServerId: serverId },
-    { projection: { lastUpdatedAt: 1, _id: 0 } }
-  );
+  const rec = await db
+    .collection<{ lastUpdatedAt: Date }>('botDiscordServerSessions')
+    .findOne(
+      { userId, sessionId, botServerId: serverId },
+      { projection: { lastUpdatedAt: 1, _id: 0 } },
+    );
   return rec?.lastUpdatedAt ?? null;
 }
 
-export async function getDiscordServerSessionData(userId: string, sessionId: string, serverId: string): Promise<Record<string, unknown>> {
+export async function getDiscordServerSessionData(
+  userId: string,
+  sessionId: string,
+  serverId: string,
+): Promise<Record<string, unknown>> {
   const db = getMongoDb();
-  const rec = await db.collection<{ data?: string }>('botDiscordServerSessions').findOne(
-    { userId, sessionId, botServerId: serverId },
-    { projection: { data: 1, _id: 0 } }
-  );
+  const rec = await db
+    .collection<{ data?: string }>('botDiscordServerSessions')
+    .findOne(
+      { userId, sessionId, botServerId: serverId },
+      { projection: { data: 1, _id: 0 } },
+    );
   if (!rec?.data) return {};
-  try { return JSON.parse(rec.data) as Record<string, unknown>; } catch { return {}; }
+  try {
+    return JSON.parse(rec.data) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
 }
 
-export async function setDiscordServerSessionData(userId: string, sessionId: string, serverId: string, data: Record<string, unknown>): Promise<void> {
+export async function setDiscordServerSessionData(
+  userId: string,
+  sessionId: string,
+  serverId: string,
+  data: Record<string, unknown>,
+): Promise<void> {
   const db = getMongoDb();
-  await db.collection('botDiscordServerSessions').updateOne(
-    { userId, sessionId, botServerId: serverId },
-    { $set: { data: JSON.stringify(data) } }
-  );
+  await db
+    .collection('botDiscordServerSessions')
+    .updateOne(
+      { userId, sessionId, botServerId: serverId },
+      { $set: { data: JSON.stringify(data) } },
+    );
 }
 
-export async function isDiscordServerAdmin(serverId: string, userId: string): Promise<boolean> {
+export async function isDiscordServerAdmin(
+  serverId: string,
+  userId: string,
+): Promise<boolean> {
   const db = getMongoDb();
-  const rec = await db.collection<{ adminIDs: string[] }>('botDiscordServers').findOne({ id: serverId }, { projection: { adminIDs: 1, _id: 0 } });
+  const rec = await db
+    .collection<{ adminIDs: string[] }>('botDiscordServers')
+    .findOne({ id: serverId }, { projection: { adminIDs: 1, _id: 0 } });
   return rec?.adminIDs.includes(userId) ?? false;
 }
 
 export async function getDiscordServerName(serverId: string): Promise<string> {
   const db = getMongoDb();
-  const rec = await db.collection<{ name: string }>('botDiscordServers').findOne({ id: serverId }, { projection: { name: 1, _id: 0 } });
+  const rec = await db
+    .collection<{ name: string }>('botDiscordServers')
+    .findOne({ id: serverId }, { projection: { name: 1, _id: 0 } });
   return rec?.name ?? 'Unknown server';
 }
 
-export async function getAllDiscordServerIds(userId: string, sessionId: string): Promise<string[]> {
+export async function getAllDiscordServerIds(
+  userId: string,
+  sessionId: string,
+): Promise<string[]> {
   const db = getMongoDb();
-  const rows = await db.collection<{ botServerId: string }>('botDiscordServerSessions').find({ userId, sessionId }, { projection: { botServerId: 1, _id: 0 } }).toArray();
-  return rows.map(r => r.botServerId);
+  const rows = await db
+    .collection<{ botServerId: string }>('botDiscordServerSessions')
+    .find({ userId, sessionId }, { projection: { botServerId: 1, _id: 0 } })
+    .toArray();
+  return rows.map((r) => r.botServerId);
 }
 
 export async function discordServerExists(serverId: string): Promise<boolean> {
   const db = getMongoDb();
-  const rec = await db.collection('botDiscordServers').findOne({ id: serverId }, { projection: { _id: 1 } });
+  const rec = await db
+    .collection('botDiscordServers')
+    .findOne({ id: serverId }, { projection: { _id: 1 } });
   return rec !== null;
 }
 
-export async function discordServerSessionExists(userId: string, sessionId: string, serverId: string): Promise<boolean> {
+export async function discordServerSessionExists(
+  userId: string,
+  sessionId: string,
+  serverId: string,
+): Promise<boolean> {
   const db = getMongoDb();
-  const rec = await db.collection('botDiscordServerSessions').findOne({ userId, sessionId, botServerId: serverId }, { projection: { _id: 1 } });
+  const rec = await db
+    .collection('botDiscordServerSessions')
+    .findOne(
+      { userId, sessionId, botServerId: serverId },
+      { projection: { _id: 1 } },
+    );
   return rec !== null;
 }

@@ -64,8 +64,8 @@ export const PROTO_UNIFIED_THREAD_INFO: Readonly<UnifiedThreadInfo> =
     name: null,
     isGroup: false,
     memberCount: null,
-    participantIDs:[],
-    adminIDs:[],
+    participantIDs: [],
+    adminIDs: [],
     avatarUrl: null,
     serverID: null,
   });
@@ -89,8 +89,8 @@ export function createUnifiedThreadInfo(
     name: data.name ?? null,
     isGroup: data.isGroup ?? false,
     memberCount: data.memberCount ?? null,
-    participantIDs: data.participantIDs ??[],
-    adminIDs: data.adminIDs ??[],
+    participantIDs: data.participantIDs ?? [],
+    adminIDs: data.adminIDs ?? [],
     avatarUrl: data.avatarUrl ?? null,
     serverID: data.serverID ?? null,
   };

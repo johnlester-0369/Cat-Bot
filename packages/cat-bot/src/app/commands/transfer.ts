@@ -29,7 +29,8 @@ export const config: CommandConfig = {
   version: '1.0.0',
   role: Role.ANYONE,
   author: 'AjiroDesu',
-  description: 'Transfer coins to another user via reply, @mention, or user ID.',
+  description:
+    'Transfer coins to another user via reply, @mention, or user ID.',
   category: 'Economy',
   usage: '[@mention | uid] <amount>',
   guide: [
@@ -57,12 +58,13 @@ export const onCommand = async ({
   user,
   usage,
 }: AppCtx): Promise<void> => {
-
   // ── 1. Resolve target user ID ──────────────────────────────────────────────
   // Priority: Reply → @Mention → Raw ID arg
   // Track whether target came from a reply so we know which arg index holds the amount.
 
-  const messageReply = event['messageReply'] as Record<string, unknown> | undefined;
+  const messageReply = event['messageReply'] as
+    | Record<string, unknown>
+    | undefined;
   const mentions = event['mentions'] as Record<string, string> | undefined;
   const mentionIDs = Object.keys(mentions ?? {});
 

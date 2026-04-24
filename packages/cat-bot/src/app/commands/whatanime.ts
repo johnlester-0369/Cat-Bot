@@ -105,7 +105,8 @@ function resolveImageUrl(event: Record<string, unknown>): string | null {
     (event['attachments'] as NormalizedAttachment[] | undefined) ?? [];
 
   const fromOwn = ownAttachments.find(
-    (a) => a.type === AttachmentType.PHOTO && typeof a.url === 'string' && a.url,
+    (a) =>
+      a.type === AttachmentType.PHOTO && typeof a.url === 'string' && a.url,
   );
   if (fromOwn?.url) return fromOwn.url as string;
 
@@ -117,7 +118,8 @@ function resolveImageUrl(event: Record<string, unknown>): string | null {
     (messageReply?.['attachments'] as NormalizedAttachment[] | undefined) ?? [];
 
   const fromReply = replyAttachments.find(
-    (a) => a.type === AttachmentType.PHOTO && typeof a.url === 'string' && a.url,
+    (a) =>
+      a.type === AttachmentType.PHOTO && typeof a.url === 'string' && a.url,
   );
   if (fromReply?.url) return fromReply.url as string;
 
@@ -254,7 +256,8 @@ export const onCommand = async ({
 
   const loadingId = (await chat.replyMessage({
     style: MessageStyle.MARKDOWN,
-    message: '🔍 **Searching trace.moe...**\nIdentifying anime scene, please wait.',
+    message:
+      '🔍 **Searching trace.moe...**\nIdentifying anime scene, please wait.',
   })) as string | undefined;
 
   // ── Step 3: Query trace.moe ───────────────────────────────────────────────

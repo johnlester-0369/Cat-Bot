@@ -67,7 +67,12 @@ export async function syncThreadAndParticipants(
       });
       await linkDiscordChannel(info.serverID, threadId);
       // Call the existing method, threads.repo.ts intercepts Discord internally to write bot_discord_server_session
-      await upsertThreadSession(sessionUserId, ctx.native.platform, sessionId, threadId);
+      await upsertThreadSession(
+        sessionUserId,
+        ctx.native.platform,
+        sessionId,
+        threadId,
+      );
     } else {
       // Default platform handling (DMs, Telegram, Facebook)
       await upsertThread(toBotThreadData(info));

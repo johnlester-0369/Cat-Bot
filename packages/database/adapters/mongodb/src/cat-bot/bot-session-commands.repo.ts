@@ -60,16 +60,14 @@ export async function setCommandEnabled(
 ): Promise<void> {
   const db = getMongoDb();
   const platformId = toPlatformNumericId(platform);
-  await db
-    .collection('botSessionCommands')
-    .updateOne(
-      { userId, platformId, sessionId, commandName },
-      {
-        $set: { isEnable },
-        $setOnInsert: { userId, platformId, sessionId, commandName },
-      },
-      { upsert: true },
-    );
+  await db.collection('botSessionCommands').updateOne(
+    { userId, platformId, sessionId, commandName },
+    {
+      $set: { isEnable },
+      $setOnInsert: { userId, platformId, sessionId, commandName },
+    },
+    { upsert: true },
+  );
 }
 
 export async function isCommandEnabled(

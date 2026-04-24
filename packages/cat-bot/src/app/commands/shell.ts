@@ -154,13 +154,9 @@ export const onCommand = async ({
     const statusIcon = code === 0 ? '✅' : '❌';
     const statusLine = `${statusIcon} Exit ${code} · ${elapsed}ms`;
 
-    const message = [
-      `\`$ ${cmd}\``,
-      DIVIDER,
-      output,
-      DIVIDER,
-      statusLine,
-    ].join('\n');
+    const message = [`\`$ ${cmd}\``, DIVIDER, output, DIVIDER, statusLine].join(
+      '\n',
+    );
 
     if (loadingId) await chat.unsendMessage(loadingId).catch(() => {});
 
@@ -176,9 +172,11 @@ export const onCommand = async ({
       style: MessageStyle.MARKDOWN,
       message:
         `❌ **Shell error**\n` +
-        DIVIDER + '\n' +
+        DIVIDER +
+        '\n' +
         `\`${error.message ?? 'Unknown error'}\`\n` +
-        DIVIDER + '\n' +
+        DIVIDER +
+        '\n' +
         `_Tip: use \`${prefix}shell echo test\` to verify connectivity._`,
     });
   }

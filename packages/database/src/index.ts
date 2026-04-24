@@ -108,7 +108,8 @@ export const getDiscordServerIdByChannel = m.getDiscordServerIdByChannel;
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 export const upsertDiscordServerSession = m.upsertDiscordServerSession;
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-export const getDiscordServerSessionUpdatedAt = m.getDiscordServerSessionUpdatedAt;
+export const getDiscordServerSessionUpdatedAt =
+  m.getDiscordServerSessionUpdatedAt;
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 export const getDiscordServerSessionData = m.getDiscordServerSessionData;
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment

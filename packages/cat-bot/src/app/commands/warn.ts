@@ -28,36 +28,36 @@
  *   bot replies asking for admin permissions — a re-try must be done manually.
  */
 
-import type { AppCtx } from '@/engine/types/controller.types.js'
-import { Role }         from '@/engine/constants/role.constants.js'
+import type { AppCtx } from '@/engine/types/controller.types.js';
+import { Role } from '@/engine/constants/role.constants.js';
 import { Platforms } from '@/engine/modules/platform/platform.constants.js';
-import { MessageStyle } from '@/engine/constants/message-style.constants.js'
-import type { CommandConfig } from '@/engine/types/module-config.types.js'
+import { MessageStyle } from '@/engine/constants/message-style.constants.js';
+import type { CommandConfig } from '@/engine/types/module-config.types.js';
 
 // ─── Data shapes ─────────────────────────────────────────────────────────────
 
 interface WarnEntry {
-  reason:   string
-  dateTime: string
-  warnBy:   string
+  reason: string;
+  dateTime: string;
+  warnBy: string;
 }
 
 interface WarnedUser {
-  uid:  string
-  list: WarnEntry[]
+  uid: string;
+  list: WarnEntry[];
 }
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
 export const config: CommandConfig = {
-  name:        'warn',
-  version:     '1.8.0',
-  role:        Role.ANYONE,   // open; per-subcommand admin gate is inside the handler
-  author:      'NTKhang (Cat-Bot port)',
+  name: 'warn',
+  version: '1.8.0',
+  role: Role.ANYONE, // open; per-subcommand admin gate is inside the handler
+  author: 'NTKhang (Cat-Bot port)',
   description: 'Warn group members — 3 warnings results in a ban',
-  cooldown:    5,
-  hasPrefix:   true,
-  category:    'thread',
+  cooldown: 5,
+  hasPrefix: true,
+  category: 'thread',
   usage: [
     '@tag <reason> — Warn a member (admin only)',
     'list — List warned members',
@@ -80,26 +80,37 @@ export const config: CommandConfig = {
 
 /** Returns current local time as DD/MM/YYYY HH:mm:ss */
 function getDateTime(): string {
-  const d = new Date()
-  const p = (n: number) => String(n).padStart(2, '0')
-  return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} ` +
-         `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, '0');
+  return (
+    `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} ` +
+    `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
+  );
 }
 
 /** Reads the WarnedUser list from the thread's 'warn' collection. */
-async function getWarnList(db: AppCtx['db'], threadID: string): Promise<WarnedUser[]> {
-  const coll = db.threads.collection(threadID)
-  if (!(await coll.isCollectionExist('warn'))) await coll.createCollection('warn')
-  const warn = await coll.getCollection('warn')
-  return ((await warn.get('list')) as WarnedUser[] | null) ?? []
+async function getWarnList(
+  db: AppCtx['db'],
+  threadID: string,
+): Promise<WarnedUser[]> {
+  const coll = db.threads.collection(threadID);
+  if (!(await coll.isCollectionExist('warn')))
+    await coll.createCollection('warn');
+  const warn = await coll.getCollection('warn');
+  return ((await warn.get('list')) as WarnedUser[] | null) ?? [];
 }
 
 /** Writes the WarnedUser list back to the thread's 'warn' collection. */
-async function saveWarnList(db: AppCtx['db'], threadID: string, list: WarnedUser[]): Promise<void> {
-  const coll = db.threads.collection(threadID)
-  if (!(await coll.isCollectionExist('warn'))) await coll.createCollection('warn')
-  const warn = await coll.getCollection('warn')
-  await warn.set('list', list)
+async function saveWarnList(
+  db: AppCtx['db'],
+  threadID: string,
+  list: WarnedUser[],
+): Promise<void> {
+  const coll = db.threads.collection(threadID);
+  if (!(await coll.isCollectionExist('warn')))
+    await coll.createCollection('warn');
+  const warn = await coll.getCollection('warn');
+  await warn.set('list', list);
 }
 
 /**
@@ -107,255 +118,311 @@ async function saveWarnList(db: AppCtx['db'], threadID: string, list: WarnedUser
  * ⚠️ UnifiedThreadInfo.adminIDs shape is undocumented — handled defensively.
  * Returns false on any error (safe default for a moderation action).
  */
-async function isThreadAdmin(thread: AppCtx['thread'], senderID: string): Promise<boolean> {
+async function isThreadAdmin(
+  thread: AppCtx['thread'],
+  senderID: string,
+): Promise<boolean> {
   try {
-    const info     = (await thread.getInfo()) as unknown as Record<string, unknown>
-    const adminIDs = info['adminIDs'] as Array<string | { uid: string }> | undefined
-    if (!Array.isArray(adminIDs)) return false
-    return adminIDs.some(a => (typeof a === 'string' ? a : a.uid) === senderID)
+    const info = (await thread.getInfo()) as unknown as Record<string, unknown>;
+    const adminIDs = info['adminIDs'] as
+      | Array<string | { uid: string }>
+      | undefined;
+    if (!Array.isArray(adminIDs)) return false;
+    return adminIDs.some(
+      (a) => (typeof a === 'string' ? a : a.uid) === senderID,
+    );
   } catch {
-    return false
+    return false;
   }
 }
 
 // ─── Command handler ─────────────────────────────────────────────────────────
 
 export const onCommand = async ({
-  chat, event, args, db, thread, user, usage, prefix,
+  chat,
+  event,
+  args,
+  db,
+  thread,
+  user,
+  usage,
+  prefix,
 }: AppCtx): Promise<void> => {
-
-  const threadID = event['threadID']  as string
-  const senderID = event['senderID']  as string
-  const mentions = (event['mentions'] as Record<string, string> | undefined) ?? {}
-  const msgReply = event['messageReply'] as Record<string, unknown> | null | undefined
+  const threadID = event['threadID'] as string;
+  const senderID = event['senderID'] as string;
+  const mentions =
+    (event['mentions'] as Record<string, string> | undefined) ?? {};
+  const msgReply = event['messageReply'] as
+    | Record<string, unknown>
+    | null
+    | undefined;
 
   // ── No subcommand — show usage ───────────────────────────────────────────
   if (!args[0]) {
     await usage();
-    return
+    return;
   }
 
-  const warnList = await getWarnList(db, threadID)
+  const warnList = await getWarnList(db, threadID);
 
   switch (args[0]) {
-
     // ── list ─────────────────────────────────────────────────────────────────
     case 'list': {
       if (!warnList.length) {
-        await chat.replyMessage({ message: 'No members have been warned in this group.' })
-        return
+        await chat.replyMessage({
+          message: 'No members have been warned in this group.',
+        });
+        return;
       }
       const lines = await Promise.all(
-        warnList.map(async ({ uid, list }) =>
-          `${await user.getName(uid)} (${uid}): ${list.length} warn(s)`
-        )
-      )
+        warnList.map(
+          async ({ uid, list }) =>
+            `${await user.getName(uid)} (${uid}): ${list.length} warn(s)`,
+        ),
+      );
       await chat.replyMessage({
-        style:   MessageStyle.MARKDOWN,
+        style: MessageStyle.MARKDOWN,
         message: `**Warned members:**\n${lines.join('\n')}\n\nUse \`${prefix}warn info @tag\` to see details.`,
-      })
-      break
+      });
+      break;
     }
 
     // ── listban ───────────────────────────────────────────────────────────────
     case 'listban': {
       const banned = await Promise.all(
         warnList
-          .filter(u => u.list.length >= 3)
-          .map(async ({ uid }) => `${await user.getName(uid)} (${uid})`)
-      )
+          .filter((u) => u.list.length >= 3)
+          .map(async ({ uid }) => `${await user.getName(uid)} (${uid})`),
+      );
       if (!banned.length) {
-        await chat.replyMessage({ message: 'No members have been banned from this group.' })
-        return
+        await chat.replyMessage({
+          message: 'No members have been banned from this group.',
+        });
+        return;
       }
       await chat.replyMessage({
-        style:   MessageStyle.MARKDOWN,
+        style: MessageStyle.MARKDOWN,
         message: `**Banned members (≥3 warns):**\n${banned.join('\n')}`,
-      })
-      break
+      });
+      break;
     }
 
     // ── info / check ──────────────────────────────────────────────────────────
     case 'check':
     case 'info': {
       // Resolve UIDs: mentions → reply sender → positional args → self
-      const uids: string[] =
-        Object.keys(mentions).length    ? Object.keys(mentions)
-        : msgReply?.['senderID']        ? [msgReply['senderID'] as string]
-        : args.length > 1               ? args.slice(1)
-        :                                 [senderID]
+      const uids: string[] = Object.keys(mentions).length
+        ? Object.keys(mentions)
+        : msgReply?.['senderID']
+          ? [msgReply['senderID'] as string]
+          : args.length > 1
+            ? args.slice(1)
+            : [senderID];
 
-      const lines: string[] = []
+      const lines: string[] = [];
       for (const uid of uids) {
-        if (isNaN(Number(uid))) continue
-        const name  = await user.getName(uid)
-        const entry = warnList.find(u => u.uid === uid)
+        if (isNaN(Number(uid))) continue;
+        const name = await user.getName(uid);
+        const entry = warnList.find((u) => u.uid === uid);
         if (!entry?.list.length) {
-          lines.push(`**${name}** (${uid}): No warnings on record.`)
+          lines.push(`**${name}** (${uid}): No warnings on record.`);
         } else {
           const entries = entry.list
             .map((w, i) => `  ${i + 1}. ${w.reason} — ${w.dateTime}`)
-            .join('\n')
-          lines.push(`**${name}** (${uid}):\n${entries}`)
+            .join('\n');
+          lines.push(`**${name}** (${uid}):\n${entries}`);
         }
       }
       await chat.replyMessage({
-        style:   MessageStyle.MARKDOWN,
+        style: MessageStyle.MARKDOWN,
         message: lines.join('\n\n') || 'No data found.',
-      })
-      break
+      });
+      break;
     }
 
     // ── unban ─────────────────────────────────────────────────────────────────
     case 'unban': {
       if (!(await isThreadAdmin(thread, senderID))) {
-        await chat.replyMessage({ message: '❌ Only group administrators can unban members.' })
-        return
+        await chat.replyMessage({
+          message: '❌ Only group administrators can unban members.',
+        });
+        return;
       }
 
       // Resolve UID: mentions → reply → positional arg → self
       const uidUnban: string =
-        Object.keys(mentions)[0]
-        ?? (msgReply?.['senderID'] as string | undefined)
-        ?? args[1]
-        ?? senderID
+        Object.keys(mentions)[0] ??
+        (msgReply?.['senderID'] as string | undefined) ??
+        args[1] ??
+        senderID;
 
       if (!uidUnban || isNaN(Number(uidUnban))) {
-        await chat.replyMessage({ message: '⚠️ Please provide a valid uid to unban.' })
-        return
+        await chat.replyMessage({
+          message: '⚠️ Please provide a valid uid to unban.',
+        });
+        return;
       }
 
-      const idx = warnList.findIndex(u => u.uid === uidUnban && u.list.length >= 3)
+      const idx = warnList.findIndex(
+        (u) => u.uid === uidUnban && u.list.length >= 3,
+      );
       if (idx === -1) {
         await chat.replyMessage({
-          style:   MessageStyle.MARKDOWN,
+          style: MessageStyle.MARKDOWN,
           message: `⚠️ User \`${uidUnban}\` is not banned from this group.`,
-        })
-        return
+        });
+        return;
       }
 
-      warnList.splice(idx, 1)
-      await saveWarnList(db, threadID, warnList)
+      warnList.splice(idx, 1);
+      await saveWarnList(db, threadID, warnList);
 
-      const name = await user.getName(uidUnban)
+      const name = await user.getName(uidUnban);
       await chat.replyMessage({
-        style:   MessageStyle.MARKDOWN,
+        style: MessageStyle.MARKDOWN,
         message: `✅ **${name}** (${uidUnban}) has been unbanned and may rejoin the group.`,
-      })
-      break
+      });
+      break;
     }
 
     // ── unwarn ────────────────────────────────────────────────────────────────
     case 'unwarn': {
       if (!(await isThreadAdmin(thread, senderID))) {
-        await chat.replyMessage({ message: '❌ Only group administrators can remove warnings.' })
-        return
+        await chat.replyMessage({
+          message: '❌ Only group administrators can remove warnings.',
+        });
+        return;
       }
 
       // Resolve UID and optional warn-index
-      let uid:    string | undefined
-      let numStr: string | undefined
+      let uid: string | undefined;
+      let numStr: string | undefined;
 
       if (Object.keys(mentions)[0]) {
-        uid    = Object.keys(mentions)[0]
-        numStr = args[args.length - 1]        // last token after @mention line
+        uid = Object.keys(mentions)[0];
+        numStr = args[args.length - 1]; // last token after @mention line
       } else if (msgReply?.['senderID']) {
-        uid    = msgReply['senderID'] as string
-        numStr = args[1]
+        uid = msgReply['senderID'] as string;
+        numStr = args[1];
       } else {
-        uid    = args[1]
-        numStr = args[2]
+        uid = args[1];
+        numStr = args[2];
       }
 
       if (!uid || isNaN(Number(uid))) {
-        await chat.replyMessage({ message: '⚠️ Please tag or provide the uid of the member to unwarn.' })
-        return
+        await chat.replyMessage({
+          message: '⚠️ Please tag or provide the uid of the member to unwarn.',
+        });
+        return;
       }
 
-      const entry = warnList.find(u => u.uid === uid)
+      const entry = warnList.find((u) => u.uid === uid);
       if (!entry?.list.length) {
-        await chat.replyMessage({ style: MessageStyle.MARKDOWN, message: `⚠️ User \`${uid}\` has no warning data.` })
-        return
+        await chat.replyMessage({
+          style: MessageStyle.MARKDOWN,
+          message: `⚠️ User \`${uid}\` has no warning data.`,
+        });
+        return;
       }
 
       // numStr is 1-indexed from the user; convert to 0-indexed. Default = last entry.
-      const num = isNaN(Number(numStr)) ? entry.list.length - 1 : Number(numStr) - 1
-      const name = await user.getName(uid)
+      const num = isNaN(Number(numStr))
+        ? entry.list.length - 1
+        : Number(numStr) - 1;
+      const name = await user.getName(uid);
 
       if (num < 0 || num >= entry.list.length) {
         await chat.replyMessage({
-          style:   MessageStyle.MARKDOWN,
+          style: MessageStyle.MARKDOWN,
           message: `❌ **${name}** only has ${entry.list.length} warning(s).`,
-        })
-        return
+        });
+        return;
       }
 
-      entry.list.splice(num, 1)
+      entry.list.splice(num, 1);
       // If no warns remain, remove the user entry entirely
-      if (!entry.list.length) warnList.splice(warnList.findIndex(u => u.uid === uid), 1)
-      await saveWarnList(db, threadID, warnList)
+      if (!entry.list.length)
+        warnList.splice(
+          warnList.findIndex((u) => u.uid === uid),
+          1,
+        );
+      await saveWarnList(db, threadID, warnList);
 
       await chat.replyMessage({
-        style:   MessageStyle.MARKDOWN,
+        style: MessageStyle.MARKDOWN,
         message: `✅ Removed warning #${num + 1} from **${name}** (${uid}).`,
-      })
-      break
+      });
+      break;
     }
 
     // ── reset ─────────────────────────────────────────────────────────────────
     case 'reset': {
       if (!(await isThreadAdmin(thread, senderID))) {
-        await chat.replyMessage({ message: '❌ Only group administrators can reset warning data.' })
-        return
+        await chat.replyMessage({
+          message: '❌ Only group administrators can reset warning data.',
+        });
+        return;
       }
-      await saveWarnList(db, threadID, [])
-      await chat.replyMessage({ message: '✅ All warning data has been reset.' })
-      break
+      await saveWarnList(db, threadID, []);
+      await chat.replyMessage({
+        message: '✅ All warning data has been reset.',
+      });
+      break;
     }
 
     // ── default: warn a member ────────────────────────────────────────────────
     default: {
       if (!(await isThreadAdmin(thread, senderID))) {
-        await chat.replyMessage({ message: '❌ Only group administrators can warn members.' })
-        return
+        await chat.replyMessage({
+          message: '❌ Only group administrators can warn members.',
+        });
+        return;
       }
 
       // Resolve target UID and reason
-      let uid:    string | undefined
-      let reason: string
+      let uid: string | undefined;
+      let reason: string;
 
       if (msgReply?.['senderID']) {
         // Reply-to path — entire args string is the reason
-        uid    = msgReply['senderID'] as string
-        reason = args.join(' ').trim()
+        uid = msgReply['senderID'] as string;
+        reason = args.join(' ').trim();
       } else if (Object.keys(mentions)[0]) {
         // @mention path — strip mention text from reason
-        uid    = Object.keys(mentions)[0]
-        reason = args.join(' ').replace(mentions[uid!] ?? '', '').trim()
+        uid = Object.keys(mentions)[0];
+        reason = args
+          .join(' ')
+          .replace(mentions[uid!] ?? '', '')
+          .trim();
       } else {
-        await chat.replyMessage({ message: '⚠️ Please tag or reply to the member you want to warn.' })
-        return
+        await chat.replyMessage({
+          message: '⚠️ Please tag or reply to the member you want to warn.',
+        });
+        return;
       }
 
-      if (!reason) reason = 'No reason provided'
+      if (!reason) reason = 'No reason provided';
 
-      const dateTime = getDateTime()
-      const existing = warnList.find(u => u.uid === uid)
+      const dateTime = getDateTime();
+      const existing = warnList.find((u) => u.uid === uid);
 
       if (!existing) {
-        warnList.push({ uid: uid!, list: [{ reason, dateTime, warnBy: senderID }] })
+        warnList.push({
+          uid: uid!,
+          list: [{ reason, dateTime, warnBy: senderID }],
+        });
       } else {
-        existing.list.push({ reason, dateTime, warnBy: senderID })
+        existing.list.push({ reason, dateTime, warnBy: senderID });
       }
-      await saveWarnList(db, threadID, warnList)
+      await saveWarnList(db, threadID, warnList);
 
-      const times    = existing ? existing.list.length : 1
-      const userName = await user.getName(uid!)
+      const times = existing ? existing.list.length : 1;
+      const userName = await user.getName(uid!);
 
       if (times >= 3) {
         // 3rd (or more) warn → ban
         await chat.replyMessage({
-          style:   MessageStyle.MARKDOWN,
+          style: MessageStyle.MARKDOWN,
           message: [
             `⚠️ **${userName}** has been warned **${times}** time(s) and is now banned from this group.`,
             `- **Uid:** ${uid}`,
@@ -363,21 +430,22 @@ export const onCommand = async ({
             `- **Date:** ${dateTime}`,
             `\nTo unban: \`${prefix}warn unban ${uid}\``,
           ].join('\n'),
-        })
+        });
         // Attempt to kick. If bot lacks admin, notify and stop.
         // ⚠️ GAP: The original queued a retry once the bot became admin.
         // Cat-Bot has no documented equivalent for that deferred pattern.
         try {
-          await thread.removeUser(uid!)
+          await thread.removeUser(uid!);
         } catch {
           await chat.replyMessage({
-            message: '⚠️ Bot needs administrator permissions to remove banned members.',
-          })
+            message:
+              '⚠️ Bot needs administrator permissions to remove banned members.',
+          });
         }
       } else {
         // Under 3 warns — notify remaining count
         await chat.replyMessage({
-          style:   MessageStyle.MARKDOWN,
+          style: MessageStyle.MARKDOWN,
           message: [
             `⚠️ **${userName}** has been warned **${times}** time(s).`,
             `- **Uid:** ${uid}`,
@@ -385,9 +453,9 @@ export const onCommand = async ({
             `- **Date:** ${dateTime}`,
             `\n${3 - times} more violation(s) will result in a ban.`,
           ].join('\n'),
-        })
+        });
       }
-      break
+      break;
     }
   }
-}
+};

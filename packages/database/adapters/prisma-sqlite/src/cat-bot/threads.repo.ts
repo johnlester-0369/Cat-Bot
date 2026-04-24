@@ -231,12 +231,20 @@ export async function getAllGroupThreadIds(
 // ── Discord Server Support ──────────────────────────────────────────────────
 
 export async function upsertDiscordServer(data: any): Promise<void> {
-  const allUserIds = Array.from(new Set([...data.participantIDs, ...data.adminIDs]));
+  const allUserIds = Array.from(
+    new Set([...data.participantIDs, ...data.adminIDs]),
+  );
   if (allUserIds.length > 0) {
-    const existing = await prisma.botUser.findMany({ where: { id: { in: allUserIds as string[] } }, select: { id: true } });
+    const existing = await prisma.botUser.findMany({
+      where: { id: { in: allUserIds as string[] } },
+      select: { id: true },
+    });
     const existingIds = new Set(existing.map((u) => u.id));
-    const toCreate = (allUserIds as string[]).filter((id) => !existingIds.has(id)).map((id) => ({ platformId: 1, id, name: 'Unknown User' }));
-    if (toCreate.length > 0) await prisma.botUser.createMany({ data: toCreate });
+    const toCreate = (allUserIds as string[])
+      .filter((id) => !existingIds.has(id))
+      .map((id) => ({ platformId: 1, id, name: 'Unknown User' }));
+    if (toCreate.length > 0)
+      await prisma.botUser.createMany({ data: toCreate });
   }
 
   const participantConnects = data.participantIDs.map((id: string) => ({ id }));
@@ -258,11 +266,14 @@ export async function upsertDiscordServer(data: any): Promise<void> {
       memberCount: data.memberCount,
       participants: { set: participantConnects },
       admins: { set: adminConnects },
-    }
+    },
   });
 }
 
-export async function linkDiscordChannel(serverId: string, threadId: string): Promise<void> {
+export async function linkDiscordChannel(
+  serverId: string,
+  threadId: string,
+): Promise<void> {
   await prisma.botDiscordChannel.upsert({
     where: { threadId },
     create: { serverId, threadId },
@@ -270,7 +281,9 @@ export async function linkDiscordChannel(serverId: string, threadId: string): Pr
   });
 }
 
-export async function getDiscordServerIdByChannel(threadId: string): Promise<string | null> {
+export async function getDiscordServerIdByChannel(
+  threadId: string,
+): Promise<string | null> {
   const row = await prisma.botDiscordChannel.findUnique({
     where: { threadId },
     select: { serverId: true },
@@ -278,39 +291,81 @@ export async function getDiscordServerIdByChannel(threadId: string): Promise<str
   return row?.serverId ?? null;
 }
 
-export async function upsertDiscordServerSession(userId: string, sessionId: string, serverId: string): Promise<void> {
+export async function upsertDiscordServerSession(
+  userId: string,
+  sessionId: string,
+  serverId: string,
+): Promise<void> {
   await prisma.botDiscordServerSession.upsert({
-    where: { userId_sessionId_botServerId: { userId, sessionId, botServerId: serverId } },
+    where: {
+      userId_sessionId_botServerId: {
+        userId,
+        sessionId,
+        botServerId: serverId,
+      },
+    },
     create: { userId, sessionId, botServerId: serverId },
     update: { lastUpdatedAt: new Date() },
   });
 }
 
-export async function getDiscordServerSessionUpdatedAt(userId: string, sessionId: string, serverId: string): Promise<Date | null> {
+export async function getDiscordServerSessionUpdatedAt(
+  userId: string,
+  sessionId: string,
+  serverId: string,
+): Promise<Date | null> {
   const row = await prisma.botDiscordServerSession.findUnique({
-    where: { userId_sessionId_botServerId: { userId, sessionId, botServerId: serverId } },
+    where: {
+      userId_sessionId_botServerId: {
+        userId,
+        sessionId,
+        botServerId: serverId,
+      },
+    },
     select: { lastUpdatedAt: true },
   });
   return row?.lastUpdatedAt ?? null;
 }
 
-export async function getDiscordServerSessionData(userId: string, sessionId: string, serverId: string): Promise<Record<string, unknown>> {
+export async function getDiscordServerSessionData(
+  userId: string,
+  sessionId: string,
+  serverId: string,
+): Promise<Record<string, unknown>> {
   const row = await prisma.botDiscordServerSession.findUnique({
-    where: { userId_sessionId_botServerId: { userId, sessionId, botServerId: serverId } },
+    where: {
+      userId_sessionId_botServerId: {
+        userId,
+        sessionId,
+        botServerId: serverId,
+      },
+    },
     select: { data: true },
   });
   if (!row?.data) return {};
-  try { return JSON.parse(row.data) as Record<string, unknown>; } catch { return {}; }
+  try {
+    return JSON.parse(row.data) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
 }
 
-export async function setDiscordServerSessionData(userId: string, sessionId: string, serverId: string, data: Record<string, unknown>): Promise<void> {
+export async function setDiscordServerSessionData(
+  userId: string,
+  sessionId: string,
+  serverId: string,
+  data: Record<string, unknown>,
+): Promise<void> {
   await prisma.botDiscordServerSession.updateMany({
     where: { userId, sessionId, botServerId: serverId },
     data: { data: JSON.stringify(data) },
   });
 }
 
-export async function isDiscordServerAdmin(serverId: string, userId: string): Promise<boolean> {
+export async function isDiscordServerAdmin(
+  serverId: string,
+  userId: string,
+): Promise<boolean> {
   const row = await prisma.botDiscordServer.findUnique({
     where: { id: serverId },
     select: { admins: { where: { id: userId }, select: { id: true } } },
@@ -321,17 +376,20 @@ export async function isDiscordServerAdmin(serverId: string, userId: string): Pr
 export async function getDiscordServerName(serverId: string): Promise<string> {
   const row = await prisma.botDiscordServer.findUnique({
     where: { id: serverId },
-    select: { name: true }
+    select: { name: true },
   });
   return row?.name ?? 'Unknown server';
 }
 
-export async function getAllDiscordServerIds(userId: string, sessionId: string): Promise<string[]> {
+export async function getAllDiscordServerIds(
+  userId: string,
+  sessionId: string,
+): Promise<string[]> {
   const rows = await prisma.botDiscordServerSession.findMany({
     where: { userId, sessionId },
     select: { botServerId: true },
   });
-  return rows.map(r => r.botServerId);
+  return rows.map((r) => r.botServerId);
 }
 
 export async function discordServerExists(serverId: string): Promise<boolean> {
@@ -342,9 +400,19 @@ export async function discordServerExists(serverId: string): Promise<boolean> {
   return row !== null;
 }
 
-export async function discordServerSessionExists(userId: string, sessionId: string, serverId: string): Promise<boolean> {
+export async function discordServerSessionExists(
+  userId: string,
+  sessionId: string,
+  serverId: string,
+): Promise<boolean> {
   const row = await prisma.botDiscordServerSession.findUnique({
-    where: { userId_sessionId_botServerId: { userId, sessionId, botServerId: serverId } },
+    where: {
+      userId_sessionId_botServerId: {
+        userId,
+        sessionId,
+        botServerId: serverId,
+      },
+    },
     select: { botServerId: true },
   });
   return row !== null;

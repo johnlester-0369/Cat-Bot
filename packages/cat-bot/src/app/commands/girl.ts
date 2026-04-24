@@ -15,9 +15,22 @@ import { hasNativeButtons } from '@/engine/utils/ui-capabilities.util.js';
 import { createUrl } from '@/engine/utils/api.util.js';
 import type { CommandConfig } from '@/engine/types/module-config.types.js';
 
-type CountryCode = 'indonesia' | 'china' | 'korea' | 'thailand' | 'vietnam' | 'japan';
+type CountryCode =
+  | 'indonesia'
+  | 'china'
+  | 'korea'
+  | 'thailand'
+  | 'vietnam'
+  | 'japan';
 
-const COUNTRIES: CountryCode[] = ['indonesia', 'china', 'korea', 'thailand', 'vietnam', 'japan'];
+const COUNTRIES: CountryCode[] = [
+  'indonesia',
+  'china',
+  'korea',
+  'thailand',
+  'vietnam',
+  'japan',
+];
 
 const DISPLAY_NAMES: Record<CountryCode, string> = {
   indonesia: 'Indonesian',
@@ -36,7 +49,8 @@ export const config: CommandConfig = {
   version: '2.0.0',
   role: Role.ANYONE,
   author: 'AjiroDesu',
-  description: 'Fetch a random girl image from Indonesia, China, Korea, Thailand, Vietnam or Japan.',
+  description:
+    'Fetch a random girl image from Indonesia, China, Korea, Thailand, Vietnam or Japan.',
   category: 'random',
   usage: '',
   cooldown: 5,
@@ -64,7 +78,9 @@ async function sendRandomGirl(ctx: AppCtx): Promise<void> {
   const isButtonAction = event['type'] === 'button_action';
 
   try {
-    const country = COUNTRIES[Math.floor(Math.random() * COUNTRIES.length)] as CountryCode;
+    const country = COUNTRIES[
+      Math.floor(Math.random() * COUNTRIES.length)
+    ] as CountryCode;
     const path = `/random/girl/${country}`;
 
     const url = createUrl('nekolabs', path);

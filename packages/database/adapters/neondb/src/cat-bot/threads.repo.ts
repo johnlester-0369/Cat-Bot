@@ -252,16 +252,20 @@ export async function getAllGroupThreadIds(
 // ── Discord Server Support ──────────────────────────────────────────────────
 
 export async function upsertDiscordServer(data: any): Promise<void> {
-  const allUserIds = Array.from(new Set([...data.participantIDs, ...data.adminIDs]));
+  const allUserIds = Array.from(
+    new Set([...data.participantIDs, ...data.adminIDs]),
+  );
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     if (allUserIds.length > 0) {
-      const placeholders = allUserIds.map((_, i) => `($${i * 2 + 1}, $${i * 2 + 2}, 'Unknown User')`).join(', ');
+      const placeholders = allUserIds
+        .map((_, i) => `($${i * 2 + 1}, $${i * 2 + 2}, 'Unknown User')`)
+        .join(', ');
       const params = allUserIds.flatMap((id) => [1, id]); // 1 = Discord
       await client.query(
         `INSERT INTO bot_users (platform_id, id, name) VALUES ${placeholders} ON CONFLICT (id) DO NOTHING`,
-        params
+        params,
       );
     }
     await client.query(
@@ -272,24 +276,34 @@ export async function upsertDiscordServer(data: any): Promise<void> {
          avatar_url = EXCLUDED.avatar_url,
          member_count = EXCLUDED.member_count,
          updated_at = NOW()`,
-[data.id, data.name, data.avatarUrl, data.memberCount]
+      [data.id, data.name, data.avatarUrl, data.memberCount],
     );
 
-    await client.query(`DELETE FROM bot_discord_server_participants WHERE server_id = $1`,[data.id]);
+    await client.query(
+      `DELETE FROM bot_discord_server_participants WHERE server_id = $1`,
+      [data.id],
+    );
     if (data.participantIDs.length > 0) {
-      const pValues = data.participantIDs.map((_: any, i: number) => `($1, $${i + 2})`).join(', ');
+      const pValues = data.participantIDs
+        .map((_: any, i: number) => `($1, $${i + 2})`)
+        .join(', ');
       await client.query(
         `INSERT INTO bot_discord_server_participants (server_id, user_id) VALUES ${pValues} ON CONFLICT DO NOTHING`,
-        [data.id, ...data.participantIDs]
+        [data.id, ...data.participantIDs],
       );
     }
 
-    await client.query(`DELETE FROM bot_discord_server_admins WHERE server_id = $1`, [data.id]);
+    await client.query(
+      `DELETE FROM bot_discord_server_admins WHERE server_id = $1`,
+      [data.id],
+    );
     if (data.adminIDs.length > 0) {
-      const aValues = data.adminIDs.map((_: any, i: number) => `($1, $${i + 2})`).join(', ');
+      const aValues = data.adminIDs
+        .map((_: any, i: number) => `($1, $${i + 2})`)
+        .join(', ');
       await client.query(
         `INSERT INTO bot_discord_server_admins (server_id, user_id) VALUES ${aValues} ON CONFLICT DO NOTHING`,
-        [data.id, ...data.adminIDs]
+        [data.id, ...data.adminIDs],
       );
     }
     await client.query('COMMIT');
@@ -301,79 +315,127 @@ export async function upsertDiscordServer(data: any): Promise<void> {
   }
 }
 
-export async function linkDiscordChannel(serverId: string, threadId: string): Promise<void> {
+export async function linkDiscordChannel(
+  serverId: string,
+  threadId: string,
+): Promise<void> {
   await pool.query(
     `INSERT INTO bot_discord_channel (server_id, thread_id) VALUES ($1, $2)
      ON CONFLICT (thread_id) DO UPDATE SET server_id = EXCLUDED.server_id`,
-    [serverId, threadId]
+    [serverId, threadId],
   );
 }
 
-export async function getDiscordServerIdByChannel(threadId: string): Promise<string | null> {
-  const res = await pool.query(`SELECT server_id FROM bot_discord_channel WHERE thread_id = $1`,[threadId]);
+export async function getDiscordServerIdByChannel(
+  threadId: string,
+): Promise<string | null> {
+  const res = await pool.query(
+    `SELECT server_id FROM bot_discord_channel WHERE thread_id = $1`,
+    [threadId],
+  );
   return res.rows[0]?.server_id ?? null;
 }
 
-export async function upsertDiscordServerSession(userId: string, sessionId: string, serverId: string): Promise<void> {
+export async function upsertDiscordServerSession(
+  userId: string,
+  sessionId: string,
+  serverId: string,
+): Promise<void> {
   await pool.query(
     `INSERT INTO bot_discord_server_session (user_id, session_id, bot_server_id, last_updated_at)
      VALUES ($1, $2, $3, NOW())
      ON CONFLICT (user_id, session_id, bot_server_id) DO UPDATE SET last_updated_at = NOW()`,
-    [userId, sessionId, serverId]
+    [userId, sessionId, serverId],
   );
 }
 
-export async function getDiscordServerSessionUpdatedAt(userId: string, sessionId: string, serverId: string): Promise<Date | null> {
+export async function getDiscordServerSessionUpdatedAt(
+  userId: string,
+  sessionId: string,
+  serverId: string,
+): Promise<Date | null> {
   const res = await pool.query(
     `SELECT last_updated_at FROM bot_discord_server_session WHERE user_id = $1 AND session_id = $2 AND bot_server_id = $3`,
-    [userId, sessionId, serverId]
+    [userId, sessionId, serverId],
   );
   return res.rows[0]?.last_updated_at ?? null;
 }
 
-export async function getDiscordServerSessionData(userId: string, sessionId: string, serverId: string): Promise<Record<string, unknown>> {
+export async function getDiscordServerSessionData(
+  userId: string,
+  sessionId: string,
+  serverId: string,
+): Promise<Record<string, unknown>> {
   const res = await pool.query(
     `SELECT data FROM bot_discord_server_session WHERE user_id = $1 AND session_id = $2 AND bot_server_id = $3`,
-    [userId, sessionId, serverId]
+    [userId, sessionId, serverId],
   );
   if (!res.rows[0]?.data) return {};
-  try { return JSON.parse(res.rows[0].data) as Record<string, unknown>; } catch { return {}; }
+  try {
+    return JSON.parse(res.rows[0].data) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
 }
 
-export async function setDiscordServerSessionData(userId: string, sessionId: string, serverId: string, data: Record<string, unknown>): Promise<void> {
+export async function setDiscordServerSessionData(
+  userId: string,
+  sessionId: string,
+  serverId: string,
+  data: Record<string, unknown>,
+): Promise<void> {
   await pool.query(
     `UPDATE bot_discord_server_session SET data = $4 WHERE user_id = $1 AND session_id = $2 AND bot_server_id = $3`,
-[userId, sessionId, serverId, JSON.stringify(data)]
+    [userId, sessionId, serverId, JSON.stringify(data)],
   );
 }
 
-export async function isDiscordServerAdmin(serverId: string, userId: string): Promise<boolean> {
+export async function isDiscordServerAdmin(
+  serverId: string,
+  userId: string,
+): Promise<boolean> {
   const res = await pool.query(
     `SELECT 1 FROM bot_discord_server_admins WHERE server_id = $1 AND user_id = $2`,
-    [serverId, userId]
+    [serverId, userId],
   );
   return (res.rowCount ?? 0) > 0;
 }
 
 export async function getDiscordServerName(serverId: string): Promise<string> {
-  const res = await pool.query<{ name: string }>(`SELECT name FROM bot_discord_server WHERE id = $1`, [serverId]);
+  const res = await pool.query<{ name: string }>(
+    `SELECT name FROM bot_discord_server WHERE id = $1`,
+    [serverId],
+  );
   return res.rows[0]?.name ?? 'Unknown server';
 }
 
-export async function getAllDiscordServerIds(userId: string, sessionId: string): Promise<string[]> {
-  const res = await pool.query<{ bot_server_id: string }>(`SELECT bot_server_id FROM bot_discord_server_session WHERE user_id = $1 AND session_id = $2`, [userId, sessionId]);
-  return res.rows.map(r => r.bot_server_id);
+export async function getAllDiscordServerIds(
+  userId: string,
+  sessionId: string,
+): Promise<string[]> {
+  const res = await pool.query<{ bot_server_id: string }>(
+    `SELECT bot_server_id FROM bot_discord_server_session WHERE user_id = $1 AND session_id = $2`,
+    [userId, sessionId],
+  );
+  return res.rows.map((r) => r.bot_server_id);
 }
 
 export async function discordServerExists(serverId: string): Promise<boolean> {
-  const res = await pool.query(`SELECT 1 FROM bot_discord_server WHERE id = $1`, [serverId]);
+  const res = await pool.query(
+    `SELECT 1 FROM bot_discord_server WHERE id = $1`,
+    [serverId],
+  );
   return (res.rowCount ?? 0) > 0;
 }
 
-export async function discordServerSessionExists(userId: string, sessionId: string, serverId: string): Promise<boolean> {
+export async function discordServerSessionExists(
+  userId: string,
+  sessionId: string,
+  serverId: string,
+): Promise<boolean> {
   const res = await pool.query(
     `SELECT 1 FROM bot_discord_server_session WHERE user_id = $1 AND session_id = $2 AND bot_server_id = $3`,
-    [userId, sessionId, serverId]
+    [userId, sessionId, serverId],
   );
   return (res.rowCount ?? 0) > 0;
 }

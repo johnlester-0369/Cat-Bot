@@ -23,79 +23,87 @@
  *   the group is notified that admin permissions are needed.
  */
 
-import type { AppCtx }    from '@/engine/types/controller.types.js'
-import { MessageStyle }   from '@/engine/constants/message-style.constants.js'
-import type { EventConfig } from '@/engine/types/module-config.types.js'
+import type { AppCtx } from '@/engine/types/controller.types.js';
+import { MessageStyle } from '@/engine/constants/message-style.constants.js';
+import type { EventConfig } from '@/engine/types/module-config.types.js';
 
 // Update this if your bot's warn command is named differently
-const COMMAND_NAME = 'warn'
+const COMMAND_NAME = 'warn';
 
 // ─── Data shapes ─────────────────────────────────────────────────────────────
 
 interface WarnedUser {
-  uid:  string
-  list: unknown[]   // WarnEntry[] — length is all we need here
+  uid: string;
+  list: unknown[]; // WarnEntry[] — length is all we need here
 }
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
 export const config: EventConfig = {
-  name:        'checkwarn',
-  eventType:   ['log:subscribe'],
-  version:     '1.3.0',
-  author:      'NTKhang (Cat-Bot port)',
-  description: 'Auto-kicks rejoining members who have 3 or more active warnings',
-}
+  name: 'checkwarn',
+  eventType: ['log:subscribe'],
+  version: '1.3.0',
+  author: 'NTKhang (Cat-Bot port)',
+  description:
+    'Auto-kicks rejoining members who have 3 or more active warnings',
+};
 
 // ─── Event handler ────────────────────────────────────────────────────────────
 
-export const onEvent = async ({ chat, event, db, thread }: AppCtx): Promise<void> => {
-  const threadID = event['threadID'] as string
-  const data     = event['logMessageData'] as Record<string, unknown> | undefined
-  const added    = (data?.['addedParticipants'] as Record<string, unknown>[]) ?? []
+export const onEvent = async ({
+  chat,
+  event,
+  db,
+  thread,
+}: AppCtx): Promise<void> => {
+  const threadID = event['threadID'] as string;
+  const data = event['logMessageData'] as Record<string, unknown> | undefined;
+  const added =
+    (data?.['addedParticipants'] as Record<string, unknown>[]) ?? [];
 
   // Nothing to do if no participants were added
-  if (!added.length) return
+  if (!added.length) return;
 
   // If the warn collection doesn't exist, no warns have ever been issued here
-  const coll = db.threads.collection(threadID)
-  if (!(await coll.isCollectionExist('warn'))) return
+  const coll = db.threads.collection(threadID);
+  if (!(await coll.isCollectionExist('warn'))) return;
 
-  const warnColl = await coll.getCollection('warn')
-  const warnList = ((await warnColl.get('list')) as WarnedUser[] | null) ?? []
-  if (!warnList.length) return
+  const warnColl = await coll.getCollection('warn');
+  const warnList = ((await warnColl.get('list')) as WarnedUser[] | null) ?? [];
+  if (!warnList.length) return;
 
   for (const participant of added) {
-    const uid      = String(participant['userFbId'] ?? '')
+    const uid = String(participant['userFbId'] ?? '');
     const fullName = String(
-      participant['fullName'] ?? participant['firstName'] ?? `User ${uid}`
-    )
+      participant['fullName'] ?? participant['firstName'] ?? `User ${uid}`,
+    );
 
-    if (!uid) continue
+    if (!uid) continue;
 
-    const entry = warnList.find(u => u.uid === uid)
-    if (!entry || entry.list.length < 3) continue
+    const entry = warnList.find((u) => u.uid === uid);
+    if (!entry || entry.list.length < 3) continue;
 
     // Notify first, then attempt to remove
     await chat.replyMessage({
-      style:   MessageStyle.MARKDOWN,
+      style: MessageStyle.MARKDOWN,
       message: [
         `⚠️ **${fullName}** rejoined but is still banned (${entry.list.length} warnings).`,
         `- **Name:** ${fullName}`,
         `- **Uid:** ${uid}`,
         `\nTo lift the ban: \`${COMMAND_NAME} unban ${uid}\``,
       ].join('\n'),
-    })
+    });
 
     // ⚠️ GAP: No deferred retry if bot lacks admin at this moment.
     // The original GoatBot version would watch for a bot-admin promotion event
     // and retry. That pattern has no documented equivalent in Cat-Bot.
     try {
-      await thread.removeUser(uid)
+      await thread.removeUser(uid);
     } catch {
       await chat.replyMessage({
-        message: '⚠️ Bot needs administrator permissions to remove banned members.',
-      })
+        message:
+          '⚠️ Bot needs administrator permissions to remove banned members.',
+      });
     }
   }
-}
+};

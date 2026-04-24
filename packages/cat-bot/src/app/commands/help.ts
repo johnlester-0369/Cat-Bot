@@ -336,16 +336,25 @@ export const onCommand = async ({
           const u = String(items[0] ?? '');
           return [`**Usage:** \`${prefix}${name}${u ? ` ${u}` : ''}\``];
         }
-        return [`**Usage:**`, ...items.map((u) => `  • \`${prefix}${name}${u ? ` ${String(u)}` : ''}\``)];
+        return [
+          `**Usage:**`,
+          ...items.map(
+            (u) => `  • \`${prefix}${name}${u ? ` ${String(u)}` : ''}\``,
+          ),
+        ];
       }
       const u = String(rawUsage ?? '');
       return [`**Usage:** \`${prefix}${name}${u ? ` ${u}` : ''}\``];
     })();
     // Render guide entries only when the module author explicitly provides them —
     // guide is additive detail for commands that document complex sub-command trees.
-    const guideArr = Array.isArray(cfg['guide']) ? (cfg['guide'] as string[]) : [];
+    const guideArr = Array.isArray(cfg['guide'])
+      ? (cfg['guide'] as string[])
+      : [];
     const guideLines: string[] =
-      guideArr.length > 0 ? [`**Guide:**`, ...guideArr.map((g) => `  • ${g}`)] : [];
+      guideArr.length > 0
+        ? [`**Guide:**`, ...guideArr.map((g) => `  • ${g}`)]
+        : [];
 
     await chat.replyMessage({
       style: MessageStyle.MARKDOWN,

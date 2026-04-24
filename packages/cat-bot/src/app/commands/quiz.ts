@@ -229,7 +229,10 @@ async function runButtonQuiz(
     timeouts.delete(msgIdStr);
 
     // ── Generate Play Again button exactly like in showButtonResult ──
-    const playAgainId = btn.generateID({ id: BUTTON_ID.playAgain, public: true });
+    const playAgainId = btn.generateID({
+      id: BUTTON_ID.playAgain,
+      public: true,
+    });
     btn.createContext({
       id: playAgainId,
       context: { difficulty } satisfies Record<string, unknown>,

@@ -57,16 +57,14 @@ export async function setEventEnabled(
 ): Promise<void> {
   const db = getMongoDb();
   const platformId = toPlatformNumericId(platform);
-  await db
-    .collection('botSessionEvents')
-    .updateOne(
-      { userId, platformId, sessionId, eventName },
-      {
-        $set: { isEnable },
-        $setOnInsert: { userId, platformId, sessionId, eventName },
-      },
-      { upsert: true },
-    );
+  await db.collection('botSessionEvents').updateOne(
+    { userId, platformId, sessionId, eventName },
+    {
+      $set: { isEnable },
+      $setOnInsert: { userId, platformId, sessionId, eventName },
+    },
+    { upsert: true },
+  );
 }
 
 export async function isEventEnabled(

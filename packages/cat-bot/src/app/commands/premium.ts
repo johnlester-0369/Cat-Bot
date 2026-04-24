@@ -39,7 +39,8 @@ export const config = {
     {
       type: OptionType.string,
       name: 'uid',
-      description: 'Platform user ID (required for add, delete, and remove actions)',
+      description:
+        'Platform user ID (required for add, delete, and remove actions)',
       required: false,
     },
   ],
@@ -78,7 +79,8 @@ export const onCommand = async ({
     if (!callerIsAuthorised) {
       await chat.replyMessage({
         style: MessageStyle.MARKDOWN,
-        message: '🚫 Only bot admins or system admins can add or remove premium users.',
+        message:
+          '🚫 Only bot admins or system admins can add or remove premium users.',
       });
       return;
     }

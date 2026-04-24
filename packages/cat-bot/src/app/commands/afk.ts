@@ -56,12 +56,19 @@ export const config: CommandConfig = {
   description:
     'Mark yourself as AFK with an optional reason. Auto-clears when you next send a message.',
   category: 'Utility',
-  usage: [ '[reason] — go AFK with an optional reason', '— run again while AFK to manually clear your status' ],
+  usage: [
+    '[reason] — go AFK with an optional reason',
+    '— run again while AFK to manually clear your status',
+  ],
   cooldown: 5,
   hasPrefix: true,
   // Facebook Page posts are not user-level conversations — AFK has no meaningful
   // context there (no real-time replies, no persistent user identities per message).
-  platform: [Platforms.Discord, Platforms.Telegram, Platforms.FacebookMessenger],
+  platform: [
+    Platforms.Discord,
+    Platforms.Telegram,
+    Platforms.FacebookMessenger,
+  ],
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -115,10 +122,7 @@ async function getAfkStatus(
  * Resets a user's AFK collection to {}, making `active` undefined on the next read.
  * Uses clear() because CollectionManager has no deleteCollection method.
  */
-async function clearAfkStatus(
-  db: AppCtx['db'],
-  userID: string,
-): Promise<void> {
+async function clearAfkStatus(db: AppCtx['db'], userID: string): Promise<void> {
   const userColl = db.users.collection(userID);
   if (!(await userColl.isCollectionExist('afk'))) return;
   const afkData = await userColl.getCollection('afk');
@@ -267,8 +271,7 @@ export const onChat = async ({
 
   // Only call the expensive getAll() when Telegram has username handles or body words to match.
   const needsFullScan =
-    isTelegram &&
-    (usernameMentionHandles.length > 0 || bodyWords.length > 0);
+    isTelegram && (usernameMentionHandles.length > 0 || bodyWords.length > 0);
 
   const allUsers = needsFullScan ? await db.users.getAll() : [];
 
@@ -306,14 +309,16 @@ export const onChat = async ({
       const raw = data['afk'] as Record<string, unknown> | undefined;
       if (!raw?.active) continue;
 
-      const storedUsername = raw['telegramUsername'] as string | null | undefined;
+      const storedUsername = raw['telegramUsername'] as
+        | string
+        | null
+        | undefined;
       if (!storedUsername) continue; // user has no Telegram username stored
 
       const normalizedStored = storedUsername.toLowerCase();
 
       // [2b] @username mention entity — typed as @handle in chat
-      const matchedByHandle =
-        usernameMentionHandles.includes(normalizedStored);
+      const matchedByHandle = usernameMentionHandles.includes(normalizedStored);
 
       // [3] Bare word in message body — typed inline without a formal entity
       // Only check when [2b] didn't already match to avoid double-adding.

@@ -23,8 +23,7 @@ export const config: CommandConfig = {
   version: '1.0.0',
   role: Role.ANYONE,
   author: 'AjiroDesu',
-  description:
-    'Generate a Brat-style image with your custom text.',
+  description: 'Generate a Brat-style image with your custom text.',
   category: 'Image',
   usage: '<text>',
   cooldown: 5,

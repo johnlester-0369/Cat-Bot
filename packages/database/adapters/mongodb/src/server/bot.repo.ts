@@ -45,30 +45,26 @@ export class BotRepo {
     });
 
     if (dto.botAdmins.length > 0) {
-      await db
-        .collection('botAdmins')
-        .insertMany(
-          dto.botAdmins.map((adminId) => ({
-            userId,
-            platformId,
-            sessionId,
-            adminId,
-          })),
-        );
+      await db.collection('botAdmins').insertMany(
+        dto.botAdmins.map((adminId) => ({
+          userId,
+          platformId,
+          sessionId,
+          adminId,
+        })),
+      );
     }
 
     // Insert premium privileges if present
     if ((dto.botPremiums ?? []).length > 0) {
-      await db
-        .collection('botPremiums')
-        .insertMany(
-          dto.botPremiums!.map((premiumId) => ({
-            userId,
-            platformId,
-            sessionId,
-            premiumId,
-          })),
-        );
+      await db.collection('botPremiums').insertMany(
+        dto.botPremiums!.map((premiumId) => ({
+          userId,
+          platformId,
+          sessionId,
+          premiumId,
+        })),
+      );
     }
 
     const creds = dto.credentials;
@@ -246,16 +242,14 @@ export class BotRepo {
       .collection('botAdmins')
       .deleteMany({ userId, platformId, sessionId });
     if (dto.botAdmins.length > 0) {
-      await db
-        .collection('botAdmins')
-        .insertMany(
-          dto.botAdmins.map((adminId) => ({
-            userId,
-            platformId,
-            sessionId,
-            adminId,
-          })),
-        );
+      await db.collection('botAdmins').insertMany(
+        dto.botAdmins.map((adminId) => ({
+          userId,
+          platformId,
+          sessionId,
+          adminId,
+        })),
+      );
     }
 
     // Replace all premiums atomically by deleting then re-inserting
@@ -263,16 +257,14 @@ export class BotRepo {
       .collection('botPremiums')
       .deleteMany({ userId, platformId, sessionId });
     if ((dto.botPremiums ?? []).length > 0) {
-      await db
-        .collection('botPremiums')
-        .insertMany(
-          dto.botPremiums!.map((premiumId) => ({
-            userId,
-            platformId,
-            sessionId,
-            premiumId,
-          })),
-        );
+      await db.collection('botPremiums').insertMany(
+        dto.botPremiums!.map((premiumId) => ({
+          userId,
+          platformId,
+          sessionId,
+          premiumId,
+        })),
+      );
     }
 
     const creds = dto.credentials;
@@ -302,35 +294,31 @@ export class BotRepo {
         },
       );
     } else if (creds.platform === Platforms.FacebookPage) {
-      await db
-        .collection('botCredentialFacebookPage')
-        .updateOne(
-          { userId, sessionId },
-          {
-            $set: {
-              fbAccessToken: encrypt(creds.fbAccessToken),
-              fbPageId: creds.fbPageId,
-            },
+      await db.collection('botCredentialFacebookPage').updateOne(
+        { userId, sessionId },
+        {
+          $set: {
+            fbAccessToken: encrypt(creds.fbAccessToken),
+            fbPageId: creds.fbPageId,
           },
-        );
+        },
+      );
     } else {
-      await db
-        .collection('botCredentialFacebookMessenger')
-        .updateOne(
-          { userId, sessionId },
-          {
-            $set: {
-              appstate: encrypt(
-                (
-                  creds as {
-                    platform: typeof Platforms.FacebookMessenger;
-                    appstate: string;
-                  }
-                ).appstate,
-              ),
-            },
+      await db.collection('botCredentialFacebookMessenger').updateOne(
+        { userId, sessionId },
+        {
+          $set: {
+            appstate: encrypt(
+              (
+                creds as {
+                  platform: typeof Platforms.FacebookMessenger;
+                  appstate: string;
+                }
+              ).appstate,
+            ),
           },
-        );
+        },
+      );
     }
   }
 
