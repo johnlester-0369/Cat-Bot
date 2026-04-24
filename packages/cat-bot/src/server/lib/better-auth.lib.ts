@@ -29,7 +29,7 @@ export const auth = betterAuth({
     ? jsonAdapter()
     : // NeonDB — neonPool is a pg.Pool; better-auth uses KyselyDialect(PostgresDialect) under the hood.
       // Neon is officially supported: https://better-auth.com/ (listed under Community databases).
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       isNeon
       ? (neonPool as unknown as any)
       : // MongoDB driver — mongodbAdapter() receives a Db instance; mongoClient is optional for

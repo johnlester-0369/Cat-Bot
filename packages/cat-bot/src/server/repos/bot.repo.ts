@@ -141,7 +141,7 @@ export const botRepo = {
     page: number = 1,
     limit: number = 10,
   ): Promise<GetAdminBotListResponseDto> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return (await (_botRepo as any).listAll(
       search,
       page,
