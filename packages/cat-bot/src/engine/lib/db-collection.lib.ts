@@ -87,6 +87,10 @@ function deleteByPath(obj: Record<string, unknown>, path: string): void {
 export interface CollectionHandle {
   // Nested object / array operations
   get(path?: string): Promise<unknown>;
+  /**
+   * Returns the full collection object (or a sub-object at path) in a single readAll() call.
+   * Use instead of multiple get() calls when reading several fields from the same collection. */
+  getAll(path?: string): Promise<Record<string, unknown>>;
   set(path: string, value: unknown): Promise<void>;
   /** Shallow-merges value when both existing and new are objects; overwrites otherwise. */
   update(path: string, value: unknown): Promise<void>;
@@ -161,6 +165,16 @@ function createCollectionHandle(
       const col = await readCollection();
       if (!path) return col;
       return getByPath(col, path);
+    },
+
+    // Reads the entire collection (or sub-object at path) in one readAll() call so callers
+    // that need multiple fields avoid N independent cache lookups through the repo layer.
+    async getAll(path?: string): Promise<Record<string, unknown>> {
+      const col = await readCollection();
+      if (!path) return col;
+      const sub = getByPath(col, path);
+      if (typeof sub !== 'object' || sub === null || Array.isArray(sub)) return {};
+      return sub as Record<string, unknown>;
     },
 
     async set(path: string, value: unknown): Promise<void> {
