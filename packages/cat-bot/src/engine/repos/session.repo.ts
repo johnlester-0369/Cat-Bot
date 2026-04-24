@@ -13,7 +13,11 @@
  * TTL-based expiry (lruCache default) provides eventual consistency without
  * requiring explicit cross-repo coupling for every possible write path.
  */
-import { getBotNickname as _getBotNickname } from 'database';
+import {
+  getBotNickname as _getBotNickname,
+  getBotSessionData as _getBotSessionData,
+  setBotSessionData as _setBotSessionData,
+} from 'database';
 import { lruCache } from '@/engine/lib/lru-cache.lib.js';
 
 // ── Cache key builder ─────────────────────────────────────────────────────────
@@ -25,6 +29,12 @@ const nicknameKey = (
   platform: string,
   sessionId: string,
 ): string => `${userId}:${platform}:${sessionId}:session:nickname`;
+
+const sessionDataKey = (
+  userId: string,
+  platform: string,
+  sessionId: string,
+): string => `${userId}:${platform}:${sessionId}:session:data`;
 
 // ── Bot Nickname ──────────────────────────────────────────────────────────────
 
@@ -45,4 +55,31 @@ export async function getBotNickname(
   const result = await _getBotNickname(userId, platform, sessionId);
   lruCache.set(key, result);
   return result;
+}
+
+// ── Bot Session Data ──────────────────────────────────────────────────────────
+
+// WHY: Caches the entire session data blob to prevent DB roundtrips on every command
+// that reads bot-level configuration or AI persona states.
+export async function getBotSessionData(
+  userId: string,
+  platform: string,
+  sessionId: string,
+): Promise<Record<string, unknown>> {
+  const key = sessionDataKey(userId, platform, sessionId);
+  const cached = lruCache.get<Record<string, unknown>>(key);
+  if (cached !== undefined) return cached;
+  const result = await _getBotSessionData(userId, platform, sessionId);
+  lruCache.set(key, result);
+  return result;
+}
+
+export async function setBotSessionData(
+  userId: string,
+  platform: string,
+  sessionId: string,
+  data: Record<string, unknown>,
+): Promise<void> {
+  await _setBotSessionData(userId, platform, sessionId, data);
+  lruCache.set(sessionDataKey(userId, platform, sessionId), { ...data });
 }
