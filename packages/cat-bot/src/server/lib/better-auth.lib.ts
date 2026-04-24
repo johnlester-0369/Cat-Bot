@@ -31,7 +31,8 @@ export const auth = betterAuth({
       // Neon is officially supported: https://better-auth.com/ (listed under Community databases).
        
       isNeon
-      ? (neonPool as unknown as any)
+      ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (neonPool as unknown as any)
       : // MongoDB driver — mongodbAdapter() receives a Db instance; mongoClient is optional for
         // transactions (disabled on Atlas M0 free tier which lacks replica-set support).
         // getMongoDb/mongoClient are typed `any` in the database barrel so the cast is needed

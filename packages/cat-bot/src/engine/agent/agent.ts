@@ -176,7 +176,7 @@ export async function runAgent(
         continue;
       }
 
-      let args: Record<string, unknown> = {};
+      let args: Record<string, unknown>;
       try {
         args = JSON.parse(toolCall.function.arguments);
       } catch {

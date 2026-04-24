@@ -28,6 +28,7 @@ export interface BotContextType {
  * Custom hook to consume the bot context provided by the BotLayout.
  * Sub-pages (Console, Commands, Events, Settings) use this to avoid re-fetching data.
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useBotContext() {
   return useOutletContext<BotContextType>()
 }

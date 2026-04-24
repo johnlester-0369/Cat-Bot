@@ -1,5 +1,5 @@
 import { Helmet } from '@dr.pogodin/react-helmet'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { PLATFORM_LABELS } from '@/constants/platform.constants'
 import Table from '@/components/ui/data-display/Table'
 import EmptyState from '@/components/ui/data-display/EmptyState'
@@ -20,9 +20,11 @@ export default function AdminBotsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const debouncedSearch = useDebounce(searchQuery, 300)
 
-  useEffect(() => {
+  const [prevSearch, setPrevSearch] = useState(debouncedSearch)
+  if (debouncedSearch !== prevSearch) {
+    setPrevSearch(debouncedSearch)
     setPage(1)
-  }, [debouncedSearch])
+  }
 
   const { bots, total, stats, isLoading, error } = useAdminBots(
     page,

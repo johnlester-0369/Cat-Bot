@@ -124,10 +124,11 @@ export default function AdminSidebarLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const activePath = location.pathname
 
-  // Collapse the mobile drawer whenever the user navigates
-  useEffect(() => {
+  const [prevPath, setPrevPath] = useState(activePath)
+  if (activePath !== prevPath) {
+    setPrevPath(activePath)
     setMobileOpen(false)
-  }, [activePath])
+  }
 
   // Keyboard accessibility — Escape dismisses the mobile drawer
   useEffect(() => {

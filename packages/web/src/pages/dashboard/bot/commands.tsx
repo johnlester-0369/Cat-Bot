@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Search } from 'lucide-react'
 import Card from '@/components/ui/data-display/Card'
 import Badge from '@/components/ui/data-display/Badge'
@@ -30,9 +30,11 @@ export default function BotCommandsPage() {
   const [query, setQuery] = useState('')
   const debouncedQuery = useDebounce(query, 300)
 
-  useEffect(() => {
+  const [prevQuery, setPrevQuery] = useState(debouncedQuery)
+  if (debouncedQuery !== prevQuery) {
+    setPrevQuery(debouncedQuery)
     setPage(1)
-  }, [debouncedQuery])
+  }
 
   const { commands, total, isLoading, error, toggleCommand } = useBotCommands(
     id,

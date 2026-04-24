@@ -24,7 +24,7 @@ describe('Event Dispatcher', () => {
     // No throw
     await dispatchEvent(eventModules, 'unknown_event_type', {
       native: { platform: 'discord' },
-    } as any);
+    } as unknown as Parameters<typeof dispatchEvent>[2]);
   });
 
   it('should skip modules if platform is explicitly filtered out', async () => {
