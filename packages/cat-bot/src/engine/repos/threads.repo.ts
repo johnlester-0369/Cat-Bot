@@ -84,7 +84,7 @@ const threadSessionUpdatedAtKey = (
 
 // ── Wrappers ──────────────────────────────────────────────────────────────────
 
-export async function upsertDiscordServer(data: any): Promise<void> {
+export async function upsertDiscordServer(data: { id: string; adminIDs?: string[]; [key: string]: unknown }): Promise<void> {
   await _upsertDiscordServer(data);
   // Pre-seed admin map into cache so isThreadAdmin looks up from memory
   lruCache.set(
