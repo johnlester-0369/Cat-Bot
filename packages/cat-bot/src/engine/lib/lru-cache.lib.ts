@@ -61,4 +61,16 @@ export const lruCache = {
       if (key.startsWith(prefix)) cache.delete(key);
     }
   },
+
+  /**
+   * Delete every key that begins with ANY of the given prefixes in a single iteration.
+   * Use instead of multiple sequential delByPrefix() calls to avoid O(n × p) key-set
+   * scans — e.g. clearUserCache must evict three separate namespaces for the same userId
+   * and benefits from collapsing three O(n) passes into one.
+   */
+  delByPrefixes(prefixes: string[]): void {
+    for (const key of cache.keys()) {
+      if (prefixes.some((p) => key.startsWith(p))) cache.delete(key);
+    }
+  },
 };
