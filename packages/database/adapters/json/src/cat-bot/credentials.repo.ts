@@ -189,6 +189,53 @@ export async function listBotAdmins(
 }
 
 /**
+ * Reads the JSON data blob for a bot session.
+ * Returns an empty object on missing record, null data, or parse failure.
+ */
+export async function getBotSessionData(
+  userId: string,
+  platform: string,
+  sessionId: string,
+): Promise<Record<string, unknown>> {
+  const db = await getDb();
+  const platformId = toPlatformNumericId(platform);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rec = db.botSession.find(
+    (s: any) =>
+      s.userId === userId &&
+      s.platformId === platformId &&
+      s.sessionId === sessionId,
+  );
+  if (!rec?.data) return {};
+  try {
+    return JSON.parse(rec.data as string) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
+}
+
+export async function setBotSessionData(
+  userId: string,
+  platform: string,
+  sessionId: string,
+  data: Record<string, unknown>,
+): Promise<void> {
+  const db = await getDb();
+  const platformId = toPlatformNumericId(platform);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rec = db.botSession.find(
+    (s: any) =>
+      s.userId === userId &&
+      s.platformId === platformId &&
+      s.sessionId === sessionId,
+  );
+  if (rec) {
+    rec.data = JSON.stringify(data);
+    await saveDb();
+  }
+}
+
+/**
  * Persists a system prefix change to the bot_session row so the admin's choice
  * survives a process restart. updateMany semantics — silently no-ops when the
  * session row is absent (matches the fail-open contract of other session mutations).

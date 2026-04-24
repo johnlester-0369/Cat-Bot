@@ -318,3 +318,45 @@ export async function listBotPremiums(
     .toArray();
   return rows.map((r) => r.premiumId);
 }
+
+/**
+ * Reads the JSON data blob for a specific bot session.
+ * Returns empty object on missing record, null data, or parse failure.
+ */
+export async function getBotSessionData(
+  userId: string,
+  platform: string,
+  sessionId: string,
+): Promise<Record<string, unknown>> {
+  const db = getMongoDb();
+  const platformId = toPlatformNumericId(platform);
+  const rec = await db
+    .collection<{ data?: string }>('botSessions')
+    .findOne(
+      { userId, platformId, sessionId },
+      { projection: { data: 1, _id: 0 } },
+    );
+  if (!rec?.data) return {};
+  try {
+    return JSON.parse(rec.data) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
+}
+
+export async function setBotSessionData(
+  userId: string,
+  platform: string,
+  sessionId: string,
+  data: Record<string, unknown>,
+): Promise<void> {
+  const db = getMongoDb();
+  const platformId = toPlatformNumericId(platform);
+  await db
+    .collection('botSessions')
+    .updateOne(
+      { userId, platformId, sessionId },
+      { $set: { data: JSON.stringify(data) } },
+    );
+}
+
