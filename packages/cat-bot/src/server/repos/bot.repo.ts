@@ -156,9 +156,13 @@ export const botRepo = {
    */
   clearUserCache(userId: string): void {
     lruCache.del(botListKey(userId));
-    lruCache.delByPrefix(`bot:detail:${userId}:`);
-    lruCache.delByPrefix(`bot:platformId:${userId}:`);
-    lruCache.delByPrefix(`${userId}:`);
+    // Single-pass prefix eviction — three user-scoped namespaces resolved in one key-set
+    // scan instead of three sequential O(n) iterations over the 2000-entry cache.
+    lruCache.delByPrefixes([
+      `bot:detail:${userId}:`,
+      `bot:platformId:${userId}:`,
+      `${userId}:`,
+    ]);
     lruCache.del(SESSIONS_ALL_KEY);
   },
 };
