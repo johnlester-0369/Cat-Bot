@@ -346,11 +346,11 @@ const Pagination = forwardRefWithAs<'nav', PaginationOwnProps>((props, ref) => {
                 onClick={() => handlePageChange(page)}
                 className={cn(
                   'rounded-lg font-medium transition-colors',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-2',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-surface',
                   config.button,
                   isCurrentPage
                     ? 'bg-primary text-on-primary'
-                    : 'text-text hover:bg-surface-hover-2',
+                    : 'text-on-surface hover:bg-surface-container-high',
                 )}
                 aria-label={`Go to page ${page}`}
                 aria-current={isCurrentPage ? 'page' : undefined}

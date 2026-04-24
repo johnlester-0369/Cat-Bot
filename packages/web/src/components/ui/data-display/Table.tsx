@@ -648,7 +648,7 @@ const TableLoading = React.forwardRef<HTMLTableRowElement, TableLoadingProps>(
           >
             {Array.from({ length: colSpan }).map((_, cellIndex) => (
               <td key={cellIndex} className={config.cell}>
-                <div className="h-4 bg-surface-hover-1 rounded w-full" />
+                <div className="h-4 bg-surface-container-high rounded w-full" />
               </td>
             ))}
           </tr>
@@ -726,11 +726,17 @@ const TablePagination: React.FC<TablePaginationProps> = ({
   // Priority: explicit size prop > table context size > default 'md'
   const effectiveSize = size ?? tableContext?.size ?? 'md'
 
+  const totalPages = Math.ceil(paginationProps.totalItems / paginationProps.itemsPerPage)
+  const hideOnSinglePage = paginationProps.hideOnSinglePage ?? true
+  if (totalPages <= 1 && hideOnSinglePage) {
+    return null
+  }
+
   return (
     <div
       className={cn(
         'pt-4',
-        withBorder && 'mt-4 border-t border-divider',
+        withBorder && 'mt-4 border-t border-outline-variant',
         className,
       )}
     >
