@@ -40,7 +40,7 @@ import { chatPassthrough, chatLogThread } from './on-chat.middleware.js';
 import { replyStateValidation } from './on-reply.middleware.js';
 import { reactStateValidation } from './on-react.middleware.js';
 import { enforceButtonScope } from './on-button-click.middleware.js';
-import { enforceWarnBan } from './on-event.middleware.js';
+import { enforceWarnBan, enforceCommandKick } from './on-event.middleware.js';
 
 // ── Default middleware pipeline ────────────────────────────────────────────────
 
@@ -88,10 +88,17 @@ use.onButtonClick([
 ]);
 
 use.onEvent([
+  // Fast path: suppresses leave.ts when a member was explicitly removed by the
+  // `kick` command or `badwords` auto-kick. Both commands pre-register the target
+  // uid in the kick registry before calling thread.removeUser(), so the O(1)
+  // in-memory consume() check here avoids the DB round-trip enforceWarnBan performs.
+  // A registry miss passes control to enforceWarnBan below.
+  enforceCommandKick,
   // Suppresses join.ts welcome for warn-banned rejoining members — checkwarn.ts owns the
   // kick notification for the same log:subscribe event; a simultaneous "Welcome!" contradicts it.
   // Also suppresses leave.ts goodbye for bot-initiated warn-ban kicks on log:unsubscribe —
   // checkwarn.ts already owns the full removal interaction; a simultaneous goodbye message
   // directly contradicts the moderation flow. Voluntary self-leaves are never affected.
+  // Only reached for log:unsubscribe when enforceCommandKick misses (no registry entry).
   enforceWarnBan,
 ]);

@@ -1,5 +1,6 @@
 import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
+import { kickRegistry } from '@/engine/lib/kick-registry.lib.js';
 import { OptionType } from '@/engine/modules/command/command-option.constants.js';
 import { Platforms } from '@/engine/modules/platform/platform.constants.js';
 import { MessageStyle } from '@/engine/constants/message-style.constants.js';
@@ -102,6 +103,12 @@ export const onCommand = async ({
   const userName = await user.getName(targetID);
 
   // 4. Execute removal via platform abstraction
+  // Register the target uid BEFORE removeUser() so the log:unsubscribe guard in
+  // on-event.middleware.ts can suppress leave.ts's generic goodbye message.
+  // The kick command's own "✅ User has been removed" reply already owns the narrative.
+  const threadID = event['threadID'] as string;
+  kickRegistry.register(threadID, targetID);
+
   try {
     await thread.removeUser(targetID);
     await chat.replyMessage({

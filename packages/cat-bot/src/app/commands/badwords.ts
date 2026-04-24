@@ -37,6 +37,7 @@
 
 import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role }         from '@/engine/constants/role.constants.js';
+import { kickRegistry } from '@/engine/lib/kick-registry.lib.js';
 import { Platforms } from '@/engine/modules/platform/platform.constants.js';
 import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 
@@ -408,6 +409,11 @@ export const onChat = async ({
         style:   MessageStyle.MARKDOWN,
         message: `⚠️ Banned word **"${word}"** detected. You have violated 2 times and will be kicked from the group.`,
       });
+
+      // Register the uid BEFORE removeUser() so the log:unsubscribe guard in
+      // on-event.middleware.ts can suppress leave.ts's generic goodbye message.
+      // The message above already owns the moderation narrative for this kick.
+      kickRegistry.register(threadID, senderID);
 
       try {
         await thread.removeUser(senderID);
