@@ -47,6 +47,8 @@ export {
   addBotPremium,
   removeBotPremium,
   listBotPremiums,
+  getBotSessionData,
+  setBotSessionData,
 } from '../adapters/neondb/src/cat-bot/credentials.repo.js';
 
 // --- THREADS ---

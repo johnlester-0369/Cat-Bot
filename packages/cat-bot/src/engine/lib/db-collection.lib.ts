@@ -27,6 +27,10 @@ import {
   getThreadSessionData,
   setThreadSessionData,
 } from '@/engine/repos/threads.repo.js';
+import {
+  getBotSessionData,
+  setBotSessionData,
+} from '@/engine/repos/session.repo.js';
 
 // ── Dot-path helpers ──────────────────────────────────────────────────────────
 
@@ -409,6 +413,44 @@ export function createCollectionManager(
   };
 }
 
+/**
+ * Returns a CollectionManager bound to (sessionOwnerUserId, platform, sessionId).
+ * Since bot sessions are global to the credential identity, it requires no inner ID closures,
+ * enabling direct usage like `db.bot.getCollection('name')`.
+ *
+ * WHY: Provides a globally scoped data store for the bot instance (e.g. global config, AI persona state)
+ * separate from user-specific or thread-specific data.
+ */
+export function createBotCollectionManager(
+  sessionOwnerUserId: string,
+  platform: string,
+  sessionId: string,
+): CollectionManager {
+  const readAll = () =>
+    getBotSessionData(sessionOwnerUserId, platform, sessionId);
+  const writeAll = (data: Record<string, unknown>) =>
+    setBotSessionData(sessionOwnerUserId, platform, sessionId, data);
+
+  return {
+    async isCollectionExist(name: string): Promise<boolean> {
+      const data = await readAll();
+      return Object.prototype.hasOwnProperty.call(data, name);
+    },
+
+    async createCollection(name: string): Promise<void> {
+      const data = await readAll();
+      // Idempotent — never overwrites an existing collection
+      if (!Object.prototype.hasOwnProperty.call(data, name)) {
+        data[name] = {};
+        await writeAll(data);
+      }
+    },
+
+    async getCollection(name: string): Promise<CollectionHandle> {
+      return createCollectionHandle(name, readAll, writeAll);
+    },
+  };
+}
 /**
  * Returns a factory function bound to (sessionOwnerUserId, platform, sessionId).
  * Call the returned function with botThreadId to get a CollectionManager scoped to

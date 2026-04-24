@@ -239,6 +239,8 @@ model BotSession {
   // Controls whether this session is loaded at startup — set false to take a session offline
   // without deleting credentials. The session-loader filters out isRunning = false rows at boot.
   isRunning  Boolean @default(true)
+  // JSON blob — stores bot session scoped data (e.g. state, cache) without dynamic tables
+  data       String?
 
   user user @relation("BotSessionUser", fields: [userId], references: [id], onDelete: Cascade)
 

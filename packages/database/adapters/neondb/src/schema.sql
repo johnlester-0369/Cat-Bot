@@ -144,6 +144,7 @@ CREATE TABLE IF NOT EXISTS bot_session (
   nickname    TEXT,
   prefix      TEXT,
   is_running  BOOLEAN NOT NULL DEFAULT TRUE,
+  data        TEXT,
   PRIMARY KEY (user_id, platform_id, session_id)
 );
 

@@ -46,6 +46,8 @@ export {
   addBotPremium,
   removeBotPremium,
   listBotPremiums,
+  getBotSessionData,
+  setBotSessionData,
 } from '../adapters/mongodb/src/cat-bot/credentials.repo.js';
 
 // --- THREADS ---

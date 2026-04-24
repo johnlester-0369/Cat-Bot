@@ -35,6 +35,7 @@ import {
 import {
   createCollectionManager,
   createThreadCollectionManager,
+  createBotCollectionManager,
 } from '@/engine/lib/db-collection.lib.js';
 
 /**
@@ -85,6 +86,11 @@ export function buildBaseCtx(
     logger,
     startTime,
     db: {
+      bot: createBotCollectionManager(
+        native.userId ?? '',
+        native.platform,
+        native.sessionId ?? '',
+      ),
       users: {
         getName: getUserName,
         // Pre-scoped to (sessionOwnerUserId, platform, sessionId) — command modules pass only botUserId

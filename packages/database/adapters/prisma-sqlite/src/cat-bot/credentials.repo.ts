@@ -285,3 +285,41 @@ export async function listBotPremiums(
   });
   return rows.map((r) => r.premiumId);
 }
+
+/**
+ * Reads the JSON data blob for a specific bot_session row.
+ * Returns an empty object when the row is missing, data is null, or JSON is malformed.
+ */
+export async function getBotSessionData(
+  userId: string,
+  platform: string,
+  sessionId: string,
+): Promise<Record<string, unknown>> {
+  const platformId = toPlatformNumericId(platform);
+  const row = await prisma.botSession.findUnique({
+    where: {
+      userId_platformId_sessionId: { userId, platformId, sessionId },
+    },
+    select: { data: true },
+  });
+  if (!row?.data) return {};
+  try {
+    return JSON.parse(row.data) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
+}
+
+export async function setBotSessionData(
+  userId: string,
+  platform: string,
+  sessionId: string,
+  data: Record<string, unknown>,
+): Promise<void> {
+  const platformId = toPlatformNumericId(platform);
+  await prisma.botSession.updateMany({
+    where: { userId, platformId, sessionId },
+    data: { data: JSON.stringify(data) },
+  });
+}
+

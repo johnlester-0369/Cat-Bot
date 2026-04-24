@@ -7,11 +7,9 @@
  * ⚠️ GAP — global config file mutation:
  *   GoatBot mutated global.GoatBot.config in memory and persisted it with
  *   fs.writeFileSync. Cat-Bot documents no global config mutation API.
- *   Settings are stored in db.users.collection(native.userId) → 'session_settings',
- *   which is pre-scoped to (sessionOwnerUserId, platform, sessionId) — fully
- *   isolated between concurrent bot instances.
+ *   Settings are stored in db.bot → 'session_settings', scoped to the current bot instance.
  *
- * DB schema (db.users.collection(native.userId) → 'session_settings'):
+ * DB schema (db.bot → 'session_settings'):
  *   adminOnlyEnabled:    boolean  — session-wide bot-admin-only enforcement
  *   adminOnlyHideNoti:   boolean  — suppress the blocked-user reply
  *   adminOnlyIgnoreList: string[] — commands exempt from enforcement
@@ -40,8 +38,8 @@ export const config = {
 
 // ── DB helper ─────────────────────────────────────────────────────────────────
 
-async function getSessionHandle(db: AppCtx['db'], ownerUserId: string) {
-  const coll = db.users.collection(ownerUserId);
+async function getBotHandle(db: AppCtx['db']) {
+  const coll = db.bot;
   if (!(await coll.isCollectionExist('session_settings'))) {
     await coll.createCollection('session_settings');
     const h = await coll.getCollection('session_settings');
@@ -56,18 +54,8 @@ async function getSessionHandle(db: AppCtx['db'], ownerUserId: string) {
 // ── onCommand ─────────────────────────────────────────────────────────────────
 
 export const onCommand = async ({
-  chat, args, db, native, usage,
+  chat, args, db, usage,
 }: AppCtx): Promise<void> => {
-  const ownerUserId = native.userId ?? '';
-
-  if (!ownerUserId) {
-    await chat.replyMessage({
-      style:   MessageStyle.MARKDOWN,
-      message: '❌ Cannot resolve session identity — adminonly is unavailable.',
-    });
-    return;
-  }
-
   let isNoti   = false;
   let argIndex = 0;
 
@@ -80,7 +68,7 @@ export const onCommand = async ({
   if (toggle !== 'on' && toggle !== 'off') return usage();
 
   const value  = toggle === 'on';
-  const handle = await getSessionHandle(db, ownerUserId);
+  const handle = await getBotHandle(db);
 
   if (isNoti) {
     await handle.set('adminOnlyHideNoti', !value);

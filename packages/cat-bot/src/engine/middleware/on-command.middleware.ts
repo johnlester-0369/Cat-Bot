@@ -302,10 +302,10 @@ export const enforcePermission: MiddlewareFn<OnCommandCtx> = async function (
  *
  *   1. Session-wide admin-only mode (adminonly):
  *        db.users.collection(sessionUserId) → 'session_settings'
+ *        db.bot → 'session_settings'
  *          adminOnlyEnabled    : boolean
  *          adminOnlyHideNoti   : boolean
  *          adminOnlyIgnoreList : string[]
- *      When enabled, only bot admins (and system admins) may run any command
  *      not present on adminOnlyIgnoreList.
  *
  *   2. Per-thread admin-only mode (onlyadminbox):
@@ -368,36 +368,35 @@ export const enforceAdminOnly: MiddlewareFn<OnCommandCtx> = async function (
       : false;
 
   // ── Session-wide admin-only ─────────────────────────────────────────────
-  if (sessionUserId) {
-    try {
-      const userColl = ctx.db.users.collection(sessionUserId);
-      if (await userColl.isCollectionExist('session_settings')) {
-        const h = await userColl.getCollection('session_settings');
-        const enabled = (await h.get('adminOnlyEnabled')) as boolean | null;
+  // db.bot is already scoped to (userId:platform:sessionId) — no outer sessionUserId guard needed
+  try {
+    const botColl = ctx.db.bot;
+    if (await botColl.isCollectionExist('session_settings')) {
+      const h = await botColl.getCollection('session_settings');
+      const enabled = (await h.get('adminOnlyEnabled')) as boolean | null;
 
-        if (enabled === true && !isAdmin) {
-          const ignoreList =
-            ((await h.get('adminOnlyIgnoreList')) as string[] | null) ?? [];
-          if (!ignoreList.includes(cmdName)) {
-            const hideNoti =
-              (await h.get('adminOnlyHideNoti')) as boolean | null;
-            if (hideNoti !== true) {
-              const key = `adminonly_noti:${sessionUserId}:${platform}:${sessionId}:${senderID}`;
-              if (cooldownStore.check(key, now) === null) {
-                await ctx.chat.replyMessage({
-                  message:
-                    '🚫 The bot is currently in admin-only mode. Only bot admins may use commands.',
-                });
-                cooldownStore.record(key, now, 15000);
-              }
+      if (enabled === true && !isAdmin) {
+        const ignoreList =
+          ((await h.get('adminOnlyIgnoreList')) as string[] | null) ?? [];
+        if (!ignoreList.includes(cmdName)) {
+          const hideNoti =
+            (await h.get('adminOnlyHideNoti')) as boolean | null;
+          if (hideNoti !== true) {
+            const key = `adminonly_noti:${sessionUserId}:${platform}:${sessionId}:${senderID}`;
+            if (cooldownStore.check(key, now) === null) {
+              await ctx.chat.replyMessage({
+                message:
+                  '🚫 The bot is currently in admin-only mode. Only bot admins may use commands.',
+              });
+              cooldownStore.record(key, now, 15000);
             }
-            return; // halt — handler never runs
           }
+          return; // halt — handler never runs
         }
       }
-    } catch {
-      // fail-open — DB outage must not lock out the entire session
     }
+  } catch {
+    // fail-open — DB outage must not lock out the entire session
   }
 
   // ── Per-thread admin-only ───────────────────────────────────────────────

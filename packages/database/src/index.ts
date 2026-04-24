@@ -77,6 +77,10 @@ export const addBotPremium = m.addBotPremium;
 export const removeBotPremium = m.removeBotPremium;
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 export const listBotPremiums = m.listBotPremiums;
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+export const getBotSessionData = m.getBotSessionData;
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+export const setBotSessionData = m.setBotSessionData;
 
 // --- THREADS ---
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment

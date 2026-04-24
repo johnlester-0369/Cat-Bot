@@ -368,3 +368,41 @@ export async function listBotPremiums(
   );
   return res.rows.map((r) => r.premium_id);
 }
+
+/**
+ * Reads the JSON data blob from bot_session.
+ * Returns empty object on missing record, null data, or parse failure.
+ */
+export async function getBotSessionData(
+  userId: string,
+  platform: string,
+  sessionId: string,
+): Promise<Record<string, unknown>> {
+  const platformId = toPlatformNumericId(platform);
+  const res = await pool.query<{ data: string | null }>(
+    `SELECT data FROM bot_session
+     WHERE user_id = $1 AND platform_id = $2 AND session_id = $3 LIMIT 1`,
+    [userId, platformId, sessionId],
+  );
+  if (!res.rows[0]?.data) return {};
+  try {
+    return JSON.parse(res.rows[0].data) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
+}
+
+export async function setBotSessionData(
+  userId: string,
+  platform: string,
+  sessionId: string,
+  data: Record<string, unknown>,
+): Promise<void> {
+  const platformId = toPlatformNumericId(platform);
+  await pool.query(
+    `UPDATE bot_session SET data = $4
+     WHERE user_id = $1 AND platform_id = $2 AND session_id = $3`,
+    [userId, platformId, sessionId, JSON.stringify(data)],
+  );
+}
+

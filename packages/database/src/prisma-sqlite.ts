@@ -48,6 +48,8 @@ export {
   addBotPremium,
   removeBotPremium,
   listBotPremiums,
+  getBotSessionData,
+  setBotSessionData,
 } from '../adapters/prisma-sqlite/src/cat-bot/credentials.repo.js';
 
 // --- THREADS ---

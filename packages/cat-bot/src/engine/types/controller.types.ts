@@ -65,6 +65,15 @@ export interface BaseCtx {
 
   // WHY: Provides uniform database queries across all command modules natively inside ctx
   db: {
+    /**
+     * Bot session data store. Automatically scoped to the current bot instance (userId:platform:sessionId).
+     * Unlike `users` and `threads`, this is accessed directly without an intermediate `.collection()` lookup.
+     *
+     * @example
+     * await ctx.db.bot.createCollection('config');
+     * const conf = await ctx.db.bot.getCollection('config');
+     */
+    bot: CollectionManager;
     users: {
       getName: (userId: string) => Promise<string>;
       /** Returns a CollectionManager bound to the calling user's bot_users_session row. */
