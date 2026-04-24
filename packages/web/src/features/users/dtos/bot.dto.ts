@@ -72,6 +72,11 @@ export interface BotCommandItemDto {
 
 export interface GetBotCommandsResponseDto {
   commands: BotCommandItemDto[]
+  // Pagination fields matching the server-side DTO response to satisfy the frontend hooks
+  total: number
+  page: number
+  limit: number
+  totalPages: number
 }
 
 export interface BotEventItemDto {
@@ -84,4 +89,9 @@ export interface BotEventItemDto {
 
 export interface GetBotEventsResponseDto {
   events: BotEventItemDto[]
+  // Pagination fields matching the server-side DTO response to satisfy the frontend hooks
+  total: number
+  page: number
+  limit: number
+  totalPages: number
 }

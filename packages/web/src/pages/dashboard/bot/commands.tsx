@@ -1,13 +1,15 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Search } from 'lucide-react'
 import Card from '@/components/ui/data-display/Card'
 import Badge from '@/components/ui/data-display/Badge'
 import Alert from '@/components/ui/feedback/Alert'
-import Progress from '@/components/ui/feedback/Progress'
 import Switch from '@/components/ui/forms/Switch'
 import Input from '@/components/ui/forms/Input'
 import { useBotContext } from '@/features/users/components/DashboardBotLayout'
 import { useBotCommands } from '@/features/users/hooks/useBotCommands'
+import Pagination from '@/components/ui/navigation/Pagination'
+import { useDebounce } from '@/hooks/useDebounce'
+import Skeleton from '@/components/ui/feedback/Skeleton'
 
 const ROLE_LABEL: Record<number, string> = {
   0: 'Anyone',
@@ -23,20 +25,14 @@ const ROLE_LABEL: Record<number, string> = {
  */
 export default function BotCommandsPage() {
   const { bot, id } = useBotContext()
-  const { commands, isLoading, error, toggleCommand } = useBotCommands(id)
 
+  const [page, setPage] = useState(1)
   const [query, setQuery] = useState('')
+  const debouncedQuery = useDebounce(query, 300)
 
-  if (isLoading) return <Progress.Circular message="Loading commands…" />
+  useEffect(() => { setPage(1) }, [debouncedQuery])
 
-  const filtered =
-    query.trim() === ''
-      ? commands
-      : commands.filter(
-          (cmd) =>
-            cmd.commandName.toLowerCase().includes(query.toLowerCase()) ||
-            cmd.description?.toLowerCase().includes(query.toLowerCase()),
-        )
+  const { commands, total, isLoading, error, toggleCommand } = useBotCommands(id, page, 12, debouncedQuery)
 
   return (
     <div className="flex flex-col gap-4">
@@ -55,9 +51,9 @@ export default function BotCommandsPage() {
           </p>
         </div>
         <Badge color="secondary" size="sm" variant="tonal">
-          {query.trim()
-            ? `${filtered.length} of ${commands.length}`
-            : `${commands.length} total`}
+          {isLoading 
+            ? 'Loading...' 
+            : query.trim() ? `${total} matched` : `${total} total`}
         </Badge>
       </div>
 
@@ -71,7 +67,26 @@ export default function BotCommandsPage() {
         />
       </div>
 
-      {filtered.length === 0 ? (
+      {/* Keep contextual search bar visible; swap only the grid for skeletons while fetching */}
+      {isLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {Array.from({ length: 12 }).map((_, i) => (
+            <Card.Root key={i} padding="sm" bordered className="flex flex-col gap-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex flex-col gap-1.5 flex-1">
+                  <Skeleton variant="text" width="60%" height="24px" />
+                  <Skeleton variant="text" width="40%" height="20px" />
+                </div>
+                <Skeleton variant="rounded" width="44px" height="24px" className="rounded-full" />
+              </div>
+              <Skeleton variant="text" count={2} />
+              <div className="pt-2 border-t border-outline-variant mt-auto">
+                <Skeleton variant="text" width="50%" />
+              </div>
+            </Card.Root>
+          ))}
+        </div>
+      ) : commands.length === 0 ? (
         <Card.Root padding="lg">
           <p className="text-body-md text-on-surface-variant italic text-center">
             {query.trim()
@@ -81,7 +96,7 @@ export default function BotCommandsPage() {
         </Card.Root>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {filtered.map((cmd) => (
+          {commands.map((cmd) => (
             <Card.Root
               key={cmd.commandName}
               padding="sm"
@@ -177,6 +192,18 @@ export default function BotCommandsPage() {
               )}
             </Card.Root>
           ))}
+        </div>
+      )}
+      
+      {/* Hide pagination while loading to prevent stale total counts from rendering */}
+      {!isLoading && total > 0 && (
+        <div className="pt-4 flex justify-center">
+          <Pagination
+            currentPage={page}
+            totalItems={total}
+            itemsPerPage={12}
+            onPageChange={setPage}
+          />
         </div>
       )}
     </div>
