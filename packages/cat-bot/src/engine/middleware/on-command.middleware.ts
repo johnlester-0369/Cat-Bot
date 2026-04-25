@@ -494,11 +494,21 @@ export const enforceNotBanned: MiddlewareFn<OnCommandCtx> = async function (
     }
   }
 
-  // Prevent banned users from executing prefix commands and send rate-limited alerts.
-  if (
-    senderID &&
-    (await isUserBanned(sessionUserId, platform, sessionId, senderID))
-  ) {
+  // Both ban checks hit independent DB tables — run them in parallel to eliminate
+  // one full DB round-trip from every non-admin command invocation.
+  // Fallback to false when the discriminator (senderID / threadID) is absent so
+  // Promise.all sees a uniform element type without branching on the call site.
+  const [userBanned, threadBanned] = await Promise.all([
+    senderID
+      ? isUserBanned(sessionUserId, platform, sessionId, senderID)
+      : Promise.resolve(false),
+    threadID
+      ? isThreadBanned(sessionUserId, platform, sessionId, threadID)
+      : Promise.resolve(false),
+  ]);
+
+  // Evaluate results sequentially — user ban takes priority (matches original guard order).
+  if (userBanned) {
     const key = `ban_u:${sessionUserId}:${platform}:${sessionId}:${senderID}`;
     if (!cooldownStore.check(key, now)) {
       await ctx.chat.replyMessage({ message: 'you are unable to use bot' });
@@ -507,10 +517,7 @@ export const enforceNotBanned: MiddlewareFn<OnCommandCtx> = async function (
     return;
   }
 
-  if (
-    threadID &&
-    (await isThreadBanned(sessionUserId, platform, sessionId, threadID))
-  ) {
+  if (threadBanned) {
     const key = `ban_t:${sessionUserId}:${platform}:${sessionId}:${threadID}`;
     if (!cooldownStore.check(key, now)) {
       await ctx.chat.replyMessage({ message: 'This thread unable to use bot' });

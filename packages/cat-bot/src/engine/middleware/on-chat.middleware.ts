@@ -72,17 +72,25 @@ export const chatPassthrough: MiddlewareFn<OnChatCtx> = async function (
   // Platform listeners that do not yet set userId/sessionId in native context skip sync entirely.
   if (platform && threadID && sessionUserId && sessionId) {
     try {
-      const threadUpdatedAt = await getThreadSessionUpdatedAt(
-        sessionUserId,
-        platform,
-        sessionId,
-        threadID,
-      );
+      // Snapshot before the parallel await so both stale checks use a consistent reference
+      // rather than two Date.now() calls separated by a DB round-trip.
+      const now = Date.now();
+      // Thread and sender staleness reads are independent DB queries — running them in parallel
+      // eliminates one full DB round-trip from every message's hot path (they were sequential).
+      // senderID guard: when senderID is absent (e.g. some system events) we resolve null as the
+      // placeholder so Promise.all sees a uniform element type; the if (senderID) block below
+      // ensures we never act on the placeholder value.
+      const [threadUpdatedAt, senderUpdatedAt] = await Promise.all([
+        getThreadSessionUpdatedAt(sessionUserId, platform, sessionId, threadID),
+        senderID
+          ? getUserSessionUpdatedAt(sessionUserId, platform, sessionId, senderID)
+          : Promise.resolve(null as Date | null),
+      ]);
       // Null means the thread has never been synced; a timestamp older than SYNC_INTERVAL_MS means the
       // cached metadata (name, member count, admin list) may have drifted from the platform's state.
       const threadStale =
         threadUpdatedAt === null ||
-        Date.now() - threadUpdatedAt.getTime() > SYNC_INTERVAL_MS;
+        now - threadUpdatedAt.getTime() > SYNC_INTERVAL_MS;
       if (threadStale) {
         // Log new vs update before the optimistic stamp so the event is always
         // recorded even if the subsequent upsertThreadSession call is skipped.
@@ -114,16 +122,11 @@ export const chatPassthrough: MiddlewareFn<OnChatCtx> = async function (
       // Always check the sender explicitly — they may not appear in participantIDs on
       // FB Page 1:1 (participant list only contains the page bot) or Telegram private DMs.
       // Also re-sync if the sender's session row is stale even when the thread row is fresh.
+      // senderUpdatedAt was fetched in parallel with threadUpdatedAt above.
       if (senderID) {
-        const senderUpdatedAt = await getUserSessionUpdatedAt(
-          sessionUserId,
-          platform,
-          sessionId,
-          senderID,
-        );
         const senderStale =
           senderUpdatedAt === null ||
-          Date.now() - senderUpdatedAt.getTime() > SYNC_INTERVAL_MS;
+          now - senderUpdatedAt.getTime() > SYNC_INTERVAL_MS;
         if (senderStale) {
           // Log new vs update before the optimistic stamp — same rationale as the thread block above.
           if (senderUpdatedAt === null) {
