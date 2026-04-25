@@ -19,6 +19,11 @@ import { getTelegramWebhookHandler } from '../engine/modules/session/telegram-we
 
 import facebookPageRoutes from './routes/v1/facebook-page.routes.js';
 import apiV1Router from './routes/v1/index.js';
+import {
+  REST_LIMIT,
+  VALIDATE_LIMIT,
+  ADMIN_LIMIT,
+} from './middleware/rate-limit.middleware.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -82,6 +87,15 @@ export function createApp(): Application {
 
   // Mount Facebook Page Webhooks
   app.use('/api/v1/facebook-page', facebookPageRoutes);
+
+  // Rate limiting — path-specific limiters MUST be registered before the catch-all
+  // REST_LIMIT so the stricter per-endpoint ceiling short-circuits first. Each
+  // preset owns its own in-memory Map, so counts are tracked independently across stores.
+  // A /validate request is counted in both VALIDATE_LIMIT and REST_LIMIT, which is
+  // intentional: heavy probing traffic also drains the general budget.
+  app.use('/api/v1/validate', VALIDATE_LIMIT); // 20 req / 60 s — protects live credential checks
+  app.use('/api/v1/admin', ADMIN_LIMIT); // 60 req / 60 s — reduces admin enumeration blast radius
+  app.use('/api/v1', REST_LIMIT); // 120 req / 60 s — general bot management dashboard
 
   // Mount API endpoints for bot administration
   app.use('/api/v1', apiV1Router);
