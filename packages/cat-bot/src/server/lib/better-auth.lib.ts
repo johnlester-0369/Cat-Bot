@@ -138,6 +138,18 @@ export const adminAuth = betterAuth({
     cookiePrefix: 'ba-admin',
   },
   plugins: [admin()],
+  rateLimit: {
+    // Admin portal gets a stricter ceiling — admin accounts are high-value targets
+    // and legitimate admins rarely hit sign-in repeatedly. 3 attempts / 10 s mirrors
+    // better-auth's built-in default for the sign-in path.
+    enabled: true,
+    window: 60,
+    max: 30,
+    storage: 'memory',
+    customRules: {
+      '/sign-in/email': { window: 10, max: 3 },
+    },
+  },
   hooks: {
     // Top-level betterAuth() hooks accept a single createAuthMiddleware directly.
     // The { matcher, handler }[] array form is plugin-internal only — using it here
