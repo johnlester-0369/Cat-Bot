@@ -96,14 +96,17 @@ export async function handleMessage(
   // Destructure chat for direct use in the "no prefix" and "command not found" reply paths below
   const { chat } = baseCtx;
 
-  // Run global onChat middleware chain before the module fan-out — cross-cutting
-  // concerns (rate limiting, audit logging, spam detection) intercept every message
-  // here before individual command modules' onChat handlers process it.
-  await runMiddlewareChain<OnChatCtx>(
+  // KICK OFF ON-CHAT PIPELINE CONCURRENTLY (Fire & Forget)
+  // WHY: Awaiting passive chat listeners and DB syncs (like chatPassthrough) adds 10ms+ I/O latency
+  // to command execution. By detaching this promise, command dispatch runs instantly in the 
+  // exact same event loop tick without waiting for background tasks to finish.
+  void runMiddlewareChain<OnChatCtx>(
     middlewareRegistry.getOnChat(),
     baseCtx,
     () => runOnChat(commands, baseCtx),
-  );
+  ).catch((err: unknown) => {
+    baseCtx.logger.error('❌ [on-chat] Unhandled error in chain', { error: err });
+  });
 
   // Check for a registered onReply state BEFORE prefix parsing — a user quoting a pending
   // bot message is continuing a conversation flow, not issuing a new command.

@@ -97,6 +97,12 @@ export const use: MiddlewareUse = middlewareRegistry;
  * Runs `middlewares` sequentially, then calls `finalHandler` once all have called next().
  * Designed to be called from dispatchers — each dispatch site provides its own finalHandler.
  *
+ * WHY SEQUENTIAL AND NOT Promise.all?
+ *   Parallelizing middleware breaks the short-circuit contract. If a fast guard (e.g., ban check)
+ *   and a slow DB read run concurrently, the slow read wastes CPU/DB resources even if the request
+ *   is banned. Sequential execution ensures fast guards protect expensive downstream operations.
+ *   It also guarantees context mutations (like populating ctx.options) are safely available to the next step.
+ *
  * Short-circuit contract:
  *   A middleware that does NOT call next() halts the chain at that point.
  *   Neither subsequent middleware nor the final handler will execute.
