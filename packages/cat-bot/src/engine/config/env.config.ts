@@ -55,6 +55,11 @@ interface EnvConfig {
 
   // Security
   readonly ENCRYPTION_KEY: string;
+  /**
+   * Groq API key for AI-powered commands (ai, agent). Optional — bot
+   * starts normally when absent but AI features will gracefully reject.
+   */
+  readonly GROQ_API_KEY?: string | undefined;
 
   // Derived boolean helpers
   readonly isDevelopment: boolean;
@@ -210,6 +215,8 @@ export const env: EnvConfig = {
 
   // Security
   ENCRYPTION_KEY: getRequiredEnv('ENCRYPTION_KEY'),
+  // Groq API — optional; only needed for AI-powered commands/agent
+  GROQ_API_KEY: getOptionalEnv('GROQ_API_KEY'),
 
   // Derived boolean helpers for convenience
   isDevelopment: nodeEnv === 'development',
