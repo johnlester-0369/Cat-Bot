@@ -44,26 +44,28 @@ import type { InterceptedCall } from '../lib/command-result-store.lib.js';
 export const config = {
   name: 'test_command',
   description:
-    'Execute a command silently to intercept and preview its full output — messages, ' +
-    'attachments, buttons, and any other platform API calls. Returns a lookup `key` and ' +
-    'a `calls` array showing exactly what the command would send to the platform. ' +
-    'After reviewing the captured output, call `send_result` with the key to deliver it. ' +
-    'Do NOT use for commands that require the cooldown to be consumed on preview — ' +
-    'this tool never advances the user\'s rate limit.',
+    'Execute one or more commands silently to intercept and preview their output. ' +
+    'Returns a lookup `key` and a `calls` array showing what the commands would send. ' +
+    'Use the `commands` array parameter to test multiple commands in parallel.',
   parameters: {
     type: 'object',
     properties: {
-      command: {
-        type: 'string',
-        description: 'The command name without prefix (e.g. `balance`)',
-      },
-      args: {
+      commands: {
         type: 'array',
-        items: { type: 'string' },
-        description: 'Arguments to pass to the command',
+        items: {
+          type: 'object',
+          properties: {
+            command: { type: 'string', description: 'Command name without prefix' },
+            args: { type: 'array', items: { type: 'string' }, description: 'Arguments' },
+          },
+          required: ['command', 'args'],
+        },
+        description: 'List of commands to test in sequence.',
       },
+      command: { type: 'string', description: 'Legacy single command (use commands array instead)' },
+      args: { type: 'array', items: { type: 'string' } },
     },
-    required: ['command', 'args'],
+    required: [],
   },
 };
 
@@ -87,8 +89,8 @@ function formatCallForLLM(
   senderID: string,
   messageID: string,
 ): Record<string, unknown> {
-  // Base context fields shared by all call types — give the LLM full conversation coordinates
   const base: Record<string, unknown> = { type: call.type, senderID, messageID };
+  if (call.sourceCommand) base.sourceCommand = call.sourceCommand;
 
   switch (call.type) {
     case 'replyMessage': {
@@ -194,47 +196,21 @@ function formatCallForLLM(
 // ============================================================================
 
 export const run = async (
-  { command, args }: { command: string; args: string[] },
+  payload: { commands?: Array<{ command: string; args: string[] }>; command?: string; args?: string[] },
   ctx: AppCtx,
 ): Promise<string> => {
   const { senderID, threadID, sessionUserId, sessionId, platform } =
     resolveAgentContext(ctx);
 
-  const mod = ctx.commands.get(command.toLowerCase());
-  if (!mod || typeof mod['onCommand'] !== 'function') {
-    return `Error: Command '${command}' not found.`;
+  const cmdsToRun = payload.commands ?? [];
+  if (payload.command) {
+    cmdsToRun.push({ command: payload.command, args: payload.args ?? [] });
+  }
+  if (cmdsToRun.length === 0) {
+    return 'Error: You must provide a `commands` array or a single `command`.';
   }
 
   try {
-    const simulatedMessage =
-      `${ctx.prefix || '/'}${command} ${(args || []).join(' ')}`.trim();
-    const simulatedEvent = {
-      ...ctx.event,
-      message: simulatedMessage,
-      body: simulatedMessage,
-    };
-
-    // Check constraints but do NOT consume the cooldown window during previews —
-    // the agent may test the same command multiple times before deciding to send,
-    // and consuming cooldown on a preview would erroneously throttle real user invocations.
-    const guard = await inspectCommandConstraints(
-      mod,
-      command.toLowerCase(),
-      senderID,
-      threadID,
-      sessionUserId,
-      platform,
-      sessionId,
-      false,
-    );
-    if (!guard.allowed) {
-      return `Command '${command}' cannot be tested: ${guard.reason}`;
-    }
-
-    // All UnifiedApi side-effect methods the Proxy will intercept.
-    // Read-only methods (getUserInfo, getBotID, getFullThreadInfo, etc.) are NOT
-    // intercepted — they pass through to the real API so commands that query
-    // user or thread data receive accurate live responses during preview.
     const sideEffects = new Set([
       'replyMessage',
       'sendMessage',
@@ -250,23 +226,18 @@ export const run = async (
       'setGroupReaction',
     ]);
 
-    const rawIntercepted: Array<{ method: string; args: unknown[] }> = [];
+    const rawIntercepted: Array<{ method: string; args: unknown[]; sourceCommand: string }> = [];
+    let currentRunningCommand = '';
 
-    // Proxy intercepts side-effect calls and normalizes args immediately.
-    // Normalization at capture time (not replay time) ensures streams are replaced
-    // before the underlying Readable is consumed and becomes unreadable.
     const mockApi = new Proxy(ctx.api, {
       get(target, prop, receiver) {
         if (typeof prop === 'string' && sideEffects.has(prop)) {
           return async (...mArgs: unknown[]) => {
             rawIntercepted.push({
               method: prop,
-              // Normalize each arg in-place — streams consumed by this mock call
-              // cannot be re-read; sentinel strings preserve the structural information
               args: mArgs.map(normalizeToJson),
+              sourceCommand: currentRunningCommand,
             });
-            // Return a stable mock message ID so commands that chain on the returned
-            // ID (e.g. state.create after chat.replyMessage) receive a valid string
             return 'mock-msg-id';
           };
         }
@@ -275,39 +246,73 @@ export const run = async (
       },
     });
 
-    const commandCtx: OnCommandCtx = {
-      ...ctx,
-      api: mockApi,
-      event: simulatedEvent,
-      parsed: { name: command, args: args || [] },
-      prefix: ctx.prefix || '/',
-      mod,
-      options: OptionsMap.empty(),
-    };
+    const errors: string[] = [];
 
-    await dispatchCommand(
-      ctx.commands,
-      commandCtx.parsed!,
-      commandCtx,
-      mockApi,
-      threadID,
-      commandCtx.prefix,
-    );
+    for (const cmdObj of cmdsToRun) {
+      const command = cmdObj.command;
+      const args = cmdObj.args || [];
+      currentRunningCommand = command;
+
+      const mod = ctx.commands.get(command.toLowerCase());
+      if (!mod || typeof mod['onCommand'] !== 'function') {
+        errors.push(`Command '${command}' not found.`);
+        continue;
+      }
+
+      const simulatedMessage =
+        `${ctx.prefix || '/'}${command} ${(args || []).join(' ')}`.trim();
+      const simulatedEvent = {
+        ...ctx.event,
+        message: simulatedMessage,
+        body: simulatedMessage,
+      };
+
+      const guard = await inspectCommandConstraints(
+        mod,
+        command.toLowerCase(),
+        senderID,
+        threadID,
+        sessionUserId,
+        platform,
+        sessionId,
+        false,
+      );
+      if (!guard.allowed) {
+        errors.push(`Command '${command}' blocked: ${guard.reason}`);
+        continue;
+      }
+
+      const commandCtx: OnCommandCtx = {
+        ...ctx,
+        api: mockApi,
+        event: simulatedEvent,
+        parsed: { name: command, args },
+        prefix: ctx.prefix || '/',
+        mod,
+        options: OptionsMap.empty(),
+      };
+
+      await dispatchCommand(
+        ctx.commands,
+        commandCtx.parsed!,
+        commandCtx,
+        mockApi,
+        threadID,
+        commandCtx.prefix,
+      );
+    }
 
     if (rawIntercepted.length === 0) {
-      return (
-        `Command '${command}' executed silently but produced no platform API calls. ` +
-        `The command may use onChat-only logic, have conditional output that was not ` +
-        `triggered by the provided arguments, or rely on side-effects not in the intercept list.`
-      );
+      if (errors.length > 0) return `Execution errors: ${errors.join(' ')}`;
+      return `Commands executed silently but produced no API calls.`;
     }
 
     // Convert raw intercepts to the typed InterceptedCall format for storage
     const storableCalls: InterceptedCall[] = rawIntercepted.map((entry) => ({
       type: entry.method,
       args: entry.args,
+      sourceCommand: entry.sourceCommand,
     }));
-
     // Generate a unique key scoped to this session and store the calls.
     // The key is passed back to the agent who uses it with send_result.
     const key = commandResultStore.generateKey(sessionUserId, platform, sessionId);

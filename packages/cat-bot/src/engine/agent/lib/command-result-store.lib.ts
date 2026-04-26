@@ -45,6 +45,8 @@ export interface InterceptedCall {
   type: string;
   /** Normalized (JSON-safe) positional args matching the UnifiedApi method signature. */
   args: unknown[];
+  /** The command that triggered this call (useful when batch-testing multiple commands). */
+  sourceCommand?: string;
 }
 
 // ── Sentinel strings for non-serializable binary values ───────────────────────
