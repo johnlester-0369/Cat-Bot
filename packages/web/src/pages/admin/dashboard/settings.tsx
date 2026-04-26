@@ -10,11 +10,13 @@ import Alert from '@/components/ui/feedback/Alert'
 import Skeleton from '@/components/ui/feedback/Skeleton'
 import DataList from '@/components/ui/data-display/DataList'
 import { useTheme } from '@/contexts/ThemeContext'
+import Divider from '@/components/ui/layout/Divider'
 import { toggleTheme } from '@/utils/theme.util'
 import { authAdminClient } from '@/lib/better-auth-admin-client.lib'
 import { Plus, Trash2 } from 'lucide-react'
 import { adminService } from '@/features/admin/services/admin.service'
 import type { SystemAdminDto } from '@/features/admin/services/admin.service'
+import apiClient from '@/lib/api-client.lib'
 
 /**
  * AdminSettingsPage
@@ -23,6 +25,7 @@ import type { SystemAdminDto } from '@/features/admin/services/admin.service'
  * so registered IDs survive server restarts and are visible to all admin accounts.
  */
 export default function AdminSettingsPage() {
+  const isEmailEnabled = import.meta.env.VITE_EMAIL_SERVICES_ENABLE === 'true'
   const { theme, setTheme } = useTheme()
 
   const { data: session, isPending: sessionLoading } =
@@ -67,6 +70,7 @@ export default function AdminSettingsPage() {
   const [passwordSaving, setPasswordSaving] = useState(false)
   const [passwordError, setPasswordError] = useState<string | null>(null)
   const [passwordSuccess, setPasswordSuccess] = useState(false)
+  const [resetSent, setResetSent] = useState(false)
 
   const handleChangePassword = async (): Promise<void> => {
     setPasswordError(null)
@@ -393,6 +397,45 @@ export default function AdminSettingsPage() {
           </div>
         </Card.Header>
         <div className="flex flex-col gap-4">
+          {isEmailEnabled && (
+            <>
+              {/* Admin password recovery directly from session state */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-surface-container-lowest rounded-xl border border-outline-variant/50">
+                <div>
+                  <p className="text-label-lg font-medium text-on-surface">Password Reset</p>
+                  <p className="text-body-sm text-on-surface-variant">Send a secure reset link to your admin email.</p>
+                </div>
+                <Button
+                  variant="tonal"
+                  color="primary"
+                  size="sm"
+                  onClick={async () => {
+                    setResetSent(true)
+                    // Target the custom HMAC token flow that powers the Admin Forgot Password page
+                    // instead of better-auth's native implementation.
+                    await apiClient.post('/api/v1/validate/reset-password/request', {
+                      email: session?.user?.email || '',
+                      adminOnly: true,
+                    })
+                  }}
+                  disabled={resetSent}
+                >
+                  {resetSent ? 'Link Sent' : 'Send Reset Link'}
+                </Button>
+              </div>
+              {resetSent && (
+                <Alert 
+                  variant="tonal" 
+                  color="success" 
+                  title="Check your email" 
+                  message="We've sent you a secure link to reset your password." 
+                  size="sm" 
+                />
+              )}
+              <Divider spacing="sm" />
+            </>
+          )}
+
           <Field.Root>
             <Field.Label>Current password</Field.Label>
             <PasswordInput

@@ -30,8 +30,10 @@ export default function LoginPage() {
   const navigate = useNavigate()
   const { login } = useUserAuth()
 
-  const [form, setForm] = useState<LoginForm>({ email: '', password: '' })
-  const [errors, setErrors] = useState<LoginErrors>({})
+  const isEmailEnabled = import.meta.env.VITE_EMAIL_SERVICES_ENABLE === 'true'
+
+  const[form, setForm] = useState<LoginForm>({ email: '', password: '' })
+  const[errors, setErrors] = useState<LoginErrors>({})
   const [apiError, setApiError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
@@ -113,7 +115,14 @@ export default function LoginPage() {
 
             {/* Password */}
             <Field.Root invalid={!!errors.password} required>
-              <Field.Label>Password</Field.Label>
+              <div className="flex items-center justify-between">
+                <Field.Label className="mb-0">Password</Field.Label>
+                {isEmailEnabled && (
+                  <Link to={ROUTES.FORGOT_PASSWORD} className="text-label-sm text-primary hover:underline">
+                    Forgot password?
+                  </Link>
+                )}
+              </div>
               <PasswordInput
                 placeholder="Your password"
                 value={form.password}

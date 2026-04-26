@@ -12,12 +12,14 @@ import Skeleton from '@/components/ui/feedback/Skeleton'
 import Status from '@/components/ui/data-display/Status'
 import DataList from '@/components/ui/data-display/DataList'
 import { useTheme } from '@/contexts/ThemeContext'
+import Divider from '@/components/ui/layout/Divider'
 import { toggleTheme } from '@/utils/theme.util'
 import { useFbWebhook } from '@/features/users/hooks/useFbWebhook'
 // better-auth exposes updateUser and changePassword as built-in client functions —
 // no custom server endpoints needed; toNodeHandler(auth) in server/app.ts already
 // mounts /api/auth/update-user and /api/auth/change-password automatically.
 import { authUserClient } from '@/lib/better-auth-client.lib'
+import apiClient from '@/lib/api-client.lib'
 
 // ============================================================================
 // Page
@@ -31,6 +33,7 @@ import { authUserClient } from '@/lib/better-auth-client.lib'
  *  4. Security    — change password via better-auth changePassword() built-in
  */
 export default function SettingsPage() {
+  const isEmailEnabled = import.meta.env.VITE_EMAIL_SERVICES_ENABLE === 'true'
   const { theme, setTheme } = useTheme()
   const { data: webhookData, isLoading: webhookLoading } = useFbWebhook()
 
@@ -81,6 +84,7 @@ export default function SettingsPage() {
   const [passwordSaving, setPasswordSaving] = useState(false)
   const [passwordError, setPasswordError] = useState<string | null>(null)
   const [passwordSuccess, setPasswordSuccess] = useState(false)
+  const [resetSent, setResetSent] = useState(false)
 
   const handleChangePassword = async (): Promise<void> => {
     setPasswordError(null)
@@ -327,6 +331,45 @@ export default function SettingsPage() {
         </Card.Header>
 
         <div className="flex flex-col gap-4">
+          {isEmailEnabled && (
+            <>
+              {/* Allow operators to send a quick reset link straight from their active session without needing to remember their current password */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-surface-container-lowest rounded-xl border border-outline-variant/50">
+                <div>
+                  <p className="text-label-lg font-medium text-on-surface">Password Reset</p>
+                  <p className="text-body-sm text-on-surface-variant">Send a secure reset link to your email address.</p>
+                </div>
+                <Button
+                  variant="tonal"
+                  color="primary"
+                  size="sm"
+                  onClick={async () => {
+                    setResetSent(true)
+                    // Target the custom HMAC token flow that powers the Forgot Password page
+                    // instead of better-auth's default implementation.
+                    await apiClient.post('/api/v1/validate/reset-password/request', {
+                      email: session?.user?.email || '',
+                      adminOnly: false,
+                    })
+                  }}
+                  disabled={resetSent}
+                >
+                  {resetSent ? 'Link Sent' : 'Send Reset Link'}
+                </Button>
+              </div>
+              {resetSent && (
+                <Alert 
+                  variant="tonal" 
+                  color="success" 
+                  title="Check your email" 
+                  message="We've sent you a secure link to reset your password." 
+                  size="sm" 
+                />
+              )}
+              <Divider spacing="sm" />
+            </>
+          )}
+
           <Field.Root>
             <Field.Label>Current password</Field.Label>
             <PasswordInput

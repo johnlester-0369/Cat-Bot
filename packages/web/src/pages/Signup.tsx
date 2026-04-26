@@ -1,6 +1,6 @@
 import { Helmet } from '@dr.pogodin/react-helmet'
 import React, { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import Button from '@/components/ui/buttons/Button'
 import { Field } from '@/components/ui/forms/Field'
 import Input from '@/components/ui/forms/Input'
@@ -33,8 +33,6 @@ interface SignupErrors {
  * Password confirmation is validated client-side to avoid a wasted round-trip for mismatches.
  */
 export default function SignupPage() {
-  const navigate = useNavigate()
-
   const [form, setForm] = useState<SignupForm>({
     name: '',
     email: '',
@@ -44,6 +42,7 @@ export default function SignupPage() {
   const [errors, setErrors] = useState<SignupErrors>({})
   const [apiError, setApiError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [isSubmitted, setIsSubmitted] = useState(false)
 
   const validate = (): SignupErrors => {
     const e: SignupErrors = {}
@@ -87,8 +86,9 @@ export default function SignupPage() {
         // better-auth returns structured errors (e.g. EMAIL_ALREADY_EXISTS) rather than throwing
         throw new Error(result.error.message ?? 'Registration failed')
       }
-      // Account created — redirect to login so the user signs in with their new credentials.
-      navigate(ROUTES.LOGIN)
+      
+      // Always show the success state rather than auto-redirecting so the user can read the alert
+      setIsSubmitted(true)
     } catch (err) {
       setApiError(
         err instanceof Error
@@ -120,97 +120,122 @@ export default function SignupPage() {
 
         {/* Form card */}
         <div className="rounded-2xl bg-surface shadow-elevation-1 p-8 flex flex-col gap-6">
-          <form
-            onSubmit={handleSubmit}
-            noValidate
-            className="flex flex-col gap-5"
-          >
-            {/* Full name */}
-            <Field.Root invalid={!!errors.name} required>
-              <Field.Label>Full name</Field.Label>
-              <Input
-                type="text"
-                placeholder="Jane Smith"
-                value={form.name}
-                onChange={handleChange('name')}
-                autoComplete="name"
-              />
-              <Field.ErrorText>{errors.name}</Field.ErrorText>
-            </Field.Root>
-
-            {/* Email */}
-            <Field.Root invalid={!!errors.email} required>
-              <Field.Label>Email</Field.Label>
-              <Input
-                type="email"
-                placeholder="you@example.com"
-                value={form.email}
-                onChange={handleChange('email')}
-                autoComplete="email"
-              />
-              <Field.ErrorText>{errors.email}</Field.ErrorText>
-            </Field.Root>
-
-            {/* Password */}
-            <Field.Root invalid={!!errors.password} required>
-              <Field.Label>Password</Field.Label>
-              <PasswordInput
-                placeholder="At least 8 characters"
-                value={form.password}
-                onChange={handleChange('password')}
-                autoComplete="new-password"
-              />
-              <Field.ErrorText>{errors.password}</Field.ErrorText>
-            </Field.Root>
-
-            {/* Confirm password */}
-            <Field.Root invalid={!!errors.confirmPassword} required>
-              <Field.Label>Confirm password</Field.Label>
-              <PasswordInput
-                placeholder="Repeat your password"
-                value={form.confirmPassword}
-                onChange={handleChange('confirmPassword')}
-                autoComplete="new-password"
-              />
-              <Field.ErrorText>{errors.confirmPassword}</Field.ErrorText>
-            </Field.Root>
-
-            {/* API-level error — surfaced separately from field validation */}
-            {apiError && (
-              <Alert
-                variant="tonal"
-                color="error"
-                title="Sign-up Failed"
-                message={apiError}
-              />
-            )}
-
-            <Button
-              type="submit"
-              variant="filled"
-              color="primary"
-              size="md"
-              fullWidth
-              isLoading={isLoading}
+          {isSubmitted ? (
+            <div className="flex flex-col gap-6">
+              {import.meta.env.VITE_EMAIL_SERVICES_ENABLE === 'true' ? (
+                <Alert 
+                  variant="tonal" 
+                  color="success"
+                  title="Check your email" 
+                  message={`A verification link has been sent to ${form.email}. Please verify your email before logging in.`} 
+                />
+              ) : (
+                <Alert 
+                  variant="tonal" 
+                  color="success"
+                  title="Account created" 
+                  message="Your account has been successfully created. You can now log in." 
+                />
+              )}
+              <Button as={Link} to={ROUTES.LOGIN} variant="filled" color="primary" size="md" fullWidth>
+                Go to log in
+              </Button>
+            </div>
+          ) : (
+            <form
+              onSubmit={handleSubmit}
+              noValidate
+              className="flex flex-col gap-5"
             >
-              Create account
-            </Button>
-          </form>
+              {/* Full name */}
+              <Field.Root invalid={!!errors.name} required>
+                <Field.Label>Full name</Field.Label>
+                <Input
+                  type="text"
+                  placeholder="Jane Smith"
+                  value={form.name}
+                  onChange={handleChange('name')}
+                  autoComplete="name"
+                />
+                <Field.ErrorText>{errors.name}</Field.ErrorText>
+              </Field.Root>
+  
+              {/* Email */}
+              <Field.Root invalid={!!errors.email} required>
+                <Field.Label>Email</Field.Label>
+                <Input
+                  type="email"
+                  placeholder="you@example.com"
+                  value={form.email}
+                  onChange={handleChange('email')}
+                  autoComplete="email"
+                />
+                <Field.ErrorText>{errors.email}</Field.ErrorText>
+              </Field.Root>
+  
+              {/* Password */}
+              <Field.Root invalid={!!errors.password} required>
+                <Field.Label>Password</Field.Label>
+                <PasswordInput
+                  placeholder="At least 8 characters"
+                  value={form.password}
+                  onChange={handleChange('password')}
+                  autoComplete="new-password"
+                />
+                <Field.ErrorText>{errors.password}</Field.ErrorText>
+              </Field.Root>
+  
+              {/* Confirm password */}
+              <Field.Root invalid={!!errors.confirmPassword} required>
+                <Field.Label>Confirm password</Field.Label>
+                <PasswordInput
+                  placeholder="Repeat your password"
+                  value={form.confirmPassword}
+                  onChange={handleChange('confirmPassword')}
+                  autoComplete="new-password"
+                />
+                <Field.ErrorText>{errors.confirmPassword}</Field.ErrorText>
+              </Field.Root>
+  
+              {/* API-level error — surfaced separately from field validation */}
+              {apiError && (
+                <Alert
+                  variant="tonal"
+                  color="error"
+                  title="Sign-up Failed"
+                  message={apiError}
+                />
+              )}
+  
+              <Button
+                type="submit"
+                variant="filled"
+                color="primary"
+                size="md"
+                fullWidth
+                isLoading={isLoading}
+              >
+                Create account
+              </Button>
+            </form>
+          )}
         </div>
 
         {/* Footer */}
-        <p className="text-center text-body-md text-on-surface-variant">
-          Already have an account?{' '}
-          <Button
-            as={Link}
-            to={ROUTES.LOGIN}
-            variant="link"
-            color="primary"
-            size="md"
-          >
-            Log in
-          </Button>
-        </p>
+        {!isSubmitted && (
+          <p className="text-center text-body-md text-on-surface-variant">
+            Already have an account?{' '}
+            <Button
+              as={Link}
+              to={ROUTES.LOGIN}
+              variant="link"
+              color="primary"
+              size="md"
+            >
+              Log in
+            </Button>
+          </p>
+        )}
       </div>
     </div>
   )
