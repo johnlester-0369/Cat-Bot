@@ -39,7 +39,7 @@ async function fetchFact(): Promise<string | null> {
 
 export const config: CommandConfig = {
   name: 'funfact',
-  aliases: ['fact', 'randomfact'] as string[],
+  aliases: [] as string[],
   version: '1.1.0',
   role: Role.ANYONE,
   author: 'FunFactBotDev (ported to Cat-Bot)',
