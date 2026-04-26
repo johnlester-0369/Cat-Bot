@@ -9,6 +9,7 @@ import { env } from '@/engine/config/env.config.js';
 import type { AgentTool } from '@/engine/agent/agent.util.js';
 import { isBotAdmin } from '@/engine/repos/credentials.repo.js';
 import { isThreadAdmin } from '@/engine/repos/threads.repo.js';
+import { isPlatformAllowed } from '@/engine/modules/platform/platform-filter.util.js';
 
 // ============================================================================
 // PROMPT TEMPLATE
@@ -125,13 +126,24 @@ export async function runAgent(
     }
   }
 
+  // Gather available canonical command names for this platform
+  const canonicalNames = new Set<string>();
+  for (const mod of ctx.commands.values()) {
+    const cfg = mod['config'] as { name?: string } | undefined;
+    if (cfg?.name && isPlatformAllowed(mod, platform)) {
+      canonicalNames.add(cfg.name.toLowerCase());
+    }
+  }
+  const availableCommandsList = Array.from(canonicalNames).sort().join(', ');
+
   const systemContent = SYSTEM_PROMPT_TEMPLATE.replace(
     '{{BOT_NAME}}',
     nickname || 'Cat-Bot',
   )
     .replace('{{USER_NAME}}', userName || 'User')
     .replace('{{COMMAND_PREFIX}}', ctx.prefix || '/')
-    .replace('{{USER_ROLE}}', userRoleLabel);
+    .replace('{{USER_ROLE}}', userRoleLabel)
+    .replace('{{AVAILABLE_COMMANDS}}', availableCommandsList);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const messages: any[] = [
