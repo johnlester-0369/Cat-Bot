@@ -1,209 +1,34 @@
 /**
- * send_result Tool — Replay Captured Command Output to the Real Platform
+ * send_result Tool — Unified Delivery of AI-Synthesized Response + Captured Attachments/Buttons
  *
- * After test_command captures and stores a command's API calls under a lookup key,
- * the agent calls this tool with that key to actually deliver the output to the user
- * on the live chat platform. This closes the loop of the informed delivery pipeline:
+ * Replaces the previous single-key replay approach with a composable model:
+ *   - The LLM writes the message text itself (synthesized from test_command `calls`)
+ *   - URL attachments from one or more test_command runs are merged via attachment keys
+ *   - Button grids from one or more test_command runs are stacked via button keys
+ *   - Everything is delivered in a single replyMessage call
  *
- *   help → test_command (preview + store) → send_result (replay from store)
+ * This eliminates the N-messages-for-N-commands problem: when the user asks for
+ * multiple commands the LLM runs all test_command calls, reads all `calls` arrays,
+ * writes one coherent reply text, and calls send_result exactly once.
  *
- * Replay fidelity per field type:
- *   - Text messages (message, body)      → replayed exactly
- *   - URL attachments (attachment_url)   → replayed exactly (strings survive normalization)
- *   - Buttons (button: ButtonItem[][])   → replayed exactly (JSON-serializable)
- *   - Mentions                           → replayed exactly
- *   - Stream attachments (attachment)    → SKIPPED — Readable streams are single-use;
- *                                          they were consumed by the mock proxy during
- *                                          test_command and cannot be re-read for replay
- *   - Buffer attachments (setGroupImage) → SKIPPED for same reason; flagged in result
+ * Key formats:
+ *   attachment_key: `${baseKey}:a` — set by test_command, deleted here after use
+ *   button_key:     `${baseKey}:b` — set by test_command, deleted here after use
  *
- * The lookup entry is deleted from commandResultStore after replay (success or partial
- * failure) to prevent unbounded memory growth. An unconsumed entry (agent decided not
- * to send) remains in memory until the next process restart — acceptable because
- * entries are small and agent turn frequency is low.
+ * Attachment replay fidelity:
+ *   - attachment_url (URL strings)  → replayed; platform wrapper downloads fresh
+ *   - attachment (stream / Buffer)  → NOT included; consumed during mock proxy capture
+ *   - button (ButtonItem[][])        → replayed; JSON-safe plain objects survive storage
  */
 
 import type { AppCtx } from '@/engine/types/controller.types.js';
-import {
-  commandResultStore,
-  STREAM_SENTINEL,
-  BUFFER_SENTINEL,
-} from '../lib/command-result-store.lib.js';
-import type { InterceptedCall } from '../lib/command-result-store.lib.js';
+import { commandResultStore } from '../lib/command-result-store.lib.js';
 import type {
+  NamedUrlAttachment,
+  ButtonItem,
   ReplyMessageOptions,
-  EditMessageOptions,
 } from '@/engine/adapters/models/interfaces/api.interfaces.js';
-import type { UnifiedApi } from '@/engine/adapters/models/api.model.js';
-
-// ============================================================================
-// REPLAY HELPERS
-// ============================================================================
-
-/**
- * Returns true when a value is a binary sentinel string written by normalizeToJson.
- * Used to guard fields that cannot be replayed (consumed streams, Buffers).
- */
-function isBinarySentinel(value: unknown): boolean {
-  return value === STREAM_SENTINEL || value === BUFFER_SENTINEL;
-}
-
-/**
- * Replays a single InterceptedCall against the real UnifiedApi.
- *
- * Design decisions:
- *   - `attachment` (stream-based) is ALWAYS skipped — streams were consumed during
- *     the mock proxy invocation and the sentinel string cannot be forwarded as a stream.
- *   - `attachment_url` IS included — URL strings survive normalization and the platform
- *     wrapper will download them fresh on delivery.
- *   - `button` (ButtonItem[][]) IS included — the items are { id, label, style } plain
- *     objects, fully JSON-serializable and safe to pass directly.
- *   - `setGroupImage` with a sentinel arg is surfaced as a warning, not a hard failure,
- *     so the agent can still confirm partial success to the user.
- *
- * Returns a one-line outcome description the agent includes in its reply text.
- */
-async function replayCall(
-  api: UnifiedApi,
-  call: InterceptedCall,
-): Promise<string> {
-  switch (call.type) {
-    case 'replyMessage': {
-      const [threadID, rawOpts] = call.args as [string, Record<string, unknown>];
-      const options: ReplyMessageOptions = {};
-
-      if (typeof rawOpts?.['message'] === 'string') options.message = rawOpts['message'];
-      // Skip stream attachment — single-use, consumed during test preview
-      // URL-based attachments survive normalization and can be delivered
-      if (Array.isArray(rawOpts?.['attachment_url'])) {
-        options.attachment_url = rawOpts['attachment_url'] as NonNullable<ReplyMessageOptions['attachment_url']>;
-      }
-      if (Array.isArray(rawOpts?.['button'])) {
-        options.button = rawOpts['button'] as NonNullable<ReplyMessageOptions['button']>;
-      }
-      if (typeof rawOpts?.['reply_to_message_id'] === 'string') {
-        options.reply_to_message_id = rawOpts['reply_to_message_id'];
-      }
-      if (Array.isArray(rawOpts?.['mentions'])) {
-        options.mentions = rawOpts['mentions'] as NonNullable<ReplyMessageOptions['mentions']>;
-      }
-      if (rawOpts?.['style']) {
-        options.style = rawOpts['style'] as NonNullable<ReplyMessageOptions['style']>;
-      }
-
-      await api.replyMessage(threadID, options);
-      return `✓ replyMessage → thread ${threadID}`;
-    }
-
-    case 'sendMessage': {
-      const [msg, threadID] = call.args as [unknown, string];
-      if (typeof msg === 'string') {
-        await api.sendMessage(msg, threadID);
-      } else {
-        // msg is a normalized SendPayload — extract text fields only
-        const payload = (msg ?? {}) as Record<string, unknown>;
-        const text =
-          (payload['message'] as string | undefined) ??
-          (payload['body'] as string | undefined) ??
-          '';
-        await api.sendMessage(text, threadID);
-      }
-      return `✓ sendMessage → thread ${threadID}`;
-    }
-
-    case 'editMessage': {
-      const [messageID, rawOpts] = call.args as [string, unknown];
-      if (typeof rawOpts === 'string') {
-        // Simple string edit — no options object
-        await api.editMessage(messageID, rawOpts);
-        return `✓ editMessage → message ${messageID}`;
-      }
-      const opts = (rawOpts ?? {}) as Record<string, unknown>;
-      const options: EditMessageOptions = {};
-      if (typeof opts['message'] === 'string') options.message = opts['message'];
-      if (opts['style']) options.style = opts['style'] as NonNullable<EditMessageOptions['style']>;
-      if (Array.isArray(opts['button'])) {
-        options.button = opts['button'] as NonNullable<EditMessageOptions['button']>;
-      }
-      if (typeof opts['message_id_to_edit'] === 'string') {
-        options.message_id_to_edit = opts['message_id_to_edit'];
-      }
-      if (typeof opts['threadID'] === 'string') options.threadID = opts['threadID'];
-      if (Array.isArray(opts['attachment_url'])) {
-        options.attachment_url = opts['attachment_url'] as NonNullable<EditMessageOptions['attachment_url']>;
-      }
-      await api.editMessage(messageID, options);
-      return `✓ editMessage → message ${messageID}`;
-    }
-
-    case 'reactToMessage': {
-      const [threadID, reactMsgID, emoji] = call.args as [string, string, string];
-      await api.reactToMessage(threadID, reactMsgID, emoji);
-      return `✓ reactToMessage → ${emoji} on message ${reactMsgID}`;
-    }
-
-    case 'unsendMessage': {
-      const [msgID] = call.args as [string];
-      await api.unsendMessage(msgID);
-      return `✓ unsendMessage → message ${msgID}`;
-    }
-
-    case 'setNickname': {
-      const [threadID, userID, nickname] = call.args as [string, string, string];
-      await api.setNickname(threadID, userID, nickname);
-      return `✓ setNickname → "${nickname}" for user ${userID}`;
-    }
-
-    case 'setGroupName': {
-      const [threadID, name] = call.args as [string, string];
-      await api.setGroupName(threadID, name);
-      return `✓ setGroupName → "${name}" in thread ${threadID}`;
-    }
-
-    case 'setGroupImage': {
-      const [threadID, imageSource] = call.args as [string, unknown];
-      // Image must be a non-sentinel URL string — Buffer/Stream cannot be replayed
-      if (isBinarySentinel(imageSource)) {
-        return (
-          `⚠ setGroupImage skipped → image was a stream or Buffer captured during ` +
-          `test_command and cannot be replayed (single-use binary data)`
-        );
-      }
-      if (typeof imageSource !== 'string') {
-        return `⚠ setGroupImage skipped → image source is not a replayable URL string`;
-      }
-      await api.setGroupImage(threadID, imageSource);
-      return `✓ setGroupImage → thread ${threadID}`;
-    }
-
-    case 'removeGroupImage': {
-      const [threadID] = call.args as [string];
-      await api.removeGroupImage(threadID);
-      return `✓ removeGroupImage → thread ${threadID}`;
-    }
-
-    case 'addUserToGroup': {
-      const [threadID, userID] = call.args as [string, string];
-      await api.addUserToGroup(threadID, userID);
-      return `✓ addUserToGroup → user ${userID} into thread ${threadID}`;
-    }
-
-    case 'removeUserFromGroup': {
-      const [threadID, userID] = call.args as [string, string];
-      await api.removeUserFromGroup(threadID, userID);
-      return `✓ removeUserFromGroup → user ${userID} from thread ${threadID}`;
-    }
-
-    case 'setGroupReaction': {
-      const [threadID, emoji] = call.args as [string, string];
-      await api.setGroupReaction(threadID, emoji);
-      return `✓ setGroupReaction → ${emoji} in thread ${threadID}`;
-    }
-
-    default:
-      return `⚠ Unknown call type '${call.type}' — skipped (no replay handler defined)`;
-  }
-}
+import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 
 // ============================================================================
 // TOOL DEFINITION
@@ -212,23 +37,43 @@ async function replayCall(
 export const config = {
   name: 'send_result',
   description:
-    'Deliver the captured output from test_command to the real chat platform. ' +
-    'Provide the `key` returned by test_command. All intercepted API calls ' +
-    '(messages, reactions, group name changes, etc.) are replayed against the live ' +
-    'platform in the order they were captured. Stream and Buffer attachments are ' +
-    'automatically skipped — only text, URL-based attachments, and buttons are delivered. ' +
-    'The lookup entry is deleted after replay so each key can only be used once.',
+    'Deliver a unified reply to the user combining your synthesized message text with ' +
+    'URL attachments and button grids captured by one or more test_command calls. ' +
+    'Write the `message` yourself based on the `calls` content returned by test_command. ' +
+    'Pass any non-null `attachment_key` values in `attachment` and any non-null ' +
+    '`button_key` values in `button` — all entries are merged into a single platform reply. ' +
+    'Run all needed test_command calls before calling this tool once to combine results. ' +
+    'Each key is single-use and is deleted after delivery.',
   parameters: {
     type: 'object',
     properties: {
-      key: {
+      message: {
         type: 'string',
         description:
-          'The lookup key returned by test_command ' +
-          '(format: sessionUserId:platform:sessionId:n)',
+          'Your synthesized reply text. Write this yourself based on the `calls` ' +
+          'text returned by test_command — do not copy raw command output verbatim. ' +
+          'This is the primary text the user will see.',
+      },
+      attachment: {
+        type: 'array',
+        items: { type: 'string' },
+        description:
+          'Optional list of `attachment_key` values returned by test_command (the ' +
+          '`attachment_key` field, not the main `key`). URL-based attachments from ' +
+          'all provided keys are merged into the single reply. Omit or pass [] when ' +
+          'no commands produced attachments.',
+      },
+      button: {
+        type: 'array',
+        items: { type: 'string' },
+        description:
+          'Optional list of `button_key` values returned by test_command (the ' +
+          '`button_key` field, not the main `key`). Button rows from all provided ' +
+          'keys are stacked into one combined keyboard layout. Omit or pass [] when ' +
+          'no commands produced buttons.',
       },
     },
-    required: ['key'],
+    required: ['message'],
   },
 };
 
@@ -237,45 +82,64 @@ export const config = {
 // ============================================================================
 
 export const run = async (
-  { key }: { key: string },
+  {
+    message,
+    attachment,
+    button,
+  }: { message: string; attachment?: string[]; button?: string[] },
   ctx: AppCtx,
 ): Promise<string> => {
-  const calls = commandResultStore.get(key);
+  const threadID = (ctx.event['threadID'] as string) || '';
+  // Thread the agent reply to the user's triggering message for visual conversation anchoring.
+  const replyToID = (ctx.event['messageID'] as string) || '';
 
-  if (!calls) {
-    return (
-      `Error: No command result found for key '${key}'. ` +
-      `The result may have already been delivered (each key is single-use), ` +
-      `or the key is invalid. Run test_command again to capture a fresh result.`
-    );
+  // Collect and flatten all URL-based attachments from provided attachment keys.
+  // Each key may hold multiple attachment entries from a single test_command run;
+  // concatenating them preserves the order in which commands were tested.
+  const allAttachmentUrls: NamedUrlAttachment[] = [];
+  for (const aKey of attachment ?? []) {
+    const urls = commandResultStore.getAttachments(aKey);
+    if (urls) allAttachmentUrls.push(...(urls as NamedUrlAttachment[]));
+    // Always delete even when null — guard against stale or double-consumed keys
+    commandResultStore.deleteAttachments(aKey);
   }
 
-  if (calls.length === 0) {
-    commandResultStore.delete(key);
-    return `No API calls to replay for key '${key}'.`;
-  }
-
-  const outcomes: string[] = [];
-  let hasError = false;
-
-  for (const call of calls) {
-    try {
-      const outcome = await replayCall(ctx.api, call);
-      outcomes.push(outcome);
-    } catch (err) {
-      const msg = `✗ ${call.type} failed: ${err instanceof Error ? err.message : String(err)}`;
-      outcomes.push(msg);
-      hasError = true;
+  // Collect and stack button rows from all provided button keys.
+  // Each key holds an array of ButtonItem[][] (one per API call that produced buttons).
+  // Stacking all rows into a flat ButtonItem[][] gives the user one unified keyboard.
+  const allButtonRows: ButtonItem[][] = [];
+  for (const bKey of button ?? []) {
+    const grids = commandResultStore.getButtons(bKey);
+    if (grids) {
+      for (const grid of grids) {
+        // Double cast via unknown bypasses TS2352 strict overlap requirements
+        allButtonRows.push(...(grid as unknown as ButtonItem[][]));
+      }
     }
   }
 
-  // Always delete after processing — even on partial failure — to prevent
-  // the agent from re-sending already-delivered calls on a retry attempt.
-  commandResultStore.delete(key);
 
-  const summary = hasError
-    ? `Delivered ${calls.length} call(s) with one or more errors:`
-    : `Delivered ${calls.length} call(s) successfully:`;
+  // Always deliver as markdown — the LLM composes formatted text (bold, lists, code) and it
+  // must render correctly on all platforms. Thread to the user's triggering message (replyToID)
+  // so the agent's response is visually anchored to the conversation turn that initiated it.
+  const replyOptions: ReplyMessageOptions = {
+    message,
+    style: MessageStyle.MARKDOWN,
+    ...(replyToID ? { reply_to_message_id: replyToID } : {}),
+  };
+  if (allAttachmentUrls.length > 0) replyOptions.attachment_url = allAttachmentUrls;
+  if (allButtonRows.length > 0) replyOptions.button = allButtonRows;
 
-  return [summary, ...outcomes].join('\n');
+  try {
+    await ctx.api.replyMessage(threadID, replyOptions);
+
+    const parts: string[] = ['Message delivered.'];
+    if (allAttachmentUrls.length > 0)
+      parts.push(`${allAttachmentUrls.length} attachment(s) included.`);
+    if (allButtonRows.length > 0)
+      parts.push(`${allButtonRows.length} button row(s) included.`);
+    return parts.join(' ');
+  } catch (err) {
+    return `Delivery failed: ${err instanceof Error ? err.message : String(err)}`;
+  }
 };

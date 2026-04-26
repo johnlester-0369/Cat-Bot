@@ -146,7 +146,7 @@ export async function runAgent(
 
   while (turns-- > 0) {
     const response = await groq.chat.completions.create({
-      model: 'openai/gpt-oss-20b',
+      model: 'openai/gpt-oss-120b',
       messages,
       tools: groqTools,
       tool_choice: 'auto',
@@ -157,9 +157,12 @@ export async function runAgent(
 
     messages.push(message);
 
-    // ✅ FINAL ANSWER — no tool calls pending
+    // ✅ FINAL ANSWER — agent should have called send_result for delivery.
+    // Bare text responses (no tool call) are suppressed: send_result already sent the message,
+    // and returning text here would cause ai.ts to re-send it as a duplicate.
+    // Return '' so ai.ts's `if (result)` guard skips the redundant replyMessage call.
     if (!message.tool_calls || message.tool_calls.length === 0) {
-      return message.content || 'Task finished.';
+      return ''; // Delivery handled by send_result — suppress to prevent duplicate messages
     }
 
     // =========================
