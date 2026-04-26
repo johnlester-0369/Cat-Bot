@@ -313,6 +313,54 @@ export const run = async (
     const key = commandResultStore.generateKey(sessionUserId, platform, sessionId);
     commandResultStore.set(key, storableCalls);
 
+    // Extract URL-based attachments and button grids into separate, independently-keyed
+    // stores so send_result can merge results from multiple concurrent command runs into
+    // one platform message. Streams/Buffers were already replaced with sentinels by
+    // normalizeToJson during capture, so only safe URL strings remain in attachment_url.
+    const collectedAttachments: Array<{ name: string; url: string }> = [];
+    const collectedButtonGrids: Array<Array<Array<Record<string, unknown>>>> = [];
+
+    for (const call of storableCalls) {
+      const isReply = call.type === 'replyMessage';
+      const isEdit = call.type === 'editMessage';
+      const isSend = call.type === 'sendMessage';
+      // replyMessage/editMessage: options are arg[1]; sendMessage: payload may be arg[0] object
+      const opts: Record<string, unknown> | null =
+        isReply || isEdit
+          ? ((call.args[1] ?? {}) as Record<string, unknown>)
+          : isSend && typeof call.args[0] === 'object' && call.args[0] !== null
+            ? (call.args[0] as Record<string, unknown>)
+            : null;
+
+      if (!opts) continue;
+
+      if (Array.isArray(opts['attachment_url'])) {
+        for (const u of opts['attachment_url'] as Array<{
+          name: string;
+          url: string;
+        }>) {
+          if (u && typeof u.url === 'string') collectedAttachments.push(u);
+        }
+      }
+      // Only reply/edit calls carry button grids; sendMessage has no button parameter
+      if (
+        (isReply || isEdit) &&
+        Array.isArray(opts['button']) &&
+        (opts['button'] as unknown[]).length > 0
+      ) {
+        collectedButtonGrids.push(
+          opts['button'] as Array<Array<Record<string, unknown>>>,
+        );
+      }
+    }
+
+    const attachmentKey = collectedAttachments.length > 0 ? `${key}:a` : null;
+    const buttonKey = collectedButtonGrids.length > 0 ? `${key}:b` : null;
+    if (attachmentKey)
+      commandResultStore.setAttachments(attachmentKey, collectedAttachments);
+    if (buttonKey)
+      commandResultStore.setButtons(buttonKey, collectedButtonGrids);
+
     // Build LLM-readable representations with named fields and event coordinates
     const eventMessageID = (ctx.event['messageID'] as string) || '';
     const llmCalls = storableCalls.map((call) =>
@@ -322,13 +370,16 @@ export const run = async (
     return JSON.stringify(
       {
         key,
+        attachment_key: attachmentKey,
+        button_key: buttonKey,
         callCount: storableCalls.length,
         calls: llmCalls,
         note:
-          'Review the captured calls above. To deliver this output to the user on the ' +
-          'real platform, call `send_result` with the `key`. You can also describe the ' +
-          'content conversationally in your reply text. Calls with [Stream/Buffer] ' +
-          'attachment fields will have those attachments skipped on delivery.',
+          'Read the `calls` text to synthesize your reply message. Then call ' +
+          '`send_result` once with your synthesized `message` text. Pass ' +
+          '`attachment_key` (if non-null) in the `attachment` array and ' +
+          '`button_key` (if non-null) in the `button` array. Run all needed ' +
+          'test_command calls first, then combine into one send_result call.',
       },
       null,
       2,
