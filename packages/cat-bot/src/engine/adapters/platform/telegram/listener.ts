@@ -127,6 +127,14 @@ export function createTelegramListener(
       const handler = await activeBot.createWebhook({
         domain,
         path: webhookPath,
+        // Telegram includes this value in X-Telegram-Bot-Api-Secret-Token on every POST request.
+        // Telegraf validates the header automatically before any handler runs, so non-Telegram
+        // senders (port scanners, replay attacks) are dropped at the framework layer.
+        // Conditional spread is required because exactOptionalPropertyTypes: true treats
+        // `secretToken: undefined` as a type error on Telegraf's optional field.
+        ...(env.TELEGRAM_WEBHOOK_SECRET_TOKEN !== undefined
+          ? { secretToken: env.TELEGRAM_WEBHOOK_SECRET_TOKEN }
+          : {}),
         // message_reaction is opt-in since Bot API 7.0 — Telegram only delivers these
         // updates to a webhook endpoint when allowed_updates is explicitly set via
         // setWebhook(). createWebhook() spreads extra keys directly into setWebhook(),

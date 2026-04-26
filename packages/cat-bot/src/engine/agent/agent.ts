@@ -5,6 +5,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import Groq from 'groq-sdk';
 import type { AppCtx } from '@/engine/types/controller.types.js';
 import { resolveAgentContext } from '@/engine/agent/agent.util.js';
+import { env } from '@/engine/config/env.config.js';
 import type { AgentTool } from '@/engine/agent/agent.util.js';
 import { isBotAdmin } from '@/engine/repos/credentials.repo.js';
 import { isThreadAdmin } from '@/engine/repos/threads.repo.js';
@@ -80,7 +81,7 @@ export async function runAgent(
   nickname?: string | null,
   userName?: string | null,
 ): Promise<string> {
-  const groqApiKey = process.env.GROQ_API_KEY;
+  const groqApiKey = env.GROQ_API_KEY;
   if (!groqApiKey) {
     throw new Error(
       'GROQ_API_KEY environment variable is not set. AI capabilities are disabled.',
