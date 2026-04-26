@@ -1,53 +1,92 @@
 /**
- * Claude AI Command (NexRay)
+ * claude.ts — Claude AI Chat (Lexcode API)
  *
- * Chat with Claude AI using the free NexRay API.
- * Simple text-in → text-out, no extra prompt needed.
+ * Chat with Claude 3 Haiku via the Lexcode API endpoint.
+ * Supports direct text input and replying to a quoted message.
  *
  * Usage:
- *   !claude Hi, who are you?
- *   !claude Tell me a joke
- *   !claude Explain quantum computing simply
+ *   !claude apa itu evangelion?
+ *   (reply to any message) !claude
+ *
+ * Coin cost: 5 per use.
+ *
+ * ── Conversion gaps flagged ──────────────────────────────────────────────────
+ * ❌ ctx.text || ctx.quoted?.text   → args.join(' ') for direct text;
+ *                                    event['messageReply']?.['message'] for quoted.
+ * ❌ richResponse: [{ text }]       → No Cat-Bot equivalent. Plain message string used.
+ * ❌ tools.msg.generateInstruction  → No equivalent. usage() used.
+ * ❌ tools.cmd.handleError          → No equivalent. Standard try/catch used.
+ * ❌ formatter.bold()               → **Markdown** used directly.
+ * ❌ permissions: { coin: 5 }       → Not a config field. Enforced via currencies manually.
+ *
+ * API provider:
+ *   lexcode  /api/ai/claude-3-haiku
  */
+
 import type { AppCtx } from '@/engine/types/controller.types.js';
 import { Role } from '@/engine/constants/role.constants.js';
 import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 import { createUrl } from '@/engine/utils/api.util.js';
 import type { CommandConfig } from '@/engine/types/module-config.types.js';
 
+// ── Config ────────────────────────────────────────────────────────────────────
+
 export const config: CommandConfig = {
   name: 'claude',
-  aliases: ['claudeai', 'cl', 'claud'] as string[],
+  aliases: ['cl', 'claudeai'] as string[],
   version: '1.0.0',
   role: Role.ANYONE,
   author: 'AjiroDesu',
-  description: 'Chat with Claude AI using the free NexRay API.',
+  description: 'Chat with Claude 3 Haiku via the Lexcode API.',
   category: 'AI Chat',
   usage: '<your message>',
   cooldown: 5,
   hasPrefix: true,
 };
 
-interface NexrayClaudeResponse {
-  status: boolean;
-  author: string;
+// ── Response shape ────────────────────────────────────────────────────────────
+
+interface LexcodeClaudeResponse {
   result: string;
-  timestamp?: string;
-  response_time?: string;
 }
+
+// ── Command ───────────────────────────────────────────────────────────────────
 
 export const onCommand = async ({
   args,
   chat,
+  event,
+  currencies,
   usage,
 }: AppCtx): Promise<void> => {
-  if (!args.length) return usage();
+  // ── Resolve input ──────────────────────────────────────────────────────────
+  // ctx.text → args.join(' ') for the typed message after the command name
+  // ctx.quoted?.text → event['messageReply']?.['message'] for quoted messages
+  const directText = args.join(' ').trim();
+  const quotedText = (
+    (event['messageReply'] as Record<string, unknown> | undefined)?.['message'] as
+      | string
+      | undefined
+  )?.trim();
 
-  const text = args.join(' ');
+  const input = directText || quotedText;
 
-  // Build the fully-resolved URL using the central api.util registry
-  // (nexray baseURL = https://api.nexray.web.id is already registered)
-  const url = createUrl('nexray', '/ai/claude', { text });
+  if (!input) return usage();
+
+  // ── Coin gate (5 coins per use) ────────────────────────────────────────────
+  const senderID = event['senderID'] as string;
+  const balance = await currencies.getMoney(senderID);
+  if (balance < 5) {
+    await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
+      message: `⚠️ You need at least **5 coins** to use this command.\nYour balance: **${balance} coins**`,
+    });
+    return;
+  }
+  await currencies.decreaseMoney({ user_id: senderID, money: 5 });
+
+  // ── API call ───────────────────────────────────────────────────────────────
+  const url = createUrl('lexcode', '/api/ai/claude-3-haiku', { prompt: input });
   if (!url) {
     await chat.replyMessage({
       style: MessageStyle.MARKDOWN,
@@ -56,31 +95,24 @@ export const onCommand = async ({
     return;
   }
 
-  let data: NexrayClaudeResponse;
   try {
     const res = await fetch(url);
-    if (!res.ok) throw new Error(`API responded with status ${res.status}`);
-    data = (await res.json()) as NexrayClaudeResponse;
+    if (!res.ok)
+      throw new Error(`API responded with status ${res.status}`);
+
+    const data = (await res.json()) as LexcodeClaudeResponse;
+    if (!data?.result) throw new Error('API returned an empty response.');
+
+    // richResponse: [{ text }] has no Cat-Bot equivalent — send as plain message
+    await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
+      message: data.result,
+    });
   } catch (err) {
     const error = err as { message?: string };
     await chat.replyMessage({
       style: MessageStyle.MARKDOWN,
-      message: `❌ Failed to reach the Claude API.\n\`${error.message ?? 'Unknown error'}\``,
+      message: `❌ **Claude API error.**\n\`${error.message ?? 'Unknown error'}\``,
     });
-    return;
   }
-
-  if (!data?.status || !data?.result) {
-    await chat.replyMessage({
-      style: MessageStyle.MARKDOWN,
-      message: '❌ The Claude API returned an invalid or empty response.',
-    });
-    return;
-  }
-
-  // Claude's response is already clean and ready to send
-  await chat.replyMessage({
-    style: MessageStyle.MARKDOWN,
-    message: data.result,
-  });
 };

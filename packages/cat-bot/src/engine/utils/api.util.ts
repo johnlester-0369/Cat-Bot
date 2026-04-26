@@ -45,6 +45,9 @@ const APIs: Record<string, ApiEntry> = {
   kuroneko: {
     baseURL: 'https://api.danzy.web.id',
   },
+  lexcode: {
+    baseURL: "https://api.lexcode.biz.id"
+  },
   nekolabs: {
     baseURL: 'https://rynekoo-api.hf.space',
   },
@@ -53,6 +56,12 @@ const APIs: Record<string, ApiEntry> = {
   },
   nexray: {
     baseURL: 'https://api.nexray.web.id',
+  },
+  omegatech: {
+    baseURL: "https://omegatech-api.dixonomega.tech"
+  },
+  vreden: {
+    baseURL: "https://api.vreden.my.id"
   },
   zenzxz: {
     baseURL: 'https://api.zenzxz.my.id',
