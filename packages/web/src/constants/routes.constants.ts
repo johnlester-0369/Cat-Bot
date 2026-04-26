@@ -16,6 +16,7 @@ export const ROUTES = {
   SIGNUP: '/signup',
   FORGOT_PASSWORD: '/forgot-password',
   RESET_PASSWORD: '/reset-password',
+  ACCOUNT_VERIFICATION: '/account-verification',
   DASHBOARD: {
     ROOT: '/dashboard',
     SETTINGS: '/dashboard/settings',
@@ -46,6 +47,7 @@ export const ROUTE_SEGMENTS = {
   SIGNUP: 'signup',
   FORGOT_PASSWORD: 'forgot-password',
   RESET_PASSWORD: 'reset-password',
+  ACCOUNT_VERIFICATION: 'account-verification',
   DASHBOARD: 'dashboard',
   BOTS: 'bots',
   COMMANDS: 'commands',

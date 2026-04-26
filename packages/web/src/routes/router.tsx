@@ -20,6 +20,9 @@ const LoginPage = lazy(() => import('@/pages/Login'))
 const SignupPage = lazy(() => import('@/pages/Signup'))
 const ForgotPasswordPage = lazy(() => import('@/pages/ForgotPassword'))
 const ResetPasswordPage = lazy(() => import('@/pages/ResetPassword'))
+const AccountVerificationPage = lazy(
+  () => import('@/pages/AccountVerification'),
+)
 const SettingsPage = lazy(() => import('@/pages/dashboard/settings'))
 const BotManagerPage = lazy(() => import('@/pages/dashboard'))
 const NewBotPage = lazy(() => import('@/pages/dashboard/create-new-bot'))
@@ -104,6 +107,10 @@ export const router = createBrowserRouter([
       {
         path: ROUTE_SEGMENTS.FORGOT_PASSWORD,
         element: withSuspense(<ForgotPasswordPage />),
+      },
+      {
+        path: ROUTE_SEGMENTS.ACCOUNT_VERIFICATION,
+        element: withSuspense(<AccountVerificationPage />),
       },
       {
         path: ROUTE_SEGMENTS.RESET_PASSWORD,
