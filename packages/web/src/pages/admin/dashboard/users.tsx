@@ -8,6 +8,7 @@ import Button from '@/components/ui/buttons/Button'
 import { Field } from '@/components/ui/forms/Field'
 import Input from '@/components/ui/forms/Input'
 import Textarea from '@/components/ui/forms/Textarea'
+import Select from '@/components/ui/forms/Select'
 import Alert from '@/components/ui/feedback/Alert'
 import Badge from '@/components/ui/data-display/Badge'
 import { useAdminBots } from '@/features/admin/hooks/useAdminBots'
@@ -22,6 +23,7 @@ interface ManagedUser {
   role: string | null
   createdAt: string
   banned: boolean
+  emailVerified: boolean
 }
 
 /**
@@ -58,8 +60,73 @@ export default function AdminUsersPage() {
 
   // Tracks the user currently selected for unbanning
   const [unbanTarget, setUnbanTarget] = useState<ManagedUser | null>(null)
-  const [isUnbanning, setIsUnbanning] = useState(false)
+  const[isUnbanning, setIsUnbanning] = useState(false)
   const [unbanError, setUnbanError] = useState<string | null>(null)
+
+  // ── Edit User State ────────────────────────────────────────────────────────
+  const [editTarget, setEditTarget] = useState<ManagedUser | null>(null)
+  const [editForm, setEditForm] = useState({ name: '', email: '', role: 'user' })
+  const [isEditing, setIsEditing] = useState(false)
+  const [editError, setEditError] = useState<string | null>(null)
+
+  const openEditDialog = (user: ManagedUser) => {
+    setEditTarget(user)
+    setEditForm({ name: user.name, email: user.email, role: user.role ?? 'user' })
+    setEditError(null)
+  }
+
+  const closeEditDialog = () => {
+    if (isEditing) return
+    setEditTarget(null)
+    setEditError(null)
+  }
+
+  const handleEditUser = async () => {
+    if (!editTarget) return
+    setIsEditing(true)
+    setEditError(null)
+    try {
+      await adminService.updateUser(editTarget.id, editForm)
+      void refetch()
+      closeEditDialog()
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : 'Failed to update user')
+    } finally {
+      setIsEditing(false)
+    }
+  }
+
+  // ── Verify State ───────────────────────────────────────────────────────────
+  const [verifyTarget, setVerifyTarget] = useState<ManagedUser | null>(null)
+  const [isVerifying, setIsVerifying] = useState(false)
+  const [verifyError, setVerifyError] = useState<string | null>(null)
+
+  const openVerifyDialog = (user: ManagedUser) => {
+    setVerifyTarget(user)
+    setVerifyError(null)
+  }
+
+  const closeVerifyDialog = () => {
+    if (isVerifying) return
+    setVerifyTarget(null)
+    setVerifyError(null)
+  }
+
+  // Refactored to operate on the active dialog target rather than inline execution
+  const handleVerifyUser = async () => {
+    if (!verifyTarget) return
+    setIsVerifying(true)
+    setVerifyError(null)
+    try {
+      await adminService.verifyUser(verifyTarget.id)
+      void refetch()
+      closeVerifyDialog()
+    } catch (err) {
+      setVerifyError(err instanceof Error ? err.message : 'Failed to verify user')
+    } finally {
+      setIsVerifying(false)
+    }
+  }
 
   // Calls better-auth admin.banUser then optimistically flips the local row's
   // banned flag so the operator sees immediate feedback without a full re-fetch.
@@ -195,9 +262,6 @@ export default function AdminUsersPage() {
         />
       </div>
 
-      {/* Columns: Name, Email, Role, Bot Sessions, Joined, Actions (6 total).
-          Status was removed — the schema has no status field; banned is
-          surfaced via the action cell instead of a dedicated column. */}
       <Table.ScrollArea className="bg-surface">
         <Table.Root variant="glass" fullWidth>
           <Table.Header>
@@ -205,13 +269,14 @@ export default function AdminUsersPage() {
               <Table.Head>Name</Table.Head>
               <Table.Head>Email</Table.Head>
               <Table.Head>Role</Table.Head>
+              <Table.Head>Verified</Table.Head>
               <Table.Head>Bot Sessions</Table.Head>
               <Table.Head>Joined</Table.Head>
               <Table.Head align="right">Actions</Table.Head>
             </Table.Row>
           </Table.Header>
           <Table.Body>
-            {isLoading && <Table.Loading colSpan={6} rows={4} />}
+            {isLoading && <Table.Loading colSpan={7} rows={4} />}
             {!isLoading &&
               users.map((u) => (
                 <Table.Row key={u.id}>
@@ -228,6 +293,16 @@ export default function AdminUsersPage() {
                       pill
                     >
                       {u.role ?? 'user'}
+                    </Badge>
+                  </Table.Cell>
+                  <Table.Cell>
+                    <Badge
+                      variant="tonal"
+                      color={u.emailVerified ? 'success' : 'warning'}
+                      size="sm"
+                      pill
+                    >
+                      {u.emailVerified ? 'Verified' : 'Pending'}
                     </Badge>
                   </Table.Cell>
                   <Table.Cell>
@@ -251,40 +326,57 @@ export default function AdminUsersPage() {
                     {new Date(u.createdAt).toLocaleDateString()}
                   </Table.Cell>
                   <Table.Cell align="right">
-                    {/* Admins cannot be banned — would lock out the control plane.
-                        Already-banned accounts show a static label rather than a
-                        redundant action button. */}
-                    {u.role !== 'admin' && !u.banned && (
-                      <Button
-                        variant="tonal"
-                        color="error"
-                        size="xs"
-                        onClick={() => openBanDialog(u)}
-                      >
-                        Ban
-                      </Button>
-                    )}
-                    {u.banned === true && (
-                      <div className="flex items-center justify-end gap-3">
-                        <Badge variant="tonal" color="error" size="sm" pill>
-                          Banned
-                        </Badge>
+                    <div className="flex items-center justify-end gap-2">
+                      {u.role !== 'admin' && !u.banned && (
                         <Button
                           variant="tonal"
-                          color="success"
+                          color="error"
                           size="xs"
-                          onClick={() => openUnbanDialog(u)}
+                          onClick={() => openBanDialog(u)}
                         >
-                          Unban
+                          Ban
                         </Button>
-                      </div>
-                    )}
+                      )}
+                      {u.banned === true && (
+                        <>
+                          <Badge variant="tonal" color="error" size="sm" pill>
+                            Banned
+                          </Badge>
+                          <Button
+                            variant="tonal"
+                            color="success"
+                            size="xs"
+                            onClick={() => openUnbanDialog(u)}
+                          >
+                            Unban
+                          </Button>
+                        </>
+                      )}
+                      <Button
+                        variant="tonal"
+                        color="primary"
+                        size="xs"
+                        onClick={() => openEditDialog(u)}
+                      >
+                        Edit
+                      </Button>
+                      {!u.emailVerified && (
+                        <Button
+                          variant="tonal"
+                          color="info"
+                          size="xs"
+                          onClick={() => openVerifyDialog(u)}
+                        >
+                          Verify
+                        </Button>
+                      )}
+                    </div>
                   </Table.Cell>
                 </Table.Row>
               ))}
             {!isLoading && users.length === 0 && (
               <Table.Empty
-                colSpan={6}
+                colSpan={7}
                 message={
                   searchQuery.trim()
                     ? `No users match "${searchQuery}"`
@@ -326,7 +418,7 @@ export default function AdminUsersPage() {
               <p className="text-body-md text-on-surface-variant mb-4">
                 Banning{' '}
                 <span className="font-semibold text-on-surface">
-                  {banTarget?.name}
+                  {banTarget?.name} ({banTarget?.email})
                 </span>{' '}
                 will prevent them from signing in. The reason is stored in the
                 database and visible to other admins.
@@ -409,7 +501,7 @@ export default function AdminUsersPage() {
               <p className="text-body-md text-on-surface-variant mb-4">
                 Are you sure you want to unban{' '}
                 <span className="font-semibold text-on-surface">
-                  {unbanTarget?.name}
+                  {unbanTarget?.name} ({unbanTarget?.email})
                 </span>
                 ? This will restore their access to the platform.
               </p>
@@ -446,6 +538,143 @@ export default function AdminUsersPage() {
                 disabled={isUnbanning}
               >
                 Unban User
+              </Button>
+            </Dialog.Footer>
+          </Dialog.Content>
+        </Dialog.Positioner>
+      </Dialog.Root>
+
+      {/* Edit User Dialog */}
+      <Dialog.Root
+        open={editTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) closeEditDialog()
+        }}
+        closeOnEsc={!isEditing}
+        closeOnOverlayClick={!isEditing}
+      >
+        <Dialog.Positioner position="center">
+          <Dialog.Backdrop />
+          <Dialog.Content size="sm">
+            <Dialog.Header>
+              <Dialog.Title>
+                Edit User
+              </Dialog.Title>
+              <Dialog.CloseTrigger />
+            </Dialog.Header>
+            <Dialog.Body className="flex flex-col gap-4">
+              <Field.Root>
+                <Field.Label>Name</Field.Label>
+                <Input
+                  value={editForm.name}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))}
+                  disabled={isEditing}
+                />
+              </Field.Root>
+              <Field.Root>
+                <Field.Label>Email</Field.Label>
+                <Input
+                  type="email"
+                  value={editForm.email}
+                  onChange={(e) => setEditForm((prev) => ({ ...prev, email: e.target.value }))}
+                  disabled={isEditing}
+                />
+              </Field.Root>
+              <Field.Root>
+                <Field.Label>Role</Field.Label>
+                {/* Utilizing the unified design system Select component */}
+                <Select
+                  options={[
+                    { value: 'user', label: 'User' },
+                    { value: 'admin', label: 'Admin' },
+                  ]}
+                  value={editForm.role}
+                  onChange={(value) => setEditForm((prev) => ({ ...prev, role: value }))}
+                  disabled={isEditing}
+                />
+              </Field.Root>
+              {editError !== null && (
+                <div className="mt-2">
+                  <Alert variant="tonal" color="error" title={editError} size="sm" />
+                </div>
+              )}
+            </Dialog.Body>
+            <Dialog.Footer>
+              <Dialog.CloseTrigger asChild>
+                <Button variant="text" color="neutral" size="sm" disabled={isEditing}>
+                  Cancel
+                </Button>
+              </Dialog.CloseTrigger>
+              <Button
+                variant="filled"
+                color="primary"
+                size="sm"
+                onClick={() => void handleEditUser()}
+                isLoading={isEditing}
+                disabled={isEditing}
+              >
+                Save Changes
+              </Button>
+            </Dialog.Footer>
+          </Dialog.Content>
+        </Dialog.Positioner>
+      </Dialog.Root>
+
+      {/* Verify User Dialog */}
+      <Dialog.Root
+        open={verifyTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) closeVerifyDialog()
+        }}
+        closeOnEsc={!isVerifying}
+        closeOnOverlayClick={!isVerifying}
+      >
+        <Dialog.Positioner position="center">
+          <Dialog.Backdrop />
+          <Dialog.Content size="sm">
+            <Dialog.Header>
+              <Dialog.Title>Verify User</Dialog.Title>
+              <Dialog.CloseTrigger />
+            </Dialog.Header>
+            <Dialog.Body>
+              <p className="text-body-md text-on-surface-variant mb-4">
+                Are you sure you want to manually verify{' '}
+                <span className="font-semibold text-on-surface">
+                  {verifyTarget?.name} ({verifyTarget?.email})
+                </span>
+                ? This will bypass the email verification process.
+              </p>
+              {verifyError !== null && (
+                <div className="mt-3">
+                  <Alert
+                    variant="tonal"
+                    color="error"
+                    title={verifyError}
+                    size="sm"
+                  />
+                </div>
+              )}
+            </Dialog.Body>
+            <Dialog.Footer>
+              <Dialog.CloseTrigger asChild>
+                <Button
+                  variant="text"
+                  color="neutral"
+                  size="sm"
+                  disabled={isVerifying}
+                >
+                  Cancel
+                </Button>
+              </Dialog.CloseTrigger>
+              <Button
+                variant="filled"
+                color="info"
+                size="sm"
+                onClick={() => void handleVerifyUser()}
+                isLoading={isVerifying}
+                disabled={isVerifying}
+              >
+                Verify User
               </Button>
             </Dialog.Footer>
           </Dialog.Content>
