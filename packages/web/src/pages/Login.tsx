@@ -68,9 +68,18 @@ export default function LoginPage() {
       await login(form.email, form.password)
       navigate(ROUTES.DASHBOARD.ROOT)
     } catch (err) {
-      setApiError(
-        err instanceof Error ? err.message : 'Login failed. Please try again.',
-      )
+      const msg = err instanceof Error ? err.message : 'Login failed. Please try again.'
+      
+      // WHY: If better-auth rejects the login because the email is unverified,
+      // automatically forward the user to the verification page to request a new link.
+      if (msg.toLowerCase().includes('verif')) {
+        navigate(
+          `${ROUTES.ACCOUNT_VERIFICATION}?email=${encodeURIComponent(form.email)}`,
+        )
+        return
+      }
+
+      setApiError(msg)
     } finally {
       setIsLoading(false)
     }
