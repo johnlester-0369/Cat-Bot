@@ -65,6 +65,23 @@ const counters = new Map<string, number>();
 // Entries are removed by send_result after successful replay to prevent unbounded growth.
 const resultStore = new Map<string, InterceptedCall[]>();
 
+// ── Attachment URL store ───────────────────────────────────────────────────────
+// URL-based attachments extracted from test_command results, keyed by `${baseKey}:a`.
+// Separate key lets send_result merge attachment lists from multiple concurrent command runs
+// without touching the primary InterceptedCall store.
+const attachmentResultStore = new Map<
+  string,
+  Array<{ name: string; url: string }>
+>();
+
+// ── Button grid store ─────────────────────────────────────────────────────────
+// ButtonItem[][] grids extracted from test_command results, keyed by `${baseKey}:b`.
+// Each element is one API call's button grid; send_result stacks them as keyboard rows.
+const buttonResultStore = new Map<
+  string,
+  Array<Array<Array<Record<string, unknown>>>>
+>();
+
 // ============================================================================
 // NORMALIZER
 // ============================================================================
@@ -161,5 +178,42 @@ export const commandResultStore = {
    */
   delete(key: string): void {
     resultStore.delete(key);
+  },
+
+  // ── Attachment URL methods ─────────────────────────────────────────────────
+  // Stored under `${baseKey}:a` by test_command; consumed and deleted by send_result.
+  // Keeps URL strings separate from the full InterceptedCall payload so send_result
+  // never has to deserialise binary-sentinel-polluted call arrays just to get URLs.
+  setAttachments(key: string, urls: Array<{ name: string; url: string }>): void {
+    attachmentResultStore.set(key, urls);
+  },
+  /** Returns stored attachment URLs, or null when key is absent or already consumed. */
+  getAttachments(key: string): Array<{ name: string; url: string }> | null {
+    return attachmentResultStore.get(key) ?? null;
+  },
+  /** Deletes the attachment entry — called by send_result after forwarding URLs to the platform. */
+  deleteAttachments(key: string): void {
+    attachmentResultStore.delete(key);
+  },
+
+  // ── Button grid methods ────────────────────────────────────────────────────
+  // Stored under `${baseKey}:b` by test_command; consumed and deleted by send_result.
+  // Array-of-grids so multiple replyMessage calls that each had buttons are individually
+  // addressable — send_result stacks every grid's rows into one combined keyboard.
+  setButtons(
+    key: string,
+    grids: Array<Array<Array<Record<string, unknown>>>>,
+  ): void {
+    buttonResultStore.set(key, grids);
+  },
+  /** Returns stored button grids, or null when key is absent or already consumed. */
+  getButtons(
+    key: string,
+  ): Array<Array<Array<Record<string, unknown>>>> | null {
+    return buttonResultStore.get(key) ?? null;
+  },
+  /** Deletes the button entry — called by send_result after stacking rows into the reply. */
+  deleteButtons(key: string): void {
+    buttonResultStore.delete(key);
   },
 };
