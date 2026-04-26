@@ -17,12 +17,16 @@ import { admin } from 'better-auth/plugins';
 // createAuthMiddleware enables the adminAuth before-hook to inspect the sign-in body
 // and reject non-admin users before a session row is ever written to the database.
 import { createAuthMiddleware, APIError } from 'better-auth/api';
+import { sendMail } from './mailer.lib.js';
+import { buildEmailLayout, buildButton, COLORS } from '@/server/email-template/index.js';
 
 const isJson = env.DATABASE_TYPE === 'json';
 const isMongo = env.DATABASE_TYPE === 'mongodb';
 // NeonDB: better-auth natively accepts a pg.Pool via Kysely's PostgresDialect —
 // no custom adapter is needed; the pool is passed directly as the database option.
 const isNeon = env.DATABASE_TYPE === 'neondb';
+
+const isEmailServicesEnabled = env.VITE_EMAIL_SERVICES_ENABLE === 'true';
 
 export const auth = betterAuth({
   database: isJson
@@ -45,9 +49,57 @@ export const auth = betterAuth({
           })
         : // SQLite driver — matches the adapter-better-sqlite3 configured in packages/database/client.ts
           prismaAdapter(prisma, { provider: 'sqlite' }),
+  user: {
+    changeEmail: {
+      enabled: isEmailServicesEnabled,
+    },
+  },
   emailAndPassword: {
     // Enables POST /api/auth/sign-up/email and POST /api/auth/sign-in/email out of the box
     enabled: true,
+    // Block sign-in for unverified accounts — prevents bot sessions being configured
+    // by users who haven't confirmed ownership of their email address
+    requireEmailVerification: isEmailServicesEnabled,
+    // Dynamically insert reset password functionality if emails are enabled
+    ...(isEmailServicesEnabled && {
+      sendResetPassword: async ({ user, url }) => {
+        void sendMail({
+          to: user.email,
+          subject: 'Reset your Cat-Bot password',
+          html: buildEmailLayout(`
+            <p style="margin: 0 0 16px 0; color: ${COLORS.onSurface}; font-weight: 500;">Hello ${String(user.name ?? user.email)},</p>
+            <p style="margin: 0 0 24px 0;">Click the button below to reset your Cat-Bot password:</p>
+            ${buildButton(url, 'Reset Password')}
+            <p style="margin: 24px 0 0 0; color: ${COLORS.outlineVariant}; font-size: 14px;">This link expires in 1 hour. If you did not request this, you can safely ignore this email.</p>
+          `, 'Securely reset your password'),
+          text: `Reset your Cat-Bot password by visiting: ${url}`,
+        });
+      },
+    }),
+  },
+  emailVerification: {
+    // Dispatch the verification link immediately on sign-up — no extra client-side
+    // trigger needed; the user receives the email before the wizard even loads
+    sendOnSignUp: isEmailServicesEnabled,
+    // Auto sign-in after the user clicks the link so they land on the dashboard
+    // directly without a separate login step
+    autoSignInAfterVerification: true,
+    sendVerificationEmail: async ({ user, url }) => {
+      // Fire-and-forget per better-auth docs — awaiting here opens a timing side-channel
+      // that reveals whether a given email address is registered vs unknown, enabling
+      // automated user enumeration attacks
+      void sendMail({
+        to: user.email,
+        subject: 'Verify your Cat-Bot email address',
+        html: buildEmailLayout(`
+          <p style="margin: 0 0 16px 0; color: ${COLORS.onSurface}; font-weight: 500;">Hello ${String(user.name ?? user.email)},</p>
+          <p style="margin: 0 0 24px 0;">Click the button below to verify your email and activate your Cat-Bot account:</p>
+          ${buildButton(url, 'Verify Email')}
+          <p style="margin: 24px 0 0 0; color: ${COLORS.outlineVariant}; font-size: 14px;">This link expires in 1 hour. If you did not sign up for Cat-Bot, you can safely ignore this email.</p>
+        `, 'Verify your email address'),
+        text: `Verify your Cat-Bot email address by visiting: ${url}`,
+      });
+    },
   },
   // Trust the dynamic dev server URL if provided. In production, same-origin is inherently trusted.
   trustedOrigins: env.VITE_URL ? [env.VITE_URL] : undefined,
@@ -129,7 +181,47 @@ export const adminAuth = betterAuth({
             client: mongoClient,
           })
         : prismaAdapter(prisma, { provider: 'sqlite' }),
-  emailAndPassword: { enabled: true },
+  user: {
+    changeEmail: {
+      enabled: isEmailServicesEnabled,
+    },
+  },
+  emailVerification: {
+    ...(isEmailServicesEnabled && {
+      sendVerificationEmail: async ({ user, url }) => {
+        void sendMail({
+          to: user.email,
+          subject: 'Verify your Cat-Bot Admin email address',
+          html: buildEmailLayout(`
+            <p style="margin: 0 0 16px 0; color: ${COLORS.onSurface}; font-weight: 500;">Hello ${String(user.name ?? user.email)},</p>
+            <p style="margin: 0 0 24px 0;">Click the button below to verify your new email address and activate the change:</p>
+            ${buildButton(url, 'Verify Email')}
+            <p style="margin: 24px 0 0 0; color: ${COLORS.outlineVariant}; font-size: 14px;">This link expires in 1 hour. If you did not request this, you can safely ignore this email.</p>
+          `, 'Verify your admin email address'),
+          text: `Verify your Cat-Bot Admin email address by visiting: ${url}`,
+        });
+      },
+    }),
+  },
+  emailAndPassword: {
+    enabled: true,
+    // Dynamically insert reset password functionality if emails are enabled
+    ...(isEmailServicesEnabled && {
+      sendResetPassword: async ({ user, url }) => {
+        void sendMail({
+          to: user.email,
+          subject: 'Reset your Cat-Bot Admin password',
+          html: buildEmailLayout(`
+            <p style="margin: 0 0 16px 0; color: ${COLORS.onSurface}; font-weight: 500;">Hello ${String(user.name ?? user.email)},</p>
+            <p style="margin: 0 0 24px 0;">Click the button below to securely reset your admin password:</p>
+            ${buildButton(url, 'Reset Admin Password')}
+            <p style="margin: 24px 0 0 0; color: ${COLORS.outlineVariant}; font-size: 14px;">This link expires in 1 hour. If you did not request this, you can safely ignore this email.</p>
+          `, 'Securely reset your admin password'),
+          text: `Reset your Cat-Bot Admin password by visiting: ${url}`,
+        });
+      },
+    }),
+  },
   trustedOrigins: env.VITE_URL ? [env.VITE_URL] : undefined,
   advanced: {
     // 'ba-admin' prefix → browser stores 'ba-admin.session_token'; completely separate from
