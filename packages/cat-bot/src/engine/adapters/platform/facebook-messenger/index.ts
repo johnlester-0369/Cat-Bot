@@ -176,7 +176,7 @@ export function createFacebookMessengerListener(
           return;
         }
 
-        const apiWrapper = createFacebookApi(fcaApi);
+        const apiWrapper = createFacebookApi(fcaApi, config.sessionId);
         const native = {
           userId: config.userId,
           sessionId: config.sessionId,

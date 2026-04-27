@@ -20,6 +20,10 @@ import type { UnifiedThreadInfo } from '@/engine/adapters/models/thread.model.js
 import type { UnifiedUserInfo } from '@/engine/adapters/models/user.model.js';
 import type { Readable } from 'stream';
 
+import axios from 'axios';
+import { lruCache } from '@/engine/lib/lru-cache.lib.js';
+import { getUserAvatar, updateUserAvatar } from '@/engine/repos/users.repo.js';
+
 import { logger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 import type { FcaApi } from './types.js';
 
@@ -56,11 +60,13 @@ export { normalizeMessageEvent } from './utils/normalize-event.js';
 class FacebookApi extends UnifiedApi {
   // Private field — fca api instance stays encapsulated; no external code should call fca directly
   readonly #api: FcaApi;
+  readonly #sessionId: string;
 
-  constructor(fcaApi: FcaApi) {
+  constructor(fcaApi: FcaApi, sessionId: string) {
     super();
     this.platform = Platforms.FacebookMessenger;
     this.#api = fcaApi;
+    this.#sessionId = sessionId;
   }
 
   override sendMessage(
@@ -204,16 +210,54 @@ class FacebookApi extends UnifiedApi {
    * Public Graph API photo endpoint — works with any Facebook PSID without additional OAuth scopes.
    * The access_token embedded in the URL is a public app-level token sufficient for profile photos.
    */
-  override getAvatarUrl(userID: string): Promise<string | null> {
+  override async getAvatarUrl(userID: string): Promise<string | null> {
     logger.debug('[facebook-messenger] getAvatarUrl called', { userID });
-    return Promise.resolve(
-      `https://graph.facebook.com/${userID}/picture?height=256&width=256&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`,
-    );
+
+    // WHY: Use fb-avatar:sessionId:userId as the base cache key to allow other bot instances to get a refresh
+    const cacheKey = `fb-avatar:${this.#sessionId}:${userID}`;
+    const cached = lruCache.get<string>(cacheKey);
+    if (cached) return cached;
+
+    const url = `https://graph.facebook.com/${userID}/picture?height=256&width=256&access_token=6628568379%7Cc1e620fa708a1d5696fb991c1bde5662`;
+
+    let redirectUrl: string | undefined;
+
+    try {
+      // WHY: resolve the redirect to get the static image URL and avoid IP-based rate limiting on the Graph API
+      const response = await axios.get(url, {
+        maxRedirects: 0,
+        validateStatus: (status) => status >= 200 && status < 400,
+      });
+      redirectUrl = response.headers.location as string | undefined;
+    } catch (error: any) {
+      if (error.response?.headers?.location) {
+        redirectUrl = error.response.headers.location as string;
+      } else {
+        logger.warn('[facebook-messenger] Graph API failed for avatar, falling back to DB', { error: error });
+      }
+    }
+
+    if (redirectUrl) {
+      lruCache.set(cacheKey, redirectUrl);
+      await updateUserAvatar(userID, redirectUrl).catch(err => {
+        logger.warn('[facebook-messenger] Failed to save avatar to db', { error: err });
+      });
+      return redirectUrl;
+    }
+
+    // WHY: If the Graph API fails due to rate limits or network issues, use the previously stored DB fallback
+    const dbAvatar = await getUserAvatar(userID);
+    if (dbAvatar) {
+      lruCache.set(cacheKey, dbAvatar);
+      return dbAvatar;
+    }
+
+    return null;
   }
 }
 
 // ── Factory ────────────────────────────────────────────────────────────────────
 
-export function createFacebookApi(fcaApi: FcaApi): UnifiedApi {
-  return new FacebookApi(fcaApi);
+export function createFacebookApi(fcaApi: FcaApi, sessionId: string): UnifiedApi {
+  return new FacebookApi(fcaApi, sessionId);
 }
