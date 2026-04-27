@@ -30,6 +30,8 @@ export interface PageApi {
     threadID: string,
     filename?: string,
   ): Promise<string | undefined>;
+  /** Retrieves the profile picture URL for a user given their PSID */
+  getAvatarUrl(userID: string): Promise<string | null>;
 }
 
 export interface GetMessageResult {

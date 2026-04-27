@@ -43,6 +43,7 @@ import { getBotID } from './lib/getBotID.js';
 import { getFullThreadInfo } from './lib/getFullThreadInfo.js';
 import { getFullUserInfo } from './lib/getFullUserInfo.js';
 import { editMessage } from './lib/editMessage.js';
+import { getAvatarUrl } from './lib/getAvatarUrl.js';
 import {
   setNickname,
   setGroupName,
@@ -52,7 +53,6 @@ import {
   removeUserFromGroup,
   setGroupReaction,
   reactToMessage,
-  getAvatarUrl,
 } from './unsupported.js';
 
 // FB Page has no zero-cost name endpoint — delegate to the database layer which
@@ -213,8 +213,8 @@ class FbPageApi extends UnifiedApi {
   }
 
   override getAvatarUrl(userID: string): Promise<string | null> {
-    logger.debug('[facebook-page] getAvatarUrl called', { userID });
-    return getAvatarUrl(userID);
+    logger.debug('[facebook-page] getAvatarUrl called (delegated to lib)', { userID });
+    return getAvatarUrl(this.#pageApi, userID);
   }
 }
 

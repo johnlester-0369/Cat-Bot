@@ -124,15 +124,6 @@ export async function replyMessage(
     });
   }
 
-  // Send text caption first, then each attachment as a separate Graph API call
-  if (message) {
-    await new Promise<void>((resolve, reject) => {
-      pageApi.sendMessage(finalMessage, threadID, (err) =>
-        err ? reject(err) : resolve(),
-      );
-    });
-  }
-
   let lastId: string | undefined;
 
   // Stream/buffer attachments: multipart form-data upload via pageApi.sendMessage
@@ -149,6 +140,15 @@ export async function replyMessage(
   // URL attachments: Graph API fetches the asset server-side — no local download needed
   for (const { url, name } of attachment_url) {
     lastId = await pageApi.sendUrlAttachment(url, threadID, name);
+  }
+
+  // Send text caption last so attachments visually appear above the text in chat
+  if (message) {
+    lastId = await new Promise<string | undefined>((resolve, reject) => {
+      pageApi.sendMessage(finalMessage, threadID, (err, data) =>
+        err ? reject(err) : resolve(data?.messageID),
+      );
+    });
   }
 
   return lastId;

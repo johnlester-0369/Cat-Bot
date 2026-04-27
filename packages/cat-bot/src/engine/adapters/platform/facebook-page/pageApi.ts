@@ -60,14 +60,7 @@ export function createPageApi(
           if (isObj) {
             const msgObj = msg as Record<string, unknown>;
             if (msgObj['attachment'] && !msgObj['template']) {
-              // Attachment-only message with optional body caption — send caption first
-              if (msgObj['body']) {
-                await sendTextMessage(pageAccessToken, threadID, {
-                  text: msgObj['body'],
-                });
-              }
-              // The attachment stream was previously discarded here — the caption was sent
-              // but the file never arrived. sendAttachmentMessage delivers it via multipart upload.
+              // Send attachment first so visual media appears above the text caption
               const stream = msgObj[
                 'attachment'
               ] as import('stream').Readable & {
@@ -78,6 +71,13 @@ export function createPageApi(
                 threadID,
                 stream,
               );
+
+              // Send caption after attachment
+              if (msgObj['body']) {
+                result = await sendTextMessage(pageAccessToken, threadID, {
+                  text: msgObj['body'],
+                });
+              }
             } else if (msgObj['template']) {
               // Button Template path — msg.template is the payload object built by lib/replyMessage.ts
               result = await sendTemplateMessage(
@@ -217,6 +217,25 @@ export function createPageApi(
           error: axiosErr?.response?.data || axiosErr.message,
         });
         throw err;
+      }
+    },
+
+    async getAvatarUrl(userID: string): Promise<string | null> {
+      try {
+        const res = await axios.get<{ profile_pic?: string }>(
+          `${FB_API_BASE}/${userID}`,
+          {
+            params: { fields: 'profile_pic', access_token: pageAccessToken },
+          },
+        );
+        // Profile pic might be undefined if user doesn't have one or permission denied
+        return res.data.profile_pic ?? null;
+      } catch (err) {
+        const axiosErr = err as { response?: { data: unknown }; message?: string };
+        if (isAuthError(err)) onAuthError?.(err);
+        // Graph API errors on profile_pic usually mean the PSID doesn't support it or the user blocked the app
+        logError('❌ getAvatarUrl (page) failed', { error: axiosErr?.response?.data || axiosErr.message });
+        return null;
       }
     },
   };
