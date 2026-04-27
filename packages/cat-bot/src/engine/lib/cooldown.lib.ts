@@ -92,3 +92,13 @@ class CooldownStore {
  * windows persist for the full process lifetime across concurrent requests.
  */
 export const cooldownStore = new CooldownStore();
+
+// Background sweep every 5 minutes evicts expired cooldown windows that accumulated
+// without a subsequent write to trigger the lazy threshold prune. Unref'd so this
+// housekeeping timer cannot delay process exit after all bot sessions have stopped.
+// NOTE: cooldowns use fixed TTL — the window must NOT slide on access, because
+// resetting the penalty clock when a user retries would defeat rate-limiting entirely.
+const _cooldownCleanup = setInterval(() => {
+  cooldownStore.pruneIfNeeded(Date.now(), 0);
+}, 5 * 60 * 1000);
+(_cooldownCleanup as NodeJS.Timeout).unref();
