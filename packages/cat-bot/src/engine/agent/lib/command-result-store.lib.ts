@@ -1,4 +1,5 @@
 import type { Readable } from 'node:stream';
+import { TTLMap } from '../../lib/ttl-map.lib.js';
 
 /**
  * Command Result Store — In-Memory Lookup for Intercepted Agent Command Outputs
@@ -77,29 +78,40 @@ const counters = new Map<string, number>();
 // ── Result store ──────────────────────────────────────────────────────────────
 // Maps composite lookup keys → their captured, normalized InterceptedCall arrays.
 // Entries are removed by send_result after successful replay to prevent unbounded growth.
-const resultStore = new Map<string, InterceptedCall[]>();
+// Fixed TTL: keys are single-use; sliding would not help since send_result deletes on first read.
+const resultStore = new TTLMap<InterceptedCall[]>({
+  ttlMs: 10 * 60 * 1000,
+  sliding: false,
+  cleanupIntervalMs: 2 * 60 * 1000,
+});
 
 // ── Attachment URL store ───────────────────────────────────────────────────────
 // URL-based attachments extracted from test_command results, keyed by `${baseKey}:a`.
 // Separate key lets send_result merge attachment lists from multiple concurrent command runs
 // without touching the primary InterceptedCall store.
-const attachmentResultStore = new Map<
-  string,
-  Array<{ name: string; url: string }>
->();
+const attachmentResultStore = new TTLMap<Array<{ name: string; url: string }>>({
+  ttlMs: 10 * 60 * 1000,
+  sliding: false,
+  cleanupIntervalMs: 2 * 60 * 1000,
+});
 
 // ── Button grid store ─────────────────────────────────────────────────────────
 // ButtonItem[][] grids extracted from test_command results, keyed by `${baseKey}:b`.
 // Each element is one API call's button grid; send_result stacks them as keyboard rows.
-const buttonResultStore = new Map<
-  string,
-  Array<Array<Array<Record<string, unknown>>>>
->();
+const buttonResultStore = new TTLMap<Array<Array<Array<Record<string, unknown>>>>>({
+  ttlMs: 10 * 60 * 1000,
+  sliding: false,
+  cleanupIntervalMs: 2 * 60 * 1000,
+});
 
 // ── Binary attachment store ────────────────────────────────────────────────────
 // Actual Buffer payloads captured BEFORE normalizeToJson — stored under `${baseKey}:bin`.
 // Allows send_result to replay buffer-based file attachments rather than dropping them.
-const binaryAttachmentStore = new Map<string, BinaryAttachment[]>();
+const binaryAttachmentStore = new TTLMap<BinaryAttachment[]>({
+  ttlMs: 10 * 60 * 1000,
+  sliding: false,
+  cleanupIntervalMs: 2 * 60 * 1000,
+});
 
 // ============================================================================
 // NORMALIZER

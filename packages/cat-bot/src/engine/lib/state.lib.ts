@@ -4,11 +4,15 @@
  * Extracted from controllers/utils/state-lookup.util.ts as a stateful single-purpose utility.
  * Used by onReply and onReact dispatchers to track pending bot message states.
  *
- * Intentionally in-memory (Map) rather than persistent storage:
- *   - Reply flows are session-based; a bot restart resets in-progress conversations,
- *     which is acceptable UX for interactive CLI-style command flows.
- *   - Zero-latency synchronous reads avoid async overhead on every message_reply event.
+ * TTL policy: 15-minute sliding window — conversation reply/react flows rarely outlast
+ * a realistic human interaction session. Abandoned flows (user walked away mid-command)
+ * auto-expire rather than leaking for the process lifetime.
+ *
+ * Intentionally in-memory (not persistent): a bot restart resetting in-progress
+ * conversations is acceptable UX for interactive CLI-style command flows.
  */
+
+import { TTLMap } from '@/engine/lib/ttl-map.lib.js';
 
 export interface StateEntry {
   command: string;
@@ -17,7 +21,14 @@ export interface StateEntry {
   context: Record<string, unknown>;
 }
 
-const store = new Map<string, StateEntry>();
+// 15-minute sliding TTL with a 5-minute background sweep. Sliding extends the window
+// on every reply/react interaction, keeping multi-step flows alive as long as the
+// user is actively engaged.
+const store = new TTLMap<StateEntry>({
+  ttlMs: 15 * 60 * 1000,
+  sliding: true,
+  cleanupIntervalMs: 5 * 60 * 1000,
+});
 
 export const stateStore = {
   /**
@@ -29,7 +40,8 @@ export const stateStore = {
   },
 
   /**
-   * Returns the registered state entry for a key, or null if none exists.
+   * Returns the registered state entry for a key, or null if none exists or has expired.
+   * In sliding mode, a successful get() resets the 15-minute TTL window.
    */
   get(id: string): StateEntry | null {
     return store.get(id) ?? null;

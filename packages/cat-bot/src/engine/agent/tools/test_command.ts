@@ -38,6 +38,11 @@ import {
 } from '../lib/command-result-store.lib.js';
 import type { InterceptedCall, BinaryAttachment } from '../lib/command-result-store.lib.js';
 
+// 10-minute hard ceiling for the entire test_command execution. Commands that stall
+// on network I/O (e.g. external API calls, image downloads inside onCommand handlers)
+// would otherwise block the agent loop indefinitely with no recovery path.
+const EXECUTION_TIMEOUT_MS = 10 * 60 * 1_000;
+
 // ============================================================================
 // TOOL DEFINITION
 // ============================================================================
@@ -261,6 +266,7 @@ export const run = async (
     return 'Error: You must provide a non-empty `commands` array.';
   }
 
+  const execution = (async (): Promise<string> => {
   try {
     const sideEffects = new Set([
       'replyMessage',
@@ -473,4 +479,22 @@ export const run = async (
   } catch (err) {
     return `Error testing command: ${err instanceof Error ? err.message : String(err)}`;
   }
+  })();
+
+  // Race the execution IIFE against a fixed-duration timer. Resolving (not rejecting)
+  // the timeout keeps the return type as Promise<string> without an extra try/catch.
+  // Unref'd so the timer cannot prevent process exit when the bot is shutting down.
+  const timeout = new Promise<string>((resolve) => {
+    const t = setTimeout(
+      () =>
+        resolve(
+          'Error: test_command timed out after 10 minutes. ' +
+            'The command may have stalled on network I/O.',
+        ),
+      EXECUTION_TIMEOUT_MS,
+    );
+    (t as NodeJS.Timeout).unref();
+  });
+
+  return Promise.race([execution, timeout]);
 };

@@ -1,14 +1,26 @@
 /**
- * Button Context Store — In-Memory state tracker for button clicks.
+ * Button Context Store — In-Memory State Tracker for Button Clicks
  *
  * Used to pass data from a command execution (onCommand) to a button click
  * handler (onClick) without encoding it all into the callback payload.
  *
  * Like the conversational stateStore, this resides in memory. A bot restart
  * resets active button contexts.
+ *
+ * TTL policy: 30-minute sliding window — contexts remain valid while the user
+ * actively interacts with message buttons. Abandoned contexts (user never clicked)
+ * auto-expire rather than accumulating for the full process lifetime.
  */
 
-export const buttonContextStore = new Map<string, Record<string, unknown>>();
+import { TTLMap } from '@/engine/lib/ttl-map.lib.js';
+
+// 30-minute sliding TTL with a 5-minute background sweep. Sliding ensures
+// multi-step button flows stay alive as long as the user keeps clicking.
+export const buttonContextStore = new TTLMap<Record<string, unknown>>({
+  ttlMs: 30 * 60 * 1000,
+  sliding: true,
+  cleanupIntervalMs: 5 * 60 * 1000,
+});
 
 export interface ButtonOverride {
   label?: string;
@@ -16,7 +28,13 @@ export interface ButtonOverride {
   onClick?: (...args: unknown[]) => unknown;
 }
 
-export const buttonOverridesStore = new Map<string, ButtonOverride>();
+// Overrides share the same 30-minute lifecycle as button contexts — an expired
+// context has no associated override worth retrieving.
+export const buttonOverridesStore = new TTLMap<ButtonOverride>({
+  ttlMs: 30 * 60 * 1000,
+  sliding: true,
+  cleanupIntervalMs: 5 * 60 * 1000,
+});
 
 export const buttonContextLib = {
   create(key: string, context: Record<string, unknown>): void {
