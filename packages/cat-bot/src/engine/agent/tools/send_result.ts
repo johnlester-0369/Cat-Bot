@@ -24,11 +24,13 @@
 import type { AppCtx } from '@/engine/types/controller.types.js';
 import { commandResultStore } from '../lib/command-result-store.lib.js';
 import type {
+  NamedStreamAttachment,
   NamedUrlAttachment,
   ButtonItem,
   ReplyMessageOptions,
 } from '@/engine/adapters/models/interfaces/api.interfaces.js';
 import { MessageStyle } from '@/engine/constants/message-style.constants.js';
+import type { BinaryAttachment } from '../lib/command-result-store.lib.js';
 
 // ============================================================================
 // TOOL DEFINITION
@@ -38,9 +40,9 @@ export const config = {
   name: 'send_result',
   description:
     'Deliver a unified reply to the user combining your synthesized message text with ' +
-    'URL attachments and button grids captured by one or more test_command calls. ' +
+    'URL attachments (attachment_url) and button grids captured by one or more test_command calls. ' +
     'Write the `message` yourself based on the `calls` content returned by test_command. ' +
-    'Pass any non-null `attachment_key` values in `attachment` and any non-null ' +
+    'Pass any non-null `attachment_key` values in `attachment_url` and any non-null ' +
     '`button_key` values in `button` — all entries are merged into a single platform reply. ' +
     'Run all needed test_command calls before calling this tool once to combine results. ' +
     'Each key is single-use and is deleted after delivery.',
@@ -54,14 +56,23 @@ export const config = {
           'text returned by test_command — do not copy raw command output verbatim. ' +
           'This is the primary text the user will see.',
       },
-      attachment: {
+      attachment_url: {
         type: 'array',
         items: { type: 'string' },
         description:
           'Optional list of `attachment_key` values returned by test_command (the ' +
-          '`attachment_key` field, not the main `key`). URL-based attachments from ' +
+          '`attachment_key` field, not the main `key`). URL-based file attachments from ' +
           'all provided keys are merged into the single reply. Omit or pass [] when ' +
           'no commands produced attachments.',
+      },
+      attachment: {
+        type: 'array',
+        items: { type: 'string' },
+        description:
+          'Optional list of `binary_attachment_key` values returned by test_command. ' +
+          'Buffer-based file attachments (e.g. raw images from commands like /cat) from ' +
+          'all provided keys are merged into the single reply. Omit or pass [] when ' +
+          'no commands produced binary attachments.',
       },
       button: {
         type: 'array',
@@ -84,9 +95,10 @@ export const config = {
 export const run = async (
   {
     message,
-    attachment,
+    attachment_url,
     button,
-  }: { message: string; attachment?: string[]; button?: string[] },
+    attachment,
+  }: { message: string; attachment_url?: string[]; button?: string[]; attachment?: string[] },
   ctx: AppCtx,
 ): Promise<string> => {
   const threadID = (ctx.event['threadID'] as string) || '';
@@ -97,11 +109,21 @@ export const run = async (
   // Each key may hold multiple attachment entries from a single test_command run;
   // concatenating them preserves the order in which commands were tested.
   const allAttachmentUrls: NamedUrlAttachment[] = [];
-  for (const aKey of attachment ?? []) {
+  for (const aKey of attachment_url ?? []) {
     const urls = commandResultStore.getAttachments(aKey);
     if (urls) allAttachmentUrls.push(...(urls as NamedUrlAttachment[]));
     // Always delete even when null — guard against stale or double-consumed keys
     commandResultStore.deleteAttachments(aKey);
+  }
+
+  // Collect Buffer-based attachments captured before normalizeToJson in test_command.
+  // Forwarded as raw file streams — the platform wrapper handles the actual upload,
+  // so no intermediate re-fetch is needed here unlike URL-based attachments.
+  const allBinaryAttachments: BinaryAttachment[] = [];
+  for (const binKey of attachment ?? []) {
+    const binaries = commandResultStore.getBinaryAttachments(binKey);
+    if (binaries) allBinaryAttachments.push(...binaries);
+    commandResultStore.deleteBinaryAttachments(binKey);
   }
 
   // Collect and stack button rows from all provided button keys.
@@ -129,8 +151,9 @@ export const run = async (
   };
   if (allAttachmentUrls.length > 0) replyOptions.attachment_url = allAttachmentUrls;
   if (allButtonRows.length > 0) replyOptions.button = allButtonRows;
-
   try {
+    // Cast directly to NamedStreamAttachment[] to satisfy exactOptionalPropertyTypes: true
+    if (allBinaryAttachments.length > 0) replyOptions.attachment = allBinaryAttachments as NamedStreamAttachment[];
     await ctx.api.replyMessage(threadID, replyOptions);
 
     const parts: string[] = ['Message delivered.'];
@@ -138,6 +161,8 @@ export const run = async (
       parts.push(`${allAttachmentUrls.length} attachment(s) included.`);
     if (allButtonRows.length > 0)
       parts.push(`${allButtonRows.length} button row(s) included.`);
+    if (allBinaryAttachments.length > 0)
+      parts.push(`${allBinaryAttachments.length} binary attachment(s) included.`);
     return parts.join(' ');
   } catch (err) {
     return `Delivery failed: ${err instanceof Error ? err.message : String(err)}`;
