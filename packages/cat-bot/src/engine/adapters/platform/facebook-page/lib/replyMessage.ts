@@ -44,8 +44,8 @@ export async function replyMessage(
   if (button.length > 0 && totalAttachCount > 1) {
     throw new Error(
       `Facebook Page only supports 1 attachment alongside button components (Button Template). ` +
-      `Received ${attachment.length} stream attachment(s) and ${attachment_url.length} URL attachment(s). ` +
-      `Reduce to a maximum of 1 total attachment when using buttons.`,
+        `Received ${attachment.length} stream attachment(s) and ${attachment_url.length} URL attachment(s). ` +
+        `Reduce to a maximum of 1 total attachment when using buttons.`,
     );
   }
   // Convert markdown to styled Unicode when requested — the FB Page API has no parse_mode equivalent

@@ -98,7 +98,12 @@ export const run = async (
     attachment_url,
     button,
     attachment,
-  }: { message: string; attachment_url?: string[]; button?: string[]; attachment?: string[] },
+  }: {
+    message: string;
+    attachment_url?: string[];
+    button?: string[];
+    attachment?: string[];
+  },
   ctx: AppCtx,
 ): Promise<string> => {
   const threadID = (ctx.event['threadID'] as string) || '';
@@ -140,7 +145,6 @@ export const run = async (
     }
   }
 
-
   // Always deliver as markdown — the LLM composes formatted text (bold, lists, code) and it
   // must render correctly on all platforms. Thread to the user's triggering message (replyToID)
   // so the agent's response is visually anchored to the conversation turn that initiated it.
@@ -149,11 +153,13 @@ export const run = async (
     style: MessageStyle.MARKDOWN,
     ...(replyToID ? { reply_to_message_id: replyToID } : {}),
   };
-  if (allAttachmentUrls.length > 0) replyOptions.attachment_url = allAttachmentUrls;
+  if (allAttachmentUrls.length > 0)
+    replyOptions.attachment_url = allAttachmentUrls;
   if (allButtonRows.length > 0) replyOptions.button = allButtonRows;
   try {
     // Cast directly to NamedStreamAttachment[] to satisfy exactOptionalPropertyTypes: true
-    if (allBinaryAttachments.length > 0) replyOptions.attachment = allBinaryAttachments as NamedStreamAttachment[];
+    if (allBinaryAttachments.length > 0)
+      replyOptions.attachment = allBinaryAttachments as NamedStreamAttachment[];
     await ctx.api.replyMessage(threadID, replyOptions);
 
     const parts: string[] = ['Message delivered.'];
@@ -162,7 +168,9 @@ export const run = async (
     if (allButtonRows.length > 0)
       parts.push(`${allButtonRows.length} button row(s) included.`);
     if (allBinaryAttachments.length > 0)
-      parts.push(`${allBinaryAttachments.length} binary attachment(s) included.`);
+      parts.push(
+        `${allBinaryAttachments.length} binary attachment(s) included.`,
+      );
     return parts.join(' ');
   } catch (err) {
     return `Delivery failed: ${err instanceof Error ? err.message : String(err)}`;

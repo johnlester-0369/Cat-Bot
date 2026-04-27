@@ -58,7 +58,7 @@ async function sendWyr(ctx: AppCtx): Promise<void> {
     const res = await fetch(base);
     if (!res.ok) throw new Error(`API responded with status ${res.status}`);
 
-    const json = await res.json() as {
+    const json = (await res.json()) as {
       error: boolean;
       message: { ops1: string; ops2: string };
     };

@@ -51,8 +51,8 @@ export async function replyMessage(
   if (button.length > 0 && totalAttachCount > 1) {
     throw new Error(
       `Telegram only supports 1 attachment alongside button components (inline keyboard). ` +
-      `Received ${attachment.length} stream attachment(s) and ${attachment_url.length} URL attachment(s). ` +
-      `Reduce to a maximum of 1 total attachment when using buttons.`,
+        `Received ${attachment.length} stream attachment(s) and ${attachment_url.length} URL attachment(s). ` +
+        `Reduce to a maximum of 1 total attachment when using buttons.`,
     );
   }
   // Use the explicit _threadID when it resolves to a non-zero number so the bot

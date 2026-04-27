@@ -31,7 +31,11 @@ export const config: CommandConfig = {
 
 // ── Command Handler ───────────────────────────────────────────────────────────
 
-export const onCommand = async ({ chat, args, usage }: AppCtx): Promise<void> => {
+export const onCommand = async ({
+  chat,
+  args,
+  usage,
+}: AppCtx): Promise<void> => {
   const text = args.join(' ').trim();
   if (!text) return usage();
 

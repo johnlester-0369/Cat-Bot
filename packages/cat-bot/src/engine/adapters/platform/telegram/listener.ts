@@ -130,7 +130,10 @@ export function createTelegramListener(
         path: webhookPath,
         // Derived from ENCRYPTION_KEY + userId + sessionId — unique per session, no extra env var.
         // Telegraf validates X-Telegram-Bot-Api-Secret-Token on every POST; non-Telegram senders rejected.
-        secret_token: generateTelegramSecretToken(config.userId, config.sessionId),
+        secret_token: generateTelegramSecretToken(
+          config.userId,
+          config.sessionId,
+        ),
         // message_reaction is opt-in since Bot API 7.0 — Telegram only delivers these
         // updates to a webhook endpoint when allowed_updates is explicitly set via
         // setWebhook(). createWebhook() spreads extra keys directly into setWebhook(),

@@ -33,7 +33,11 @@ export const config: CommandConfig = {
 
 // ── Command Handler ───────────────────────────────────────────────────────────
 
-export const onCommand = async ({ chat, args, usage }: AppCtx): Promise<void> => {
+export const onCommand = async ({
+  chat,
+  args,
+  usage,
+}: AppCtx): Promise<void> => {
   const query = args.join(' ').trim();
   if (!query) return usage();
 
@@ -45,7 +49,7 @@ export const onCommand = async ({ chat, args, usage }: AppCtx): Promise<void> =>
     const res = await fetch(apiUrl);
     if (!res.ok) throw new Error(`API responded with status ${res.status}`);
 
-    const json = await res.json() as {
+    const json = (await res.json()) as {
       error: boolean;
       message: {
         type: string;
@@ -75,7 +79,9 @@ export const onCommand = async ({ chat, args, usage }: AppCtx): Promise<void> =>
       `👨‍💻 Developer: **${m.developers.join(', ')}**`,
       `📦 Publisher: **${m.publishers.join(', ')}**`,
       m.website ? `🌐 ${m.website}` : null,
-    ].filter(l => l !== null).join('\n');
+    ]
+      .filter((l) => l !== null)
+      .join('\n');
 
     await chat.replyMessage({
       style: MessageStyle.MARKDOWN,

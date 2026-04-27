@@ -414,8 +414,8 @@ export function createChatContext(
       if (button.length > 0 && totalAttachCount > 1) {
         throw new Error(
           `Only 1 attachment (stream or URL, not both) is supported alongside button components. ` +
-          `Received ${attachment.length} stream attachment(s) and ${attachment_url.length} URL attachment(s). ` +
-          `Reduce to a maximum of 1 total attachment when using buttons.`,
+            `Received ${attachment.length} stream attachment(s) and ${attachment_url.length} URL attachment(s). ` +
+            `Reduce to a maximum of 1 total attachment when using buttons.`,
         );
       }
       const targetThreadID = getThreadID(opts);
@@ -475,8 +475,8 @@ export function createChatContext(
       if (button.length > 0 && totalAttachCount > 1) {
         throw new Error(
           `Only 1 attachment (stream or URL, not both) is supported alongside button components. ` +
-          `Received ${attachment.length} stream attachment(s) and ${attachment_url.length} URL attachment(s). ` +
-          `Reduce to a maximum of 1 total attachment when using buttons.`,
+            `Received ${attachment.length} stream attachment(s) and ${attachment_url.length} URL attachment(s). ` +
+            `Reduce to a maximum of 1 total attachment when using buttons.`,
         );
       }
       const targetThreadID = getThreadID(opts);

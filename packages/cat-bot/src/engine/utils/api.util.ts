@@ -58,7 +58,7 @@ const APIs: Record<string, ApiEntry> = {
     baseURL: 'https://api.nexray.web.id',
   },
   popcat: {
-    baseURL: 'https://api.popcat.xyz'
+    baseURL: 'https://api.popcat.xyz',
   },
   omegatech: {
     baseURL: 'https://omegatech-api.dixonomega.tech',

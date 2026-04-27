@@ -62,7 +62,10 @@ export const onCommand = async (ctx: AppCtx): Promise<void> => {
     // An empty string means send_result already handled the reply; nothing more to send here.
     const result = await runAgent(prompt, ctx, nickname, userName);
     if (result) {
-      await ctx.chat.replyMessage({ style: MessageStyle.MARKDOWN, message: result });
+      await ctx.chat.replyMessage({
+        style: MessageStyle.MARKDOWN,
+        message: result,
+      });
     }
   } catch (err) {
     await ctx.chat.replyMessage({
@@ -109,7 +112,10 @@ export const onChat = async (ctx: AppCtx): Promise<void> => {
       // Same guard as onCommand — agent uses send_result; only relay non-empty fallback strings.
       const result = await runAgent(prompt, ctx, nickname, userName);
       if (result) {
-        await ctx.chat.replyMessage({ style: MessageStyle.MARKDOWN, message: result });
+        await ctx.chat.replyMessage({
+          style: MessageStyle.MARKDOWN,
+          message: result,
+        });
       }
     } catch (err) {
       // Intentionally suppressed from end-user to prevent spam on passive conversational failures

@@ -24,7 +24,7 @@ export const config: CommandConfig = {
   version: '1.0.0',
   role: Role.ANYONE,
   author: 'AjiroDesu',
-  description: 'Add a caption to a user\'s avatar.',
+  description: "Add a caption to a user's avatar.",
   category: 'fun',
   usage: ['<text> [@user]', '<text> (reply to a message)'],
   cooldown: 5,
@@ -33,11 +33,20 @@ export const config: CommandConfig = {
 
 // ── Command Handler ───────────────────────────────────────────────────────────
 
-export const onCommand = async ({ chat, user, event, args, usage }: AppCtx): Promise<void> => {
+export const onCommand = async ({
+  chat,
+  user,
+  event,
+  args,
+  usage,
+}: AppCtx): Promise<void> => {
   const senderID = event['senderID'] as string;
   const mentions = event['mentions'] as Record<string, string> | undefined;
   const mentionIDs = Object.keys(mentions ?? {});
-  const messageReply = event['messageReply'] as Record<string, unknown> | null | undefined;
+  const messageReply = event['messageReply'] as
+    | Record<string, unknown>
+    | null
+    | undefined;
   const repliedSenderID = messageReply?.['senderID'] as string | undefined;
 
   // Priority: @mention → replied-to user → self
@@ -47,7 +56,15 @@ export const onCommand = async ({ chat, user, event, args, usage }: AppCtx): Pro
   const mentionTexts = Object.values(mentions ?? {});
   const text = args
     .join(' ')
-    .replace(new RegExp(mentionTexts.map(m => m.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'g'), '')
+    .replace(
+      new RegExp(
+        mentionTexts
+          .map((m) => m.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+          .join('|'),
+        'g',
+      ),
+      '',
+    )
     .trim();
 
   if (!text) return usage();

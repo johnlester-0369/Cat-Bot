@@ -59,7 +59,7 @@ async function sendShowerThought(ctx: AppCtx): Promise<void> {
     const res = await fetch(base);
     if (!res.ok) throw new Error(`API responded with status ${res.status}`);
 
-    const json = await res.json() as {
+    const json = (await res.json()) as {
       error: boolean;
       message: { result: string; author: string; upvotes: number };
     };

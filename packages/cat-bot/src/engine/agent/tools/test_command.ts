@@ -36,7 +36,10 @@ import {
   commandResultStore,
   normalizeToJson,
 } from '../lib/command-result-store.lib.js';
-import type { InterceptedCall, BinaryAttachment } from '../lib/command-result-store.lib.js';
+import type {
+  InterceptedCall,
+  BinaryAttachment,
+} from '../lib/command-result-store.lib.js';
 
 // 10-minute hard ceiling for the entire test_command execution. Commands that stall
 // on network I/O (e.g. external API calls, image downloads inside onCommand handlers)
@@ -63,8 +66,15 @@ export const config = {
         items: {
           type: 'object',
           properties: {
-            command: { type: 'string', description: 'Command name without prefix' },
-            args: { type: 'array', items: { type: 'string' }, description: 'Arguments' },
+            command: {
+              type: 'string',
+              description: 'Command name without prefix',
+            },
+            args: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Arguments',
+            },
           },
           required: ['command', 'args'],
         },
@@ -95,7 +105,11 @@ function formatCallForLLM(
   senderID: string,
   messageID: string,
 ): Record<string, unknown> {
-  const base: Record<string, unknown> = { type: call.type, senderID, messageID };
+  const base: Record<string, unknown> = {
+    type: call.type,
+    senderID,
+    messageID,
+  };
   if (call.sourceCommand) base.sourceCommand = call.sourceCommand;
 
   switch (call.type) {
@@ -148,7 +162,11 @@ function formatCallForLLM(
     }
 
     case 'reactToMessage': {
-      const [threadID, reactMsgID, emoji] = call.args as [string, string, string];
+      const [threadID, reactMsgID, emoji] = call.args as [
+        string,
+        string,
+        string,
+      ];
       return { ...base, threadID, reactToMessageID: reactMsgID, emoji };
     }
 
@@ -158,7 +176,11 @@ function formatCallForLLM(
     }
 
     case 'setNickname': {
-      const [threadID, userID, nickname] = call.args as [string, string, string];
+      const [threadID, userID, nickname] = call.args as [
+        string,
+        string,
+        string,
+      ];
       return { ...base, threadID, userID, nickname };
     }
 
@@ -267,218 +289,238 @@ export const run = async (
   }
 
   const execution = (async (): Promise<string> => {
-  try {
-    const sideEffects = new Set([
-      'replyMessage',
-      'sendMessage',
-      'editMessage',
-      'reactToMessage',
-      'unsendMessage',
-      'setNickname',
-      'setGroupName',
-      'setGroupImage',
-      'removeGroupImage',
-      'addUserToGroup',
-      'removeUserFromGroup',
-      'setGroupReaction',
-    ]);
+    try {
+      const sideEffects = new Set([
+        'replyMessage',
+        'sendMessage',
+        'editMessage',
+        'reactToMessage',
+        'unsendMessage',
+        'setNickname',
+        'setGroupName',
+        'setGroupImage',
+        'removeGroupImage',
+        'addUserToGroup',
+        'removeUserFromGroup',
+        'setGroupReaction',
+      ]);
 
-    const rawIntercepted: Array<{ method: string; args: unknown[]; sourceCommand: string }> = [];
-    let currentRunningCommand = '';
+      const rawIntercepted: Array<{
+        method: string;
+        args: unknown[];
+        sourceCommand: string;
+      }> = [];
+      let currentRunningCommand = '';
 
-    // Captures Buffer payloads BEFORE normalization — extracted per-call inside the Proxy
-    // so mArgs.map(normalizeToJson) has not yet replaced them with BUFFER_SENTINEL.
-    const rawBinaryAttachments: BinaryAttachment[] = [];
+      // Captures Buffer payloads BEFORE normalization — extracted per-call inside the Proxy
+      // so mArgs.map(normalizeToJson) has not yet replaced them with BUFFER_SENTINEL.
+      const rawBinaryAttachments: BinaryAttachment[] = [];
 
-    const mockApi = new Proxy(ctx.api, {
-      get(target, prop, receiver) {
-        if (typeof prop === 'string' && sideEffects.has(prop)) {
-          return async (...mArgs: unknown[]) => {
-            // Extract Buffer attachments BEFORE normalization — unrecoverable after normalizeToJson
-            for (const b of extractBinaryAttachments(prop, mArgs)) {
-              rawBinaryAttachments.push(b);
-            }
-            rawIntercepted.push({
-              method: prop,
-              args: mArgs.map(normalizeToJson),
-              sourceCommand: currentRunningCommand,
-            });
-            return 'mock-msg-id';
-          };
+      const mockApi = new Proxy(ctx.api, {
+        get(target, prop, receiver) {
+          if (typeof prop === 'string' && sideEffects.has(prop)) {
+            return async (...mArgs: unknown[]) => {
+              // Extract Buffer attachments BEFORE normalization — unrecoverable after normalizeToJson
+              for (const b of extractBinaryAttachments(prop, mArgs)) {
+                rawBinaryAttachments.push(b);
+              }
+              rawIntercepted.push({
+                method: prop,
+                args: mArgs.map(normalizeToJson),
+                sourceCommand: currentRunningCommand,
+              });
+              return 'mock-msg-id';
+            };
+          }
+          const value = Reflect.get(target, prop, receiver);
+          return typeof value === 'function' ? value.bind(target) : value;
+        },
+      });
+
+      const errors: string[] = [];
+
+      for (const cmdObj of cmdsToRun) {
+        const command = cmdObj.command;
+        const args = cmdObj.args || [];
+        currentRunningCommand = command;
+
+        const mod = ctx.commands.get(command.toLowerCase());
+        if (!mod || typeof mod['onCommand'] !== 'function') {
+          errors.push(`Command '${command}' not found.`);
+          continue;
         }
-        const value = Reflect.get(target, prop, receiver);
-        return typeof value === 'function' ? value.bind(target) : value;
-      },
-    });
 
-    const errors: string[] = [];
+        const simulatedMessage =
+          `${ctx.prefix || '/'}${command} ${(args || []).join(' ')}`.trim();
+        const simulatedEvent = {
+          ...ctx.event,
+          message: simulatedMessage,
+          body: simulatedMessage,
+        };
 
-    for (const cmdObj of cmdsToRun) {
-      const command = cmdObj.command;
-      const args = cmdObj.args || [];
-      currentRunningCommand = command;
+        const guard = await inspectCommandConstraints(
+          mod,
+          command.toLowerCase(),
+          senderID,
+          threadID,
+          sessionUserId,
+          platform,
+          sessionId,
+          false,
+        );
+        if (!guard.allowed) {
+          errors.push(`Command '${command}' blocked: ${guard.reason}`);
+          continue;
+        }
 
-      const mod = ctx.commands.get(command.toLowerCase());
-      if (!mod || typeof mod['onCommand'] !== 'function') {
-        errors.push(`Command '${command}' not found.`);
-        continue;
+        const commandCtx: OnCommandCtx = {
+          ...ctx,
+          api: mockApi,
+          event: simulatedEvent,
+          parsed: { name: command, args },
+          prefix: ctx.prefix || '/',
+          mod,
+          options: OptionsMap.empty(),
+        };
+
+        await dispatchCommand(
+          ctx.commands,
+          commandCtx.parsed!,
+          commandCtx,
+          mockApi,
+          threadID,
+          commandCtx.prefix,
+        );
       }
 
-      const simulatedMessage =
-        `${ctx.prefix || '/'}${command} ${(args || []).join(' ')}`.trim();
-      const simulatedEvent = {
-        ...ctx.event,
-        message: simulatedMessage,
-        body: simulatedMessage,
-      };
+      if (rawIntercepted.length === 0) {
+        if (errors.length > 0) return `Execution errors: ${errors.join(' ')}`;
+        return `Commands executed silently but produced no API calls.`;
+      }
 
-      const guard = await inspectCommandConstraints(
-        mod,
-        command.toLowerCase(),
-        senderID,
-        threadID,
+      // Convert raw intercepts to the typed InterceptedCall format for storage
+      const storableCalls: InterceptedCall[] = rawIntercepted.map((entry) => ({
+        type: entry.method,
+        args: entry.args,
+        sourceCommand: entry.sourceCommand,
+      }));
+
+      // Hoisted for key generation and llm formatting
+      const eventMessageID = (ctx.event['messageID'] as string) || '';
+
+      // Generate a unique key scoped to this session and store the calls.
+      // The key is passed back to the agent who uses it with send_result.
+      const commandNames = cmdsToRun.map((c) => c.command).join(',');
+      const key = commandResultStore.generateKey(
         sessionUserId,
         platform,
         sessionId,
-        false,
-      );
-      if (!guard.allowed) {
-        errors.push(`Command '${command}' blocked: ${guard.reason}`);
-        continue;
-      }
-
-      const commandCtx: OnCommandCtx = {
-        ...ctx,
-        api: mockApi,
-        event: simulatedEvent,
-        parsed: { name: command, args },
-        prefix: ctx.prefix || '/',
-        mod,
-        options: OptionsMap.empty(),
-      };
-
-      await dispatchCommand(
-        ctx.commands,
-        commandCtx.parsed!,
-        commandCtx,
-        mockApi,
         threadID,
-        commandCtx.prefix,
+        eventMessageID,
+        commandNames,
       );
-    }
+      commandResultStore.set(key, storableCalls);
 
-    if (rawIntercepted.length === 0) {
-      if (errors.length > 0) return `Execution errors: ${errors.join(' ')}`;
-      return `Commands executed silently but produced no API calls.`;
-    }
+      // Extract URL-based attachments and button grids into separate, independently-keyed
+      // stores so send_result can merge results from multiple concurrent command runs into
+      // one platform message. Streams/Buffers were already replaced with sentinels by
+      // normalizeToJson during capture, so only safe URL strings remain in attachment_url.
+      const collectedAttachments: Array<{ name: string; url: string }> = [];
+      const collectedButtonGrids: Array<Array<Array<Record<string, unknown>>>> =
+        [];
+      // Tracks how many stream/buffer attachment slots were consumed across all commands.
+      let streamAttachmentCount = 0;
 
-    // Convert raw intercepts to the typed InterceptedCall format for storage
-    const storableCalls: InterceptedCall[] = rawIntercepted.map((entry) => ({
-      type: entry.method,
-      args: entry.args,
-      sourceCommand: entry.sourceCommand,
-    }));
+      for (const call of storableCalls) {
+        const isReply = call.type === 'replyMessage';
+        const isEdit = call.type === 'editMessage';
+        const isSend = call.type === 'sendMessage';
+        // replyMessage/editMessage: options are arg[1]; sendMessage: payload may be arg[0] object
+        const opts: Record<string, unknown> | null =
+          isReply || isEdit
+            ? ((call.args[1] ?? {}) as Record<string, unknown>)
+            : isSend &&
+                typeof call.args[0] === 'object' &&
+                call.args[0] !== null
+              ? (call.args[0] as Record<string, unknown>)
+              : null;
 
-    // Hoisted for key generation and llm formatting
-    const eventMessageID = (ctx.event['messageID'] as string) || '';
+        if (!opts) continue;
 
-    // Generate a unique key scoped to this session and store the calls.
-    // The key is passed back to the agent who uses it with send_result.
-    const commandNames = cmdsToRun.map((c) => c.command).join(',');
-    const key = commandResultStore.generateKey(sessionUserId, platform, sessionId, threadID, eventMessageID, commandNames);
-    commandResultStore.set(key, storableCalls);
-
-    // Extract URL-based attachments and button grids into separate, independently-keyed
-    // stores so send_result can merge results from multiple concurrent command runs into
-    // one platform message. Streams/Buffers were already replaced with sentinels by
-    // normalizeToJson during capture, so only safe URL strings remain in attachment_url.
-    const collectedAttachments: Array<{ name: string; url: string }> = [];
-    const collectedButtonGrids: Array<Array<Array<Record<string, unknown>>>> = [];
-    // Tracks how many stream/buffer attachment slots were consumed across all commands.
-    let streamAttachmentCount = 0;
-
-    for (const call of storableCalls) {
-      const isReply = call.type === 'replyMessage';
-      const isEdit = call.type === 'editMessage';
-      const isSend = call.type === 'sendMessage';
-      // replyMessage/editMessage: options are arg[1]; sendMessage: payload may be arg[0] object
-      const opts: Record<string, unknown> | null =
-        isReply || isEdit
-          ? ((call.args[1] ?? {}) as Record<string, unknown>)
-          : isSend && typeof call.args[0] === 'object' && call.args[0] !== null
-            ? (call.args[0] as Record<string, unknown>)
-            : null;
-
-      if (!opts) continue;
-
-      if (Array.isArray(opts['attachment_url'])) {
-        for (const u of opts['attachment_url'] as Array<{
-          name: string;
-          url: string;
-        }>) {
-          if (u && typeof u.url === 'string') collectedAttachments.push(u);
+        if (Array.isArray(opts['attachment_url'])) {
+          for (const u of opts['attachment_url'] as Array<{
+            name: string;
+            url: string;
+          }>) {
+            if (u && typeof u.url === 'string') collectedAttachments.push(u);
+          }
+        }
+        // Stream/Buffer attachments are replaced by sentinels during normalizeToJson capture
+        // and cannot be replayed — but they still occupy an attachment slot on the platform.
+        // Counting them here ensures the button-stripping guard sees the full attachment footprint.
+        if (Array.isArray(opts['attachment'])) {
+          streamAttachmentCount += (opts['attachment'] as unknown[]).length;
+        }
+        // Only reply/edit calls carry button grids; sendMessage has no button parameter
+        if (
+          (isReply || isEdit) &&
+          Array.isArray(opts['button']) &&
+          (opts['button'] as unknown[]).length > 0
+        ) {
+          collectedButtonGrids.push(
+            opts['button'] as Array<Array<Record<string, unknown>>>,
+          );
         }
       }
-      // Stream/Buffer attachments are replaced by sentinels during normalizeToJson capture
-      // and cannot be replayed — but they still occupy an attachment slot on the platform.
-      // Counting them here ensures the button-stripping guard sees the full attachment footprint.
-      if (Array.isArray(opts['attachment'])) {
-        streamAttachmentCount += (opts['attachment'] as unknown[]).length;
-      }
-      // Only reply/edit calls carry button grids; sendMessage has no button parameter
-      if (
-        (isReply || isEdit) &&
-        Array.isArray(opts['button']) &&
-        (opts['button'] as unknown[]).length > 0
-      ) {
-        collectedButtonGrids.push(
-          opts['button'] as Array<Array<Record<string, unknown>>>,
+
+      // Strip buttons when the total attachment count across all commands exceeds one —
+      // Discord, Telegram, and Facebook all reject multiple file attachments alongside
+      // interactive button components. Single attachment + buttons is fine; two or more forces removal.
+      const totalAttachments =
+        collectedAttachments.length + streamAttachmentCount;
+      const attachmentKey = collectedAttachments.length > 0 ? `${key}:a` : null;
+      const buttonKey =
+        collectedButtonGrids.length > 0 && totalAttachments <= 1
+          ? `${key}:b`
+          : null;
+      if (attachmentKey)
+        commandResultStore.setAttachments(attachmentKey, collectedAttachments);
+      if (buttonKey)
+        commandResultStore.setButtons(buttonKey, collectedButtonGrids);
+      const binaryKey = rawBinaryAttachments.length > 0 ? `${key}:bin` : null;
+      if (binaryKey)
+        commandResultStore.setBinaryAttachments(
+          binaryKey,
+          rawBinaryAttachments,
         );
-      }
+
+      // Build LLM-readable representations with named fields and event coordinates
+      const llmCalls = storableCalls.map((call) =>
+        formatCallForLLM(call, senderID, eventMessageID),
+      );
+
+      return JSON.stringify(
+        {
+          key,
+          attachment_key: attachmentKey,
+          binary_attachment_key: binaryKey,
+          button_key: buttonKey,
+          callCount: storableCalls.length,
+          calls: llmCalls,
+          note:
+            'Read the `calls` text to synthesize your reply message. Then call ' +
+            '`send_result` once with your synthesized `message` text. Pass ' +
+            '`attachment_key` (if non-null) in the `attachment_url` array, ' +
+            '`binary_attachment_key` (if non-null) in the `attachment` array, ' +
+            'and `button_key` (if non-null) in the `button` array. Run all ' +
+            'needed test_command calls first, then combine into one send_result call.',
+        },
+        null,
+        2,
+      );
+    } catch (err) {
+      return `Error testing command: ${err instanceof Error ? err.message : String(err)}`;
     }
-
-    // Strip buttons when the total attachment count across all commands exceeds one —
-    // Discord, Telegram, and Facebook all reject multiple file attachments alongside
-    // interactive button components. Single attachment + buttons is fine; two or more forces removal.
-    const totalAttachments = collectedAttachments.length + streamAttachmentCount;
-    const attachmentKey = collectedAttachments.length > 0 ? `${key}:a` : null;
-    const buttonKey =
-      collectedButtonGrids.length > 0 && totalAttachments <= 1 ? `${key}:b` : null;
-    if (attachmentKey)
-      commandResultStore.setAttachments(attachmentKey, collectedAttachments);
-    if (buttonKey)
-      commandResultStore.setButtons(buttonKey, collectedButtonGrids);
-    const binaryKey = rawBinaryAttachments.length > 0 ? `${key}:bin` : null;
-    if (binaryKey)
-      commandResultStore.setBinaryAttachments(binaryKey, rawBinaryAttachments);
-
-    // Build LLM-readable representations with named fields and event coordinates
-    const llmCalls = storableCalls.map((call) =>
-      formatCallForLLM(call, senderID, eventMessageID),
-    );
-
-    return JSON.stringify(
-      {
-        key,
-        attachment_key: attachmentKey,
-        binary_attachment_key: binaryKey,
-        button_key: buttonKey,
-        callCount: storableCalls.length,
-        calls: llmCalls,
-        note:
-          'Read the `calls` text to synthesize your reply message. Then call ' +
-          '`send_result` once with your synthesized `message` text. Pass ' +
-          '`attachment_key` (if non-null) in the `attachment_url` array, ' +
-          '`binary_attachment_key` (if non-null) in the `attachment` array, ' +
-          'and `button_key` (if non-null) in the `button` array. Run all ' +
-          'needed test_command calls first, then combine into one send_result call.',
-      },
-      null,
-      2,
-    );
-  } catch (err) {
-    return `Error testing command: ${err instanceof Error ? err.message : String(err)}`;
-  }
   })();
 
   // Race the execution IIFE against a fixed-duration timer. Resolving (not rejecting)

@@ -25,7 +25,7 @@ export const config: CommandConfig = {
   version: '1.0.0',
   role: Role.ANYONE,
   author: 'AjiroDesu',
-  description: 'Look up a GitHub user\'s profile.',
+  description: "Look up a GitHub user's profile.",
   category: 'utility',
   usage: '<username>',
   cooldown: 5,
@@ -34,18 +34,25 @@ export const config: CommandConfig = {
 
 // ── Command Handler ───────────────────────────────────────────────────────────
 
-export const onCommand = async ({ chat, args, usage }: AppCtx): Promise<void> => {
+export const onCommand = async ({
+  chat,
+  args,
+  usage,
+}: AppCtx): Promise<void> => {
   const username = args[0]?.trim();
   if (!username) return usage();
 
   try {
-    const base = createUrl('popcat', `/v2/github/${encodeURIComponent(username)}`);
+    const base = createUrl(
+      'popcat',
+      `/v2/github/${encodeURIComponent(username)}`,
+    );
     if (!base) throw new Error('Failed to build GitHub API URL.');
 
     const res = await fetch(base);
     if (!res.ok) throw new Error(`API responded with status ${res.status}`);
 
-    const json = await res.json() as {
+    const json = (await res.json()) as {
       error: boolean;
       message: {
         url: string;
@@ -76,17 +83,19 @@ export const onCommand = async ({ chat, args, usage }: AppCtx): Promise<void> =>
       `👤 **${m.name}** (${m.account_type})`,
       `🔗 ${m.url}`,
       ``,
-      m.bio !== 'No Bio'      ? `📝 ${m.bio}`           : null,
-      m.company !== 'None'    ? `🏢 ${m.company}`        : null,
-      m.location !== 'Not set'? `📍 ${m.location}`       : null,
-      m.blog !== 'None'       ? `🌐 ${m.blog}`           : null,
-      m.email !== 'None'      ? `📧 ${m.email}`          : null,
-      m.twitter !== 'Not set' ? `🐦 @${m.twitter}`       : null,
+      m.bio !== 'No Bio' ? `📝 ${m.bio}` : null,
+      m.company !== 'None' ? `🏢 ${m.company}` : null,
+      m.location !== 'Not set' ? `📍 ${m.location}` : null,
+      m.blog !== 'None' ? `🌐 ${m.blog}` : null,
+      m.email !== 'None' ? `📧 ${m.email}` : null,
+      m.twitter !== 'Not set' ? `🐦 @${m.twitter}` : null,
       ``,
       `📦 Repos: **${m.public_repos}**  |  📋 Gists: **${m.public_gists}**`,
       `👥 Followers: **${m.followers}**  |  Following: **${m.following}**`,
       `📅 Joined: **${joined}**`,
-    ].filter(l => l !== null).join('\n');
+    ]
+      .filter((l) => l !== null)
+      .join('\n');
 
     await chat.replyMessage({
       style: MessageStyle.MARKDOWN,

@@ -41,10 +41,10 @@ export default function AccountVerificationPage() {
     let isMounted = true
     const checkEmail = async () => {
       try {
-        const { data } = await apiClient.post<{ exists: boolean; verified: boolean }>(
-          '/api/v1/validate/email-status',
-          { email },
-        )
+        const { data } = await apiClient.post<{
+          exists: boolean
+          verified: boolean
+        }>('/api/v1/validate/email-status', { email })
         if (!isMounted) return
         if (!data.exists) {
           setEmailStatus('not-found')
@@ -78,12 +78,16 @@ export default function AccountVerificationPage() {
       })
 
       if (sendError) {
-        throw new Error(sendError.message || 'Failed to send verification email.')
+        throw new Error(
+          sendError.message || 'Failed to send verification email.',
+        )
       }
 
       setSuccess(true)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred.')
+      setError(
+        err instanceof Error ? err.message : 'An unexpected error occurred.',
+      )
     } finally {
       setIsSending(false)
     }
@@ -195,8 +199,12 @@ export default function AccountVerificationPage() {
               Verify your email
             </h1>
             <p className="mt-2 text-body-md text-on-surface-variant max-w-sm mx-auto">
-              You need to verify your email address to continue. We can send a new verification link to{' '}
-              <strong className="text-on-surface">{email || 'your email'}</strong>.
+              You need to verify your email address to continue. We can send a
+              new verification link to{' '}
+              <strong className="text-on-surface">
+                {email || 'your email'}
+              </strong>
+              .
             </p>
           </div>
         </div>

@@ -98,7 +98,10 @@ export const cooldownStore = new CooldownStore();
 // housekeeping timer cannot delay process exit after all bot sessions have stopped.
 // NOTE: cooldowns use fixed TTL — the window must NOT slide on access, because
 // resetting the penalty clock when a user retries would defeat rate-limiting entirely.
-const _cooldownCleanup = setInterval(() => {
-  cooldownStore.pruneIfNeeded(Date.now(), 0);
-}, 5 * 60 * 1000);
+const _cooldownCleanup = setInterval(
+  () => {
+    cooldownStore.pruneIfNeeded(Date.now(), 0);
+  },
+  5 * 60 * 1000,
+);
 (_cooldownCleanup as NodeJS.Timeout).unref();

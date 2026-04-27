@@ -54,8 +54,8 @@ export async function replyMessage(
   if (button.length > 0 && totalAttachCount > 1) {
     throw new Error(
       `Facebook Messenger only supports 1 attachment alongside button components. ` +
-      `Received ${attachment.length} stream attachment(s) and ${attachment_url.length} URL attachment(s). ` +
-      `Reduce to a maximum of 1 total attachment when using buttons.`,
+        `Received ${attachment.length} stream attachment(s) and ${attachment_url.length} URL attachment(s). ` +
+        `Reduce to a maximum of 1 total attachment when using buttons.`,
     );
   }
   const mentions = options.mentions ?? [];

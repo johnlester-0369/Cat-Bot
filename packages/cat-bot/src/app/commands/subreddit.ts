@@ -34,18 +34,25 @@ export const config: CommandConfig = {
 
 // ── Command Handler ───────────────────────────────────────────────────────────
 
-export const onCommand = async ({ chat, args, usage }: AppCtx): Promise<void> => {
+export const onCommand = async ({
+  chat,
+  args,
+  usage,
+}: AppCtx): Promise<void> => {
   const name = args[0]?.replace(/^r\//i, '').trim();
   if (!name) return usage();
 
   try {
-    const base = createUrl('popcat', `/v2/subreddit/${encodeURIComponent(name)}`);
+    const base = createUrl(
+      'popcat',
+      `/v2/subreddit/${encodeURIComponent(name)}`,
+    );
     if (!base) throw new Error('Failed to build Subreddit API URL.');
 
     const res = await fetch(base);
     if (!res.ok) throw new Error(`API responded with status ${res.status}`);
 
-    const json = await res.json() as {
+    const json = (await res.json()) as {
       error: boolean;
       message: {
         name: string;
@@ -62,7 +69,8 @@ export const onCommand = async ({ chat, args, usage }: AppCtx): Promise<void> =>
       };
     };
 
-    if (json.error) throw new Error('Subreddit not found or API returned an error.');
+    if (json.error)
+      throw new Error('Subreddit not found or API returned an error.');
 
     const m = json.message;
 
@@ -77,7 +85,9 @@ export const onCommand = async ({ chat, args, usage }: AppCtx): Promise<void> =>
       `🎬 Videos: **${m.allow_videos ? 'Yes' : 'No'}**  |  🖼️ Images: **${m.allow_images ? 'Yes' : 'No'}**`,
       m.over_18 ? `🔞 **NSFW Community**` : null,
       `🔗 ${m.url}`,
-    ].filter(l => l !== null).join('\n');
+    ]
+      .filter((l) => l !== null)
+      .join('\n');
 
     await chat.replyMessage({
       style: MessageStyle.MARKDOWN,

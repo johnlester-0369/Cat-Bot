@@ -22,7 +22,7 @@ export const config: CommandConfig = {
   version: '1.0.0',
   role: Role.ANYONE,
   author: 'AjiroDesu',
-  description: 'Apply a communism overlay to a user\'s avatar.',
+  description: "Apply a communism overlay to a user's avatar.",
   category: 'fun',
   usage: '[@user]',
   cooldown: 5,
@@ -31,11 +31,18 @@ export const config: CommandConfig = {
 
 // ── Command Handler ───────────────────────────────────────────────────────────
 
-export const onCommand = async ({ chat, user, event }: AppCtx): Promise<void> => {
+export const onCommand = async ({
+  chat,
+  user,
+  event,
+}: AppCtx): Promise<void> => {
   const senderID = event['senderID'] as string;
   const mentions = event['mentions'] as Record<string, string> | undefined;
   const mentionIDs = Object.keys(mentions ?? {});
-  const messageReply = event['messageReply'] as Record<string, unknown> | null | undefined;
+  const messageReply = event['messageReply'] as
+    | Record<string, unknown>
+    | null
+    | undefined;
   const repliedSenderID = messageReply?.['senderID'] as string | undefined;
 
   // Priority: @mention → replied-to user → self

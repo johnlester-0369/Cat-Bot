@@ -124,9 +124,7 @@ export default function AdminResetPasswordPage() {
       setResendSuccess(true)
     } catch (err) {
       const e = err as { response?: { data?: { error?: string } } }
-      setResendError(
-        e.response?.data?.error || 'Failed to resend reset link.',
-      )
+      setResendError(e.response?.data?.error || 'Failed to resend reset link.')
     } finally {
       setIsResending(false)
     }
@@ -165,11 +163,21 @@ export default function AdminResetPasswordPage() {
           <Alert
             color={resendSuccess ? 'success' : 'error'}
             title={resendSuccess ? 'Link Sent' : 'Authorization Denied'}
-            message={resendSuccess ? "A new secure reset link has been sent to your admin email." : "Your secure token is missing, invalid, or has expired. Please trigger a new request."}
+            message={
+              resendSuccess
+                ? 'A new secure reset link has been sent to your admin email.'
+                : 'Your secure token is missing, invalid, or has expired. Please trigger a new request.'
+            }
           />
           {resendError && (
             <div className="mt-4">
-              <Alert variant="tonal" color="error" title="Resend Failed" message={resendError} size="sm" />
+              <Alert
+                variant="tonal"
+                color="error"
+                title="Resend Failed"
+                message={resendError}
+                size="sm"
+              />
             </div>
           )}
           <div className="mt-6 flex flex-col gap-3">

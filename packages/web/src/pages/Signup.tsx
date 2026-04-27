@@ -132,7 +132,9 @@ export default function SignupPage() {
             // always surfaces the ban reason here regardless of whether the password was correct.
             // Surface the real message so the user knows why they cannot proceed.
             setApiError(
-              signInErr instanceof Error ? signInErr.message : 'Your account has been banned.',
+              signInErr instanceof Error
+                ? signInErr.message
+                : 'Your account has been banned.',
             )
             return
           }

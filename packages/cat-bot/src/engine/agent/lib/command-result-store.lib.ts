@@ -98,7 +98,9 @@ const attachmentResultStore = new TTLMap<Array<{ name: string; url: string }>>({
 // ── Button grid store ─────────────────────────────────────────────────────────
 // ButtonItem[][] grids extracted from test_command results, keyed by `${baseKey}:b`.
 // Each element is one API call's button grid; send_result stacks them as keyboard rows.
-const buttonResultStore = new TTLMap<Array<Array<Array<Record<string, unknown>>>>>({
+const buttonResultStore = new TTLMap<
+  Array<Array<Array<Record<string, unknown>>>>
+>({
   ttlMs: 10 * 60 * 1000,
   sliding: false,
   cleanupIntervalMs: 2 * 60 * 1000,
@@ -190,7 +192,7 @@ export const commandResultStore = {
     // Lightweight non-cryptographic hash (DJB2) to keep the key short for the LLM
     let hash = 5381;
     for (let i = 0; i < prefix.length; i++) {
-      hash = ((hash << 5) + hash) + prefix.charCodeAt(i);
+      hash = (hash << 5) + hash + prefix.charCodeAt(i);
     }
     const shortHash = (hash >>> 0).toString(36);
 
@@ -227,7 +229,10 @@ export const commandResultStore = {
   // Stored under `${baseKey}:a` by test_command; consumed and deleted by send_result.
   // Keeps URL strings separate from the full InterceptedCall payload so send_result
   // never has to deserialise binary-sentinel-polluted call arrays just to get URLs.
-  setAttachments(key: string, urls: Array<{ name: string; url: string }>): void {
+  setAttachments(
+    key: string,
+    urls: Array<{ name: string; url: string }>,
+  ): void {
     attachmentResultStore.set(key, urls);
   },
   /** Returns stored attachment URLs, or null when key is absent or already consumed. */
@@ -250,9 +255,7 @@ export const commandResultStore = {
     buttonResultStore.set(key, grids);
   },
   /** Returns stored button grids, or null when key is absent or already consumed. */
-  getButtons(
-    key: string,
-  ): Array<Array<Array<Record<string, unknown>>>> | null {
+  getButtons(key: string): Array<Array<Array<Record<string, unknown>>>> | null {
     return buttonResultStore.get(key) ?? null;
   },
   /** Deletes the button entry — called by send_result after stacking rows into the reply. */
