@@ -26,6 +26,7 @@
  */
 
 import type { AppCtx } from '@/engine/types/controller.types.js';
+import type { Readable } from 'node:stream';
 import { resolveAgentContext } from '../agent.util.js';
 import { inspectCommandConstraints } from '@/engine/agent/agent-command-guard.lib.js';
 import { dispatchCommand } from '@/engine/controllers/dispatchers/command.dispatcher.js';
@@ -35,7 +36,7 @@ import {
   commandResultStore,
   normalizeToJson,
 } from '../lib/command-result-store.lib.js';
-import type { InterceptedCall } from '../lib/command-result-store.lib.js';
+import type { InterceptedCall, BinaryAttachment } from '../lib/command-result-store.lib.js';
 
 // ============================================================================
 // TOOL DEFINITION
@@ -44,9 +45,11 @@ import type { InterceptedCall } from '../lib/command-result-store.lib.js';
 export const config = {
   name: 'test_command',
   description:
-    'Execute one or more commands silently to intercept and preview their output. ' +
-    'Returns a lookup `key` and a `calls` array showing what the commands would send. ' +
-    'Use the `commands` array parameter to test multiple commands in parallel.',
+    'Execute commands silently to intercept and preview their output. Always use the ' +
+    '`commands` array — the legacy single-command shorthand has been removed. Returns ' +
+    'a `key` and a `calls` array. When the combined output across all commands contains ' +
+    'more than one attachment, `button_key` is automatically null because platforms ' +
+    'cannot deliver multiple file attachments alongside interactive button components.',
   parameters: {
     type: 'object',
     properties: {
@@ -62,10 +65,8 @@ export const config = {
         },
         description: 'List of commands to test in sequence.',
       },
-      command: { type: 'string', description: 'Legacy single command (use commands array instead)' },
-      args: { type: 'array', items: { type: 'string' } },
     },
-    required: [],
+    required: ['commands'],
   },
 };
 
@@ -192,22 +193,72 @@ function formatCallForLLM(
 }
 
 // ============================================================================
+// BINARY ATTACHMENT EXTRACTOR
+// ============================================================================
+
+/**
+ * Extracts Buffer-based attachment payloads from raw (pre-normalization) UnifiedApi call args.
+ * MUST be called before mArgs.map(normalizeToJson) — once normalizeToJson executes,
+ * every Buffer is replaced with BUFFER_SENTINEL and the raw bytes are permanently gone.
+ *
+ * Options position per method:
+ *   replyMessage / editMessage → options object at args[1], attachment[] at opts.attachment
+ *   sendMessage                → payload at args[0] when it is an object (not a bare string)
+ */
+function extractBinaryAttachments(
+  method: string,
+  args: unknown[],
+): BinaryAttachment[] {
+  let opts: Record<string, unknown> | null = null;
+  if (method === 'replyMessage' || method === 'editMessage') {
+    opts = (args[1] ?? {}) as Record<string, unknown>;
+  } else if (method === 'sendMessage') {
+    const p = args[0];
+    if (p !== null && typeof p === 'object' && !Array.isArray(p))
+      opts = p as Record<string, unknown>;
+  }
+  if (!opts || !Array.isArray(opts['attachment'])) return [];
+
+  const result: BinaryAttachment[] = [];
+  for (const a of opts['attachment'] as unknown[]) {
+    if (a !== null && typeof a === 'object') {
+      const entry = a as Record<string, unknown>;
+      const stream = entry['stream'];
+      // Duck-type Readable detection mirrors normalizeToJson — .pipe presence is
+      // definitive for all Node Readable variants (PassThrough, Transform, fs.ReadStream, etc.).
+      // Must be evaluated BEFORE mArgs.map(normalizeToJson) replaces the stream with
+      // STREAM_SENTINEL — once normalized, the original reference is gone.
+      const isReadable =
+        stream !== null &&
+        typeof stream === 'object' &&
+        typeof (stream as Record<string, unknown>)['pipe'] === 'function';
+      if (Buffer.isBuffer(stream)) {
+        result.push({ name: String(entry['name'] ?? 'attachment'), stream });
+      } else if (isReadable) {
+        result.push({
+          name: String(entry['name'] ?? 'attachment'),
+          stream: stream as Readable,
+        });
+      }
+    }
+  }
+  return result;
+}
+
+// ============================================================================
 // TOOL RUN
 // ============================================================================
 
 export const run = async (
-  payload: { commands?: Array<{ command: string; args: string[] }>; command?: string; args?: string[] },
+  payload: { commands: Array<{ command: string; args: string[] }> },
   ctx: AppCtx,
 ): Promise<string> => {
   const { senderID, threadID, sessionUserId, sessionId, platform } =
     resolveAgentContext(ctx);
 
   const cmdsToRun = payload.commands ?? [];
-  if (payload.command) {
-    cmdsToRun.push({ command: payload.command, args: payload.args ?? [] });
-  }
   if (cmdsToRun.length === 0) {
-    return 'Error: You must provide a `commands` array or a single `command`.';
+    return 'Error: You must provide a non-empty `commands` array.';
   }
 
   try {
@@ -229,10 +280,18 @@ export const run = async (
     const rawIntercepted: Array<{ method: string; args: unknown[]; sourceCommand: string }> = [];
     let currentRunningCommand = '';
 
+    // Captures Buffer payloads BEFORE normalization — extracted per-call inside the Proxy
+    // so mArgs.map(normalizeToJson) has not yet replaced them with BUFFER_SENTINEL.
+    const rawBinaryAttachments: BinaryAttachment[] = [];
+
     const mockApi = new Proxy(ctx.api, {
       get(target, prop, receiver) {
         if (typeof prop === 'string' && sideEffects.has(prop)) {
           return async (...mArgs: unknown[]) => {
+            // Extract Buffer attachments BEFORE normalization — unrecoverable after normalizeToJson
+            for (const b of extractBinaryAttachments(prop, mArgs)) {
+              rawBinaryAttachments.push(b);
+            }
             rawIntercepted.push({
               method: prop,
               args: mArgs.map(normalizeToJson),
@@ -313,9 +372,14 @@ export const run = async (
       args: entry.args,
       sourceCommand: entry.sourceCommand,
     }));
+
+    // Hoisted for key generation and llm formatting
+    const eventMessageID = (ctx.event['messageID'] as string) || '';
+
     // Generate a unique key scoped to this session and store the calls.
     // The key is passed back to the agent who uses it with send_result.
-    const key = commandResultStore.generateKey(sessionUserId, platform, sessionId);
+    const commandNames = cmdsToRun.map((c) => c.command).join(',');
+    const key = commandResultStore.generateKey(sessionUserId, platform, sessionId, threadID, eventMessageID, commandNames);
     commandResultStore.set(key, storableCalls);
 
     // Extract URL-based attachments and button grids into separate, independently-keyed
@@ -324,6 +388,8 @@ export const run = async (
     // normalizeToJson during capture, so only safe URL strings remain in attachment_url.
     const collectedAttachments: Array<{ name: string; url: string }> = [];
     const collectedButtonGrids: Array<Array<Array<Record<string, unknown>>>> = [];
+    // Tracks how many stream/buffer attachment slots were consumed across all commands.
+    let streamAttachmentCount = 0;
 
     for (const call of storableCalls) {
       const isReply = call.type === 'replyMessage';
@@ -347,6 +413,12 @@ export const run = async (
           if (u && typeof u.url === 'string') collectedAttachments.push(u);
         }
       }
+      // Stream/Buffer attachments are replaced by sentinels during normalizeToJson capture
+      // and cannot be replayed — but they still occupy an attachment slot on the platform.
+      // Counting them here ensures the button-stripping guard sees the full attachment footprint.
+      if (Array.isArray(opts['attachment'])) {
+        streamAttachmentCount += (opts['attachment'] as unknown[]).length;
+      }
       // Only reply/edit calls carry button grids; sendMessage has no button parameter
       if (
         (isReply || isEdit) &&
@@ -359,15 +431,22 @@ export const run = async (
       }
     }
 
+    // Strip buttons when the total attachment count across all commands exceeds one —
+    // Discord, Telegram, and Facebook all reject multiple file attachments alongside
+    // interactive button components. Single attachment + buttons is fine; two or more forces removal.
+    const totalAttachments = collectedAttachments.length + streamAttachmentCount;
     const attachmentKey = collectedAttachments.length > 0 ? `${key}:a` : null;
-    const buttonKey = collectedButtonGrids.length > 0 ? `${key}:b` : null;
+    const buttonKey =
+      collectedButtonGrids.length > 0 && totalAttachments <= 1 ? `${key}:b` : null;
     if (attachmentKey)
       commandResultStore.setAttachments(attachmentKey, collectedAttachments);
     if (buttonKey)
       commandResultStore.setButtons(buttonKey, collectedButtonGrids);
+    const binaryKey = rawBinaryAttachments.length > 0 ? `${key}:bin` : null;
+    if (binaryKey)
+      commandResultStore.setBinaryAttachments(binaryKey, rawBinaryAttachments);
 
     // Build LLM-readable representations with named fields and event coordinates
-    const eventMessageID = (ctx.event['messageID'] as string) || '';
     const llmCalls = storableCalls.map((call) =>
       formatCallForLLM(call, senderID, eventMessageID),
     );
@@ -376,15 +455,17 @@ export const run = async (
       {
         key,
         attachment_key: attachmentKey,
+        binary_attachment_key: binaryKey,
         button_key: buttonKey,
         callCount: storableCalls.length,
         calls: llmCalls,
         note:
           'Read the `calls` text to synthesize your reply message. Then call ' +
           '`send_result` once with your synthesized `message` text. Pass ' +
-          '`attachment_key` (if non-null) in the `attachment` array and ' +
-          '`button_key` (if non-null) in the `button` array. Run all needed ' +
-          'test_command calls first, then combine into one send_result call.',
+          '`attachment_key` (if non-null) in the `attachment_url` array, ' +
+          '`binary_attachment_key` (if non-null) in the `attachment` array, ' +
+          'and `button_key` (if non-null) in the `button` array. Run all ' +
+          'needed test_command calls first, then combine into one send_result call.',
       },
       null,
       2,
