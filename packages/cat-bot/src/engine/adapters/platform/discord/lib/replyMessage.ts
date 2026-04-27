@@ -43,6 +43,19 @@ export async function replyMessage(
     style,
   }: ReplyOptions = {},
 ): Promise<string | undefined> {
+  // Guard: Discord rejects messages that combine multiple attachments with button components
+  // (ActionRows). A single stream attachment OR a single URL attachment alongside buttons is
+  // the only permitted combination. Two or more attachment slots — regardless of type mix —
+  // must be sent without buttons. This matches Discord API behaviour: button rows are silently
+  // dropped when files array length > 1, so we surface the constraint as an explicit error.
+  const totalAttachCount = attachment.length + attachment_url.length;
+  if (button.length > 0 && totalAttachCount > 1) {
+    throw new Error(
+      `Discord only supports 1 attachment alongside button components (ActionRows). ` +
+      `Received ${attachment.length} stream attachment(s) and ${attachment_url.length} URL attachment(s). ` +
+      `Reduce to a maximum of 1 total attachment when using buttons.`,
+    );
+  }
   // Accept both direct string and SendPayload-style object with a `body` field
   const content =
     typeof msgBody === 'string'

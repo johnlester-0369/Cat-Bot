@@ -42,6 +42,22 @@ export async function replyMessage(
   const attachment = options.attachment ?? [];
   const attachment_url = options.attachment_url ?? [];
   const reply_to_message_id = options.reply_to_message_id;
+  // Extract button list so the guard below can inspect it. The context.model.ts layer converts
+  // button arrays to numbered text menus for FB Messenger, but callers may bypass context and
+  // call api.replyMessage directly — the validation must hold at this layer too.
+  const button = options.button ?? [];
+  // Guard: FB Messenger's text-menu button fallback registers one state entry keyed to the
+  // sent message ID — multiple attachments alongside buttons creates ambiguous state correlation
+  // and causes silent delivery failures. Only 1 total attachment (stream OR URL) is permitted
+  // when buttons are present.
+  const totalAttachCount = attachment.length + attachment_url.length;
+  if (button.length > 0 && totalAttachCount > 1) {
+    throw new Error(
+      `Facebook Messenger only supports 1 attachment alongside button components. ` +
+      `Received ${attachment.length} stream attachment(s) and ${attachment_url.length} URL attachment(s). ` +
+      `Reduce to a maximum of 1 total attachment when using buttons.`,
+    );
+  }
   const mentions = options.mentions ?? [];
   // Convert markdown to styled Unicode when requested — FB Messenger has no parse_mode equivalent
   const finalMessage =

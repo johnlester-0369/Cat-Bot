@@ -405,6 +405,19 @@ export function createChatContext(
       style,
       ...opts
     } = {}) => {
+      // Guard: platforms uniformly support at most 1 total attachment when button components
+      // are present. stream attachments and URL attachments each occupy an attachment slot —
+      // 1 stream + 1 URL = 2 total, which is rejected. This is enforced here (earliest
+      // interception) before any platform-specific delivery attempt so command authors
+      // receive a clear error at the call site rather than a silent or cryptic platform failure.
+      const totalAttachCount = attachment.length + attachment_url.length;
+      if (button.length > 0 && totalAttachCount > 1) {
+        throw new Error(
+          `Only 1 attachment (stream or URL, not both) is supported alongside button components. ` +
+          `Received ${attachment.length} stream attachment(s) and ${attachment_url.length} URL attachment(s). ` +
+          `Reduce to a maximum of 1 total attachment when using buttons.`,
+        );
+      }
       const targetThreadID = getThreadID(opts);
       const customMessageID = opts.messageID || opts.reply_to_message_id;
       logger.debug('[context.model] ChatContext.reply called', {
@@ -454,6 +467,18 @@ export function createChatContext(
       style,
       ...opts
     } = {}) => {
+      // Guard: same 1-attachment-maximum constraint as chat.reply — applied independently
+      // here so replyMessage (reply-threaded sends) enforces the limit regardless of which
+      // chat context path the caller used. Both paths must be guarded because command modules
+      // may call either depending on whether they need reply threading.
+      const totalAttachCount = attachment.length + attachment_url.length;
+      if (button.length > 0 && totalAttachCount > 1) {
+        throw new Error(
+          `Only 1 attachment (stream or URL, not both) is supported alongside button components. ` +
+          `Received ${attachment.length} stream attachment(s) and ${attachment_url.length} URL attachment(s). ` +
+          `Reduce to a maximum of 1 total attachment when using buttons.`,
+        );
+      }
       const targetThreadID = getThreadID(opts);
       const targetMessageID = getMessageID(opts);
       logger.debug('[context.model] ChatContext.replyMessage called', {

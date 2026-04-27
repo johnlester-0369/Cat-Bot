@@ -36,6 +36,18 @@ export async function replyMessage(
   const attachment = options.attachment ?? [];
   const attachment_url = options.attachment_url ?? [];
   const button = options.button ?? [];
+  // Guard: Facebook's Button Template API pairs a single text block with up to 3 postback
+  // buttons — the template payload cannot carry separate media attachments. Sending multiple
+  // attachments before the template creates visual ordering ambiguity and may exceed the
+  // Graph API message size limit for a single conversation turn.
+  const totalAttachCount = attachment.length + attachment_url.length;
+  if (button.length > 0 && totalAttachCount > 1) {
+    throw new Error(
+      `Facebook Page only supports 1 attachment alongside button components (Button Template). ` +
+      `Received ${attachment.length} stream attachment(s) and ${attachment_url.length} URL attachment(s). ` +
+      `Reduce to a maximum of 1 total attachment when using buttons.`,
+    );
+  }
   // Convert markdown to styled Unicode when requested — the FB Page API has no parse_mode equivalent
   const finalMessage =
     options.style === 'markdown' ? mdToText(message) : message;

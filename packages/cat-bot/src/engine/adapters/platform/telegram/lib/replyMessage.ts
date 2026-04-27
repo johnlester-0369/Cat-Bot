@@ -43,6 +43,18 @@ export async function replyMessage(
     style,
   }: ReplyMessageOptions = {},
 ): Promise<string | undefined> {
+  // Guard: Telegram's sendMediaGroup API silently ignores reply_markup (inline keyboards)
+  // when the message carries multiple media items. Rather than silently stripping buttons,
+  // we reject the combination here so callers receive a clear constraint violation instead
+  // of delivering a message that looks correct but has no interactive components attached.
+  const totalAttachCount = attachment.length + attachment_url.length;
+  if (button.length > 0 && totalAttachCount > 1) {
+    throw new Error(
+      `Telegram only supports 1 attachment alongside button components (inline keyboard). ` +
+      `Received ${attachment.length} stream attachment(s) and ${attachment_url.length} URL attachment(s). ` +
+      `Reduce to a maximum of 1 total attachment when using buttons.`,
+    );
+  }
   // Use the explicit _threadID when it resolves to a non-zero number so the bot
   // can send to a different chat (admin DM, support group) than the one that
   // triggered the current update.  Falls back to ctx.chat?.id for the standard
