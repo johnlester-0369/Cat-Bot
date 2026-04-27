@@ -34,9 +34,6 @@ interface EnvConfig {
   readonly ERROR_LOG_FILE_PATH?: string | undefined;
   // Telegram transport — bare HTTPS domain routes webhook mode; absent = long-polling fallback
   readonly TELEGRAM_WEBHOOK_DOMAIN?: string | undefined;
-  // Validates X-Telegram-Bot-Api-Secret-Token on every incoming webhook request (Bot API 7.0+).
-  // Telegraf registers this with Telegram via setWebhook; requests missing or mismatching the header are rejected before any handler runs.
-  readonly TELEGRAM_WEBHOOK_SECRET_TOKEN?: string | undefined;
 
   // Database
   readonly DATABASE_TYPE?: string | undefined;
@@ -197,8 +194,6 @@ export const env: EnvConfig = {
   ERROR_LOG_FILE_PATH: getOptionalEnv('ERROR_LOG_FILE_PATH'),
   // Consumed by telegram/listener.ts — centralised here so dotenv is guaranteed to have run first
   TELEGRAM_WEBHOOK_DOMAIN: getOptionalEnv('TELEGRAM_WEBHOOK_DOMAIN'),
-  // Paired with TELEGRAM_WEBHOOK_DOMAIN — both consumed by telegram/listener.ts in the same webhook block
-  TELEGRAM_WEBHOOK_SECRET_TOKEN: getOptionalEnv('TELEGRAM_WEBHOOK_SECRET_TOKEN'),
 
   // Database
   DATABASE_TYPE: getOptionalEnv('DATABASE_TYPE'),
