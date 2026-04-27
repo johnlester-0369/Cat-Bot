@@ -72,8 +72,3 @@ export async function reactToMessage(
   // The Facebook Page Messenger Send API does not expose a public message reaction endpoint
   throw new Error('reactToMessage is not supported on Facebook Pages.');
 }
-
-export async function getAvatarUrl(_userID: string): Promise<never> {
-  // FB Page Messenger has no page-scoped user profile photo API accessible via the Send API
-  throw new Error('getAvatarUrl is not supported on Facebook Pages.');
-}
