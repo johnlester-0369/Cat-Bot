@@ -241,8 +241,6 @@ src/server/
                                                generateVerifyToken(userId): SHA-256 of userId+'verify'
                                                truncated to 10 hex chars; used as the Facebook webhook
                                                verify_token so Meta can prove ownership without storing
-                                               a separate secret; generateShortId(userId): 8-char hex
-                                               prefix of SHA-256 of userId for short identifier use
 ```
 
 ---
