@@ -60,14 +60,7 @@ export function createPageApi(
           if (isObj) {
             const msgObj = msg as Record<string, unknown>;
             if (msgObj['attachment'] && !msgObj['template']) {
-              // Attachment-only message with optional body caption — send caption first
-              if (msgObj['body']) {
-                await sendTextMessage(pageAccessToken, threadID, {
-                  text: msgObj['body'],
-                });
-              }
-              // The attachment stream was previously discarded here — the caption was sent
-              // but the file never arrived. sendAttachmentMessage delivers it via multipart upload.
+              // Send attachment first so visual media appears above the text caption
               const stream = msgObj[
                 'attachment'
               ] as import('stream').Readable & {
@@ -78,6 +71,13 @@ export function createPageApi(
                 threadID,
                 stream,
               );
+
+              // Send caption after attachment
+              if (msgObj['body']) {
+                result = await sendTextMessage(pageAccessToken, threadID, {
+                  text: msgObj['body'],
+                });
+              }
             } else if (msgObj['template']) {
               // Button Template path — msg.template is the payload object built by lib/replyMessage.ts
               result = await sendTemplateMessage(
