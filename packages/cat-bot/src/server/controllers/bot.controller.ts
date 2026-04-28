@@ -5,6 +5,7 @@ import type {
   CreateBotRequestDto,
   UpdateBotRequestDto,
 } from '@/server/dtos/bot.dto.js';
+import { Platforms } from '@/engine/modules/platform/platform.constants.js';
 
 export class BotController {
   // Session verification happens before any business logic so the service layer
@@ -22,12 +23,16 @@ export class BotController {
       !dto.botNickname ||
       typeof dto.botPrefix !== 'string' ||
       !dto.botPrefix ||
+      !Array.isArray(dto.botAdmins) ||
+      // Facebook Page does not utilize botAdmins since roles are inherited from Page admin roles;
+      // all other platforms require at least one bot admin ID to be securely provisioned.
+      (dto.credentials?.platform !== Platforms.FacebookPage && dto.botAdmins.length === 0) ||
       typeof dto.credentials?.platform !== 'string' ||
       !dto.credentials.platform
     ) {
       res.status(400).json({
         error:
-          'Missing required fields: botNickname, botPrefix, credentials.platform',
+          'Missing or invalid required fields: botNickname, botPrefix, botAdmins, credentials.platform',
       });
       return;
     }
@@ -79,6 +84,25 @@ export class BotController {
     }
 
     const dto = req.body as UpdateBotRequestDto;
+
+    if (
+      typeof dto.botNickname !== 'string' ||
+      !dto.botNickname ||
+      typeof dto.botPrefix !== 'string' ||
+      !dto.botPrefix ||
+      !Array.isArray(dto.botAdmins) ||
+      // Validation parity with creation: ensure admins are supplied for non-FB-Page platforms
+      (dto.credentials?.platform !== Platforms.FacebookPage && dto.botAdmins.length === 0) ||
+      typeof dto.credentials?.platform !== 'string' ||
+      !dto.credentials.platform
+    ) {
+      res.status(400).json({
+        error:
+          'Missing or invalid required fields: botNickname, botPrefix, botAdmins, credentials.platform',
+      });
+      return;
+    }
+
     try {
       await botService.updateBot(userId, sessionId, dto);
       const bot = await botService.getBot(userId, sessionId);
