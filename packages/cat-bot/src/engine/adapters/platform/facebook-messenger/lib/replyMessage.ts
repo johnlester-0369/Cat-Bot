@@ -11,7 +11,7 @@ import { bufferToStream, urlToStream } from '../utils/index.js';
 // FB Messenger MQTT has no native markdown rendering; mdToText converts to styled Unicode characters
 import { mdToText } from '@/engine/utils/md-to-text.util.js';
 import type { ReplyMessageOptions } from '@/engine/adapters/models/api.model.js';
-
+import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 /** fca sendMessage callback message info shape. */
 interface FcaMessageInfo {
   messageID?: string;
@@ -61,7 +61,7 @@ export async function replyMessage(
   const mentions = options.mentions ?? [];
   // Convert markdown to styled Unicode when requested — FB Messenger has no parse_mode equivalent
   const finalMessage =
-    options.style === 'markdown' ? mdToText(message) : message;
+    options.style === MessageStyle.MARKDOWN ? mdToText(message) : message;
 
   // Download URL attachments first — explicit name controls fca MIME detection via .path
   const urlStreams = await Promise.all(

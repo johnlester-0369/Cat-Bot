@@ -11,6 +11,7 @@ import type { InputMedia } from 'telegraf/types';
 import type { EditMessageOptions } from '@/engine/adapters/models/api.model.js';
 import { sanitizeMarkdownV2 } from '../utils/markdownv2.util.js';
 import { streamToBuffer, urlToStream } from '@/engine/utils/streams.util.js';
+import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 
 /** Maps a file extension to a Telegram InputMedia `type` discriminant — used when replacing message media via editMessageMedia. */
 function getMediaType(ext: string): InputMedia['type'] {
@@ -43,7 +44,7 @@ export async function editMessage(
   }
 
   const style = typeof options === 'object' ? options.style : undefined;
-  const parseMode = style === 'markdown' ? 'MarkdownV2' : undefined;
+  const parseMode = style === MessageStyle.MARKDOWN ? 'MarkdownV2' : undefined;
 
   if (parseMode === 'MarkdownV2') text = sanitizeMarkdownV2(text);
 
