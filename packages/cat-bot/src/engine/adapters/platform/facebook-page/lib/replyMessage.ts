@@ -20,9 +20,8 @@ import type { PageApi } from '@/engine/adapters/platform/facebook-page/pageApi.j
 import type { Readable } from 'stream';
 // FB Page Graph API has no markdown support; mdToText converts to styled Unicode characters
 import { mdToText } from '@/engine/utils/md-to-text.util.js';
-
 import type { ReplyMessageOptions } from '@/engine/adapters/models/api.model.js';
-
+import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 /**
  * Note: the `mentions` parameter is accepted but silently ignored — the Facebook Page API
  * has no endpoint for tagging users in Page Messenger conversations.
@@ -50,7 +49,7 @@ export async function replyMessage(
   }
   // Convert markdown to styled Unicode when requested — the FB Page API has no parse_mode equivalent
   const finalMessage =
-    options.style === 'markdown' ? mdToText(message) : message;
+    options.style === MessageStyle.MARKDOWN ? mdToText(message) : message;
 
   // Normalize stream/buffer attachments into Readable streams for multipart upload.
   // URL-based attachments (attachment_url) are handled separately via Graph API server-side fetch —

@@ -24,7 +24,7 @@ import {
 import { buildTelegramMentionEntities } from '../utils/helper.util.js';
 import { sanitizeMarkdownV2 } from '../utils/markdownv2.util.js';
 import type { ReplyMessageOptions } from '@/engine/adapters/models/api.model.js';
-
+import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 // Augment Readable to carry a path property for extension-based routing
 interface AttachmentStream extends Readable {
   path?: string;
@@ -72,7 +72,7 @@ export async function replyMessage(
   // Hoist parseMode before entities — entity byte-offsets must be computed against the final
   // string Telegram actually receives, so sanitisation must happen first.
   // Legacy 'Markdown' mode is intentionally not used — Telegram officially deprecated it.
-  const parseMode = style === 'markdown' ? ('MarkdownV2' as const) : undefined;
+  const parseMode = style === MessageStyle.MARKDOWN ? ('MarkdownV2' as const) : undefined;
 
   // Escape bare MarkdownV2 reserved characters before computing mention entity offsets.
   // The 18 reserved chars (_ * [ ] ( ) ~ ` > # + - = | { } . !) cause 400 Bot API errors

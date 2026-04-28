@@ -6,7 +6,7 @@
 
 import { mdToText } from '@/engine/utils/md-to-text.util.js';
 import type { EditMessageOptions } from '@/engine/adapters/models/api.model.js';
-
+import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 interface FcaApi {
   editMessage(
     body: string,
@@ -29,7 +29,7 @@ export function editMessage(
 
   const style = typeof options === 'object' ? options.style : undefined;
   // Apply unicode text formatting to simulate markdown in platforms lacking native support
-  const finalContent = style === 'markdown' ? mdToText(content) : content;
+  const finalContent = style === MessageStyle.MARKDOWN ? mdToText(content) : content;
 
   return new Promise((resolve, reject) => {
     api.editMessage(finalContent, messageID, (err) =>

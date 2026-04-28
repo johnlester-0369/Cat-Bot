@@ -106,3 +106,88 @@ export function normalizeMessageEvent(
 
   return base;
 }
+
+/**
+ * Normalises an fca-unofficial E2EE message event into the unified message or
+ * message_reply event shape. E2EE events carry a distinct type string ('e2ee_message')
+ * and encryption metadata in the 'e2ee' field.
+ *
+ * Routing: e2ee.replyTo !== null → 'message_reply', null → 'message'.
+ * isE2EE: true and the e2ee object are preserved so the E2EEApiProxy in
+ * event-router.ts can route sends through sendMessageE2EE / sendMediaE2EE
+ * and command modules can detect the encrypted context when needed.
+ */
+export function normalizeE2eeMessageEvent(
+  event: Record<string, unknown>,
+): Record<string, unknown> {
+  const message = (event['body'] as string) ?? '';
+  const e2ee = (event['e2ee'] as Record<string, unknown> | undefined) ?? {};
+  const replyTo =
+    (e2ee['replyTo'] as Record<string, unknown> | null | undefined) ?? null;
+  const isReply = replyTo !== null;
+
+  // E2EE attachments carry encryption fields (mediaKey, directPath, etc.) instead of a
+  // plain URL — pass all fields through so command modules that handle E2EE media can read them.
+  const attachments = ((event['attachments'] as unknown[]) ?? []).map((a) => {
+    const att = a as Record<string, unknown>;
+    return {
+      type: (att['type'] as string) ?? 'unknown',
+      mimeType: att['mimeType'],
+      fileSize: att['fileSize'],
+      width: att['width'],
+      height: att['height'],
+      mediaKey: att['mediaKey'],
+      mediaSha256: att['mediaSha256'],
+      mediaEncSha256: att['mediaEncSha256'],
+      directPath: att['directPath'],
+      url: att['url'] ?? null,
+      isE2EE: true,
+    };
+  });
+
+  const base = {
+    type: isReply ? 'message_reply' : 'message',
+    platform: Platforms.FacebookMessenger,
+    threadID: (event['threadID'] as string) ?? '',
+    senderID: (event['senderID'] as string) ?? '',
+    message,
+    messageID: (event['messageID'] as string) ?? '',
+    args: message.trim().split(/\s+/).filter(Boolean),
+    attachments,
+    isGroup: !!(event['isGroup'] as boolean | undefined),
+    mentions: (event['mentions'] as Record<string, string>) ?? {},
+    // Mirror normalizeMessageEvent: replies use a numeric timestamp; plain messages allow string|number|null
+    timestamp: isReply
+      ? Number(event['timestamp']) || 0
+      : ((event['timestamp'] as number | null) ?? null),
+    // Forwarded so E2EEApiProxy knows to route sends to E2EE fca methods
+    isE2EE: true,
+    e2ee,
+  };
+
+  if (isReply) {
+    // senderId in e2ee.replyTo arrives as BigInt from fca-unofficial — convert to string
+    // for cross-platform consistency (all other senderID fields are plain strings).
+    const senderId = replyTo['senderId'] as
+      | bigint
+      | number
+      | string
+      | undefined;
+    return {
+      ...base,
+      messageReply: {
+        threadID: (event['threadID'] as string) ?? '',
+        messageID: (replyTo['messageId'] as string) ?? '',
+        senderID: senderId !== undefined ? String(senderId) : '',
+        attachments: [],
+        args: message.trim().split(/\s+/).filter(Boolean),
+        message,
+        isGroup: !!(event['isGroup'] as boolean | undefined),
+        mentions: {},
+        timestamp: 0,
+      },
+    };
+  }
+
+  return base;
+}
