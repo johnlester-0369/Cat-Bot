@@ -247,10 +247,16 @@ export default function BotSettingsPage() {
     return false
   })()
 
+  const isFbPage = form.platform === Platforms.FacebookPage
+
+  // Block save if user clears all inputs for platforms that require an admin
+  const hasValidAdmins = isFbPage || form.botAdmins.some((a) => a.trim() !== '')
+
   const disableSave =
     savePhase !== 'idle' ||
     isLoading ||
-    (isCredentialsModified && verificationStatus.phase !== 'success')
+    (isCredentialsModified && verificationStatus.phase !== 'success') ||
+    !hasValidAdmins
 
   // ── Submit ────────────────────────────────────────────────────────────────
 
@@ -313,8 +319,8 @@ export default function BotSettingsPage() {
       const updated = await updateBot(bot.sessionId, {
         botNickname: form.botNickname,
         botPrefix: form.botPrefix,
-        botAdmins: form.botAdmins.filter((a) => a.trim() !== ''),
-        botPremiums: form.botPremiums.filter((p) => p.trim() !== ''),
+        botAdmins: isFbPage ? [] : form.botAdmins.filter((a) => a.trim() !== ''),
+        botPremiums: isFbPage ? [] : form.botPremiums.filter((p) => p.trim() !== ''),
         credentials,
       })
 
@@ -373,7 +379,7 @@ export default function BotSettingsPage() {
           <div>
             <Card.Title as="h3">Bot Identity</Card.Title>
             <Card.Description>
-              Display name, command prefix, and admin user IDs.
+              Display name, command prefix{isFbPage ? '' : ', and admin user IDs'}.
             </Card.Description>
           </div>
         </Card.Header>
@@ -400,7 +406,18 @@ export default function BotSettingsPage() {
 
         <Divider spacing="md" />
 
-        <div className="flex flex-col gap-3">
+        {isFbPage && (
+          <div className="mb-2 mt-[-8px]">
+            <Alert
+              variant="tonal"
+              color="info"
+              title="Role Management"
+              message="Admin and Premium IDs are not needed for Facebook Pages. Access is automatically and securely managed through your Meta Page roles using PSIDs."
+            />
+          </div>
+        )}
+
+        <div className={`flex flex-col gap-3 ${isFbPage ? 'opacity-60' : ''}`}>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-label-md font-medium text-on-surface">
@@ -416,6 +433,7 @@ export default function BotSettingsPage() {
               size="sm"
               leftIcon={<Plus className="h-3.5 w-3.5" />}
               onClick={handleAddAdmin}
+              disabled={isFbPage}
             >
               Add
             </Button>
@@ -429,6 +447,7 @@ export default function BotSettingsPage() {
                     placeholder={`Admin user ID ${index + 1}`}
                     value={adminId}
                     onChange={(e) => handleAdminChange(index, e.target.value)}
+                    disabled={isFbPage}
                   />
                 </div>
                 {form.botAdmins.length > 1 && (
@@ -438,6 +457,7 @@ export default function BotSettingsPage() {
                     iconOnly
                     onClick={() => handleRemoveAdmin(index)}
                     leftIcon={<Trash2 className="h-4 w-4" />}
+                    disabled={isFbPage}
                   />
                 )}
               </div>
@@ -447,7 +467,7 @@ export default function BotSettingsPage() {
 
         <Divider spacing="md" />
 
-        <div className="flex flex-col gap-3">
+        <div className={`flex flex-col gap-3 ${isFbPage ? 'opacity-60' : ''}`}>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-label-md font-medium text-on-surface">
@@ -463,6 +483,7 @@ export default function BotSettingsPage() {
               size="sm"
               leftIcon={<Plus className="h-3.5 w-3.5" />}
               onClick={handleAddPremium}
+              disabled={isFbPage}
             >
               Add
             </Button>
@@ -476,6 +497,7 @@ export default function BotSettingsPage() {
                     placeholder={`Premium user ID ${index + 1}`}
                     value={premiumId}
                     onChange={(e) => handlePremiumChange(index, e.target.value)}
+                    disabled={isFbPage}
                   />
                 </div>
                 {form.botPremiums.length > 1 && (
@@ -485,6 +507,7 @@ export default function BotSettingsPage() {
                     iconOnly
                     onClick={() => handleRemovePremium(index)}
                     leftIcon={<Trash2 className="h-4 w-4" />}
+                    disabled={isFbPage}
                   />
                 )}
               </div>
