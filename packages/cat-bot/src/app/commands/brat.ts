@@ -24,7 +24,7 @@ export const config: CommandConfig = {
   role: Role.ANYONE,
   author: 'AjiroDesu',
   description: 'Generate a Brat-style image with your custom text.',
-  category: 'Image',
+  category: 'Maker',
   usage: '<text>',
   cooldown: 5,
   hasPrefix: true,

@@ -12,7 +12,7 @@ export const config: CommandConfig = {
   role: Role.ANYONE,
   author: 'John Lester',
   description: 'Check if bot is alive',
-  category: '',
+  category: 'info',
   usage: '',
   cooldown: 5,
   hasPrefix: true,

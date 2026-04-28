@@ -26,7 +26,7 @@ export const config: CommandConfig = {
   role: Role.ANYONE,
   author: 'AjiroDesu',
   description: 'Fetch Bible passages or random verses.',
-  category: 'Random',
+  category: 'random',
   usage: '[passage] [--version=<ver>]',
   cooldown: 3,
   hasPrefix: true,

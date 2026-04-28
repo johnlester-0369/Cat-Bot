@@ -26,7 +26,7 @@ export const config: CommandConfig = {
   role: Role.ANYONE,
   author: 'MrkimstersDev, Fixed',
   description: 'Search for anime information using the Jikan API.',
-  category: 'Media',
+  category: 'Anime',
   usage: '<anime title>',
   cooldown: 10,
   hasPrefix: true,

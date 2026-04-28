@@ -47,7 +47,7 @@ export const config: CommandConfig = {
   role: Role.ANYONE,
   author: 'JokeBotDev (ported to Cat-Bot)',
   description: 'Get a random joke to lighten the mood.',
-  category: 'Random',
+  category: 'random',
   usage: '',
   cooldown: 3,
   hasPrefix: true,

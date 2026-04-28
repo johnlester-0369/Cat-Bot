@@ -22,7 +22,7 @@ export const config: CommandConfig = {
   author: 'AjiroDesu',
   description:
     'Chat with a helpful AI assistant using the free Deline OpenAI API.',
-  category: 'AI',
+  category: 'AI Chat',
   usage: '<your message>',
   cooldown: 5,
   hasPrefix: true,

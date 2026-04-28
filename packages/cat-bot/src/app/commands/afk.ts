@@ -55,7 +55,7 @@ export const config: CommandConfig = {
   author: 'AjiroDesu',
   description:
     'Mark yourself as AFK with an optional reason. Auto-clears when you next send a message.',
-  category: 'Utility',
+  category: 'utility',
   usage: [
     '[reason] — go AFK with an optional reason',
     '— run again while AFK to manually clear your status',

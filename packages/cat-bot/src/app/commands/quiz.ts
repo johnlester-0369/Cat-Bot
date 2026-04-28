@@ -42,7 +42,7 @@ export const config: CommandConfig = {
   author: 'John Lester',
   description:
     'Answer a True/False trivia question. Buttons on Discord/Telegram, reactions on Facebook.',
-  category: 'Game',
+  category: 'Games',
   usage: '[easy | medium | hard]',
   cooldown: 10,
   hasPrefix: true,

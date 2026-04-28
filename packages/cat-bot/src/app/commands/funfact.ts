@@ -44,7 +44,7 @@ export const config: CommandConfig = {
   role: Role.ANYONE,
   author: 'FunFactBotDev (ported to Cat-Bot)',
   description: 'Get a random fun fact to brighten your day.',
-  category: 'Random',
+  category: 'random',
   usage: '',
   cooldown: 5,
   hasPrefix: true,

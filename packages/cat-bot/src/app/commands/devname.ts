@@ -15,7 +15,7 @@ export const config: CommandConfig = {
   role: Role.ANYONE,
   author: 'JohnDev19',
   description: 'Generate cool developer usernames.',
-  category: 'Tools',
+  category: 'tools',
   usage: '[name] [style]',
   cooldown: 3,
   hasPrefix: true,

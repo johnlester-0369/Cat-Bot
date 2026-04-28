@@ -47,7 +47,7 @@ export const config: CommandConfig = {
   role: Role.ANYONE,
   author: 'AjiroDesu (ported to Cat-Bot)',
   description: 'Send a random dog image.',
-  category: 'Random',
+  category: 'random',
   usage: '',
   cooldown: 5,
   hasPrefix: true,

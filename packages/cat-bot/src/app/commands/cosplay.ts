@@ -82,7 +82,7 @@ export const config: CommandConfig = {
   role: Role.ANYONE,
   author: 'AjiroDesu (ported to Cat-Bot)',
   description: `Get a random cosplay video from the archive. Costs ${COST_PER_VIDEO} coins per video.`,
-  category: 'Random',
+  category: 'random',
   usage: '',
   cooldown: 5,
   hasPrefix: true,

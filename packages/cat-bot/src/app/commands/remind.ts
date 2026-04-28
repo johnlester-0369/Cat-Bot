@@ -15,7 +15,7 @@ export const config: CommandConfig = {
   role: Role.ANYONE,
   author: 'AjiroDesu',
   description: 'Set a reminder. Supports natural language too.',
-  category: 'Tools',
+  category: 'tools',
   usage: '<5s|10m|2h|1d> <message>',
   cooldown: 3,
   hasPrefix: true,

@@ -12,7 +12,7 @@ export const config: CommandConfig = {
   role: Role.BOT_ADMIN, // Restricted to bot admins — restarting tears down live transport connections
   author: 'John Lester',
   description: 'Restarts the specific bot listener session seamlessly.',
-  category: '',
+  category: 'systen',
   usage: '',
   cooldown: 5,
   hasPrefix: true,

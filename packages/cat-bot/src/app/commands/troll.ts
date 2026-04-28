@@ -12,7 +12,7 @@ export const config: CommandConfig = {
   role: Role.ANYONE,
   author: '@lianecagarah convert by AjiroDesu',
   description: 'Risk your money with this stupid game.',
-  category: 'Gambling Games',
+  category: 'Economy',
   usage: '',
   cooldown: 20,
   hasPrefix: true,

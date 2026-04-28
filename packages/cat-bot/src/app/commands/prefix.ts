@@ -41,7 +41,7 @@ export const config: CommandConfig = {
   author: 'John Lester',
   description:
     'View or change the bot command prefix for this thread or the entire system',
-  category: 'Config',
+  category: 'System',
   usage: '<new_prefix | reset> [-g]',
   cooldown: 5,
   hasPrefix: true,

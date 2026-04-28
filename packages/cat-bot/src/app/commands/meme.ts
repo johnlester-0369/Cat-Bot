@@ -35,7 +35,7 @@ export const config: CommandConfig = {
   role: Role.ANYONE,
   author: 'ShawnDesu',
   description: 'Sends a random meme.',
-  category: 'Random',
+  category: 'random',
   usage: '',
   cooldown: 5,
   hasPrefix: true,

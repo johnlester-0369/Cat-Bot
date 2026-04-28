@@ -38,7 +38,7 @@ export const config: CommandConfig = {
   role: Role.ANYONE,
   author: 'AjiroDesu',
   description: 'Identify a song from an audio message.',
-  category: 'tool',
+  category: 'tools',
   usage: ['(send audio)', '(reply to audio)'],
   cooldown: 5,
   hasPrefix: true,

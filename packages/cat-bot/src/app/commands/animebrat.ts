@@ -23,7 +23,7 @@ export const config: CommandConfig = {
   author: 'AjiroDesu',
   description:
     'Generate a Brat Anime style image with your custom text (anime version of the classic Brat meme).',
-  category: 'Image',
+  category: 'Anime',
   usage: '<text>',
   cooldown: 5,
   hasPrefix: true,

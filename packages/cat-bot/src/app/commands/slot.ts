@@ -29,7 +29,7 @@ export const config: CommandConfig = {
   role: Role.ANYONE,
   author: '@lianecagarah convert by AjiroDesu',
   description: 'Play the slot machine game.',
-  category: 'Games',
+  category: 'Economy',
   usage: '<bet>',
   cooldown: 3,
   hasPrefix: true,
