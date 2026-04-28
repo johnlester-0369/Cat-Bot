@@ -96,6 +96,25 @@ export interface FcaApi {
     cb: (err: unknown) => void,
     force: boolean,
   ): void;
+  // E2EE send methods — required after Meta enabled end-to-end encryption by default
+  // for Messenger private chats. chatJid format: "{numericThreadID}@msgr".
+  sendMessageE2EE(
+    chatJid: string,
+    message: { body?: string; replyToId?: string },
+    cb: (err: unknown, info?: { messageID?: string }) => void,
+  ): void;
+  sendMediaE2EE(
+    chatJid: string,
+    mediaType: 'image' | 'video' | 'audio' | 'document' | 'sticker',
+    data: Buffer,
+    options: { caption?: string; replyToId?: string },
+    cb: (err: unknown, info?: { messageID?: string }) => void,
+  ): void;
+  unsendMessageE2EE(
+    chatJid: string,
+    messageID: string,
+    cb: (err: unknown) => void,
+  ): void;
   getCurrentUserID(): string | number;
   getThreadInfo(
     threadID: string,
