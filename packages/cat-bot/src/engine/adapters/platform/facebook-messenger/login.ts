@@ -19,7 +19,7 @@ import type { SessionLogger } from '@/engine/modules/logger/logger.lib.js'; // R
 // fca-unofficial's default export is the CJS module.exports object — the login function with
 // fcaInstance attached as a property. Import as default to access the full surface.
 // @ts-expect-error - no published @types package
-import fca from '@johnlester-0369/fca-unofficial';
+import fca from '@johnlester-0369/fca-unofficial-e2ee';
 
 /**
  * Logs in via fca-unofficial using the appstate string loaded from the database.
@@ -96,6 +96,7 @@ export async function startBot(
         selfListen: false,
         forceLogin: true,
         logLevel: 'silent',
+        enableE2EE: true
       });
 
       // extra layer of login validation to ensure the appstate is valid
