@@ -26,6 +26,7 @@ import {
   ButtonStyle,
   type ButtonStyleValue,
 } from '@/engine/constants/button-style.constants.js';
+import { createUnifiedThreadInfo } from './thread.model.js';
 
 // Re-export interfaces for backward compatibility
 export type {
@@ -162,7 +163,7 @@ export function createThreadContext(
      * Fetch rich structured information about a thread / group / server.
      * Defaults to the current event thread; pass a different ID to query any accessible thread.
      */
-    getInfo: (targetThreadID) => {
+    getInfo: async (targetThreadID) => {
       const target =
         typeof targetThreadID === 'object' && targetThreadID !== null
           ? getThreadID(targetThreadID)
@@ -170,6 +171,31 @@ export function createThreadContext(
       logger.debug('[context.model] ThreadContext.getInfo called', {
         threadID: target,
       });
+
+      // Fallback for 1:1 threads where getFullThreadInfo might not be supported natively.
+      // By mapping user metadata to the thread schema, we avoid breaking repository layers.
+      if (target === defaultThreadID && event['isGroup'] === false) {
+        try {
+          const targetUserID = (event['senderID'] ?? event['userID'] ?? target) as string;
+          const userInfo = await api.getFullUserInfo(targetUserID);
+          return createUnifiedThreadInfo({
+            platform: api.platform,
+            threadID: target as string,
+            name: userInfo.name,
+            isGroup: false,
+            memberCount: null,
+            participantIDs: [targetUserID],
+            adminIDs: [],
+            avatarUrl: userInfo.avatarUrl,
+            serverID: null,
+          });
+        } catch (err: unknown) {
+          logger.warn('[context.model] Fallback user.getInfo failed for 1:1 thread, proceeding to getFullThreadInfo', {
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
+
       return api.getFullThreadInfo(target as string);
     },
     /**
