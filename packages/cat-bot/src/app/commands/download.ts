@@ -2,16 +2,12 @@
  * /download — Universal Social Media Downloader (Stabilized + Optimized v3)
  *
  * Changes from previous version:
- *   • onChat now uses `config.name` (the actual command name) instead of a hardcoded string.
- *   • Still uses the exact `prefix` destructured from `ctx` (same as onCommand).
- *   • This makes the skip logic fully dynamic and future-proof if the command name ever changes.
- *   • All previous optimizations (direct attachment_url, try/finally, efficiency, no interruption)
+ *   • onChat now skips ANY prefixed message (not just !download) so commands
+ *     that include a URL (e.g. !youtubesummary https://...) are never intercepted.
+ *   • All previous optimizations (direct attachment_url, try/finally, efficiency)
  *     are preserved.
- *   • Facebook downloader now uses the chocomilk API (ZTRdiamond - Zanixon Group).
- *   • YouTube downloader now uses the chocomilk API (ZTRdiamond - Zanixon Group).
- *   • Fixed TS2345 + TS2339 errors: added missing `apiUrl` null-guard in downloadFacebook.
- *   • Updated FacebookDlData interface to match real API response shape (caption, url, media.all).
- *   • Facebook video resolution now falls back to media.all if media.videos is empty.
+ *   • Facebook downloader uses the chocomilk API (ZTRdiamond - Zanixon Group).
+ *   • YouTube downloader uses the chocomilk API (ZTRdiamond - Zanixon Group).
  */
 
 import axios from 'axios';
@@ -43,19 +39,19 @@ interface FacebookDlMediaItem {
   url: string;
 }
 interface FacebookDlData {
-  type: string; // e.g. "reel", "video"
-  url?: string; // original Facebook URL echoed back
+  type: string;
+  url?: string;
   title?: string;
-  caption?: string; // short caption text
+  caption?: string;
   cover?: string;
   media: {
-    all?: FacebookDlMediaItem[]; // all media items combined
+    all?: FacebookDlMediaItem[];
     videos: FacebookDlMediaItem[];
     images: FacebookDlMediaItem[];
   };
 }
 interface FacebookDlResponse {
-  info?: string; // e.g. "Developed by ZTRdiamond - Zanixon Group"
+  info?: string;
   code: number;
   success: boolean;
   data: FacebookDlData;
@@ -159,7 +155,6 @@ function safeFilename(title: string, ext: string): string {
 
 export const config: CommandConfig = {
   name: 'download',
-  /*aliases: [ ... ] */
   version: '1.0.0',
   role: Role.ANYONE,
   author: 'AjiroDesu',
@@ -172,7 +167,7 @@ export const config: CommandConfig = {
   hasPrefix: true,
 };
 
-// ── Platform downloaders (optimized + stabilized) ─────────────────────────────
+// ── Platform downloaders ──────────────────────────────────────────────────────
 
 async function downloadTikTok(rawUrl: string, ctx: AppCtx): Promise<void> {
   const { chat } = ctx;
@@ -432,22 +427,19 @@ export const onCommand = async (ctx: AppCtx): Promise<void> => {
   }
 };
 
-// ── onChat — passive auto-downloader (NO interruption with command) ───────────
+// ── onChat — passive auto-downloader ─────────────────────────────────────────
 
 export const onChat = async (ctx: AppCtx): Promise<void> => {
   const message = (ctx.event['message'] as string | undefined) ?? '';
   if (!message) return;
 
   const trimmed = message.trim();
-
   const { prefix = '!' } = ctx;
-  const commandName = config.name;
 
-  if (
-    trimmed.toLowerCase().startsWith(`${prefix}${commandName}`.toLowerCase())
-  ) {
-    return;
-  }
+  // ✅ FIX: Skip ANY prefixed message — not just !download — so commands
+  // that include a URL (e.g. !youtubesummary https://..., !whatmusic https://...)
+  // are never intercepted by the auto-downloader.
+  if (trimmed.startsWith(prefix)) return;
 
   const rawUrl = extractUrl(message);
   if (!rawUrl || !isValidUrl(rawUrl)) return;
