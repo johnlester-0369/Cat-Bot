@@ -4,23 +4,34 @@
  * Alternative to /help. Presents all commands grouped by category.
  *
  * Flow — button platforms (Discord, Telegram):
- *   1. /menu → Category list with one button per category in a 2-column grid
+ *   1. /menu → Category list with one button per category in a dynamic grid
  *   2. [Category button] → Category detail with a ◀️ Back button
  *   3. [Back button] → Returns to category list in-place
  *
- * Flow — reply platforms (Facebook Messenger, Facebook Page):
- *   1. /menu → Numbered category list; bot message ID is registered with state
- *   2. User replies to bot's message with a number → Category detail is sent
- *      and a NEW numbered category list is sent with its own state registered
- *   3. User can reply to the latest numbered list at any time (unlimited)
+ *   Discord grid layout:
+ *     Discord allows a maximum of 5 ActionRows (button rows) per message and
+ *     5 buttons per row. The chunk size is computed dynamically from the
+ *     category count so the grid never exceeds 5 rows regardless of how many
+ *     categories the bot has. Formula: Math.ceil(count / 5), clamped to [2, 5].
+ *     Up to 25 categories render natively; beyond 25 the grid is capped at 5×5
+ *     and excess categories are listed as plain text below the buttons.
  *
- * Filtering: mirrors /help exactly —
+ *   Telegram uses the same grid (Telegram has no ActionRow cap).
+ *
+ * Flow — reply platforms (Facebook Messenger, Facebook Page):
+ *   1. /menu → Numbered category list sent once; message ID is registered with
+ *      state keyed to that ID.
+ *   2. User replies with a number → Category detail is shown, then the state
+ *      is re-created under the SAME session ID (same original message key).
+ *   3. The user can reply to the SAME original menu message indefinitely —
+ *      no new menu message is ever sent after the initial one.
+ *
+ * Filtering mirrors /help exactly:
  *   • Commands disabled via the dashboard are hidden
  *   • Commands restricted to other platforms are hidden
  *   • Commands whose role level exceeds the invoker's privileges are hidden
  *
- * prefix is always sourced from AppCtx — it is the live session prefix set by
- * the bot admin and is never hardcoded.
+ * prefix is always sourced from AppCtx — never hardcoded.
  */
 
 import type { CommandMap, AppCtx } from '@/engine/types/controller.types.js';
@@ -29,7 +40,6 @@ import { findSessionCommands } from '@/engine/modules/session/bot-session-comman
 import { isPlatformAllowed } from '@/engine/modules/platform/platform-filter.util.js';
 import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 import { ButtonStyle } from '@/engine/constants/button-style.constants.js';
-import { hasNativeButtons } from '@/engine/utils/ui-capabilities.util.js';
 import { Platforms } from '@/engine/modules/platform/platform.constants.js';
 import { isThreadAdmin } from '@/engine/repos/threads.repo.js';
 import { isBotAdmin, isBotPremium } from '@/engine/repos/credentials.repo.js';
@@ -41,7 +51,7 @@ import type { CommandConfig } from '@/engine/types/module-config.types.js';
 export const config: CommandConfig = {
   name: 'menu',
   aliases: ['commands', 'cmds'] as string[],
-  version: '2.0.0',
+  version: '2.1.0',
   role: Role.ANYONE,
   author: 'AjiroDesu',
   description: 'Browse all commands by category.',
@@ -51,18 +61,24 @@ export const config: CommandConfig = {
   hasPrefix: true,
 };
 
+// ── Discord layout constants ───────────────────────────────────────────────────
+
+/**
+ * Discord API hard limits — do not raise these.
+ * https://discord.com/developers/docs/components/reference
+ */
+const DISCORD_MAX_ROWS = 5;
+const DISCORD_MAX_BUTTONS_PER_ROW = 5;
+const DISCORD_MAX_BUTTONS = DISCORD_MAX_ROWS * DISCORD_MAX_BUTTONS_PER_ROW; // 25
+
 // ── State keys (reply-nav platforms only) ─────────────────────────────────────
 
 const STATE = {
   awaiting_category: 'awaiting_category',
 } as const;
 
-// ── Platform helper ───────────────────────────────────────────────────────────
+// ── Platform helpers ──────────────────────────────────────────────────────────
 
-/**
- * Returns true for platforms that do not support native buttons and must use
- * the numbered-reply navigation flow instead.
- */
 function isReplyNavPlatform(platform: string): boolean {
   return (
     platform === Platforms.FacebookMessenger ||
@@ -72,35 +88,42 @@ function isReplyNavPlatform(platform: string): boolean {
 
 // ── Utility helpers ───────────────────────────────────────────────────────────
 
-/** Converts any category text into a clean Title Case display label. */
 function formatCategory(value: string): string {
-  const cleaned = String(value ?? 'Uncategorized')
-    .trim()
-    .replace(/\s+/g, ' ');
+  const cleaned = String(value ?? 'Uncategorized').trim().replace(/\s+/g, ' ');
   if (!cleaned) return 'Uncategorized';
   return cleaned
     .split(' ')
-    .map((word) =>
-      word ? word.charAt(0).toUpperCase() + word.slice(1).toLowerCase() : word,
-    )
+    .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : w))
     .join(' ');
 }
 
-/** Normalized key for case-insensitive category grouping. */
 function categoryKey(value: string): string {
-  return String(value ?? 'Uncategorized')
-    .trim()
-    .replace(/\s+/g, ' ')
-    .toLowerCase();
+  return String(value ?? 'Uncategorized').trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
-/** Chunks a flat array into rows of `size` for the 2-column button grid. */
 function chunk<T>(arr: T[], size: number): T[][] {
   const rows: T[][] = [];
-  for (let i = 0; i < arr.length; i += size) {
-    rows.push(arr.slice(i, i + size));
-  }
+  for (let i = 0; i < arr.length; i += size) rows.push(arr.slice(i, i + size));
   return rows;
+}
+
+/**
+ * Computes the button chunk size that keeps the grid within Discord's 5-row
+ * limit while keeping a minimum of 2 buttons per row for visual balance.
+ *
+ * Examples:
+ *   4  categories → chunkSize 2 → 2 rows  ✅
+ *   10 categories → chunkSize 2 → 5 rows  ✅
+ *   11 categories → chunkSize 3 → 4 rows  ✅
+ *   20 categories → chunkSize 4 → 5 rows  ✅
+ *   25 categories → chunkSize 5 → 5 rows  ✅
+ *   26 categories → grid capped at 25, rest shown as text
+ */
+function discordChunkSize(count: number): number {
+  return Math.min(
+    DISCORD_MAX_BUTTONS_PER_ROW,
+    Math.max(2, Math.ceil(count / DISCORD_MAX_ROWS)),
+  );
 }
 
 // ── Filtering ─────────────────────────────────────────────────────────────────
@@ -114,32 +137,21 @@ async function buildDisabledNames(
   const sessionUserId = native.userId ?? '';
   const sessionId = native.sessionId ?? '';
 
-  // 1 — Dashboard-disabled commands
   if (sessionUserId && sessionId) {
     try {
-      const rows = await findSessionCommands(
-        sessionUserId,
-        native.platform,
-        sessionId,
-      );
+      const rows = await findSessionCommands(sessionUserId, native.platform, sessionId);
       for (const r of rows as { isEnable: boolean; commandName: string }[]) {
         if (!r.isEnable) disabledNames.add(r.commandName);
       }
-    } catch {
-      // Fail-open: DB unreachable — show everything
-    }
+    } catch { /* fail-open */ }
   }
 
-  // 2 — Platform-restricted commands
   for (const mod of commands.values()) {
     const cfg = mod['config'] as Record<string, unknown> | undefined;
     const name = (cfg?.['name'] as string | undefined)?.toLowerCase();
-    if (name && !isPlatformAllowed(mod, native.platform)) {
-      disabledNames.add(name);
-    }
+    if (name && !isPlatformAllowed(mod, native.platform)) disabledNames.add(name);
   }
 
-  // 3 — Role-gated commands
   const senderID = (event['senderID'] ?? event['userID'] ?? '') as string;
   const threadID = (event['threadID'] ?? '') as string;
   const accessibleRoles = new Set<number>([Role.ANYONE]);
@@ -153,23 +165,13 @@ async function buildDisabledNames(
         accessibleRoles.add(Role.PREMIUM);
         accessibleRoles.add(Role.SYSTEM_ADMIN);
       } else {
-        const isAdmin = await isBotAdmin(
-          sessionUserId,
-          native.platform,
-          sessionId,
-          senderID,
-        );
+        const isAdmin = await isBotAdmin(sessionUserId, native.platform, sessionId, senderID);
         if (isAdmin) {
           accessibleRoles.add(Role.THREAD_ADMIN);
           accessibleRoles.add(Role.BOT_ADMIN);
           accessibleRoles.add(Role.PREMIUM);
         } else {
-          const isPremium = await isBotPremium(
-            sessionUserId,
-            native.platform,
-            sessionId,
-            senderID,
-          );
+          const isPremium = await isBotPremium(sessionUserId, native.platform, sessionId, senderID);
           if (isPremium) {
             accessibleRoles.add(Role.THREAD_ADMIN);
             accessibleRoles.add(Role.PREMIUM);
@@ -179,24 +181,19 @@ async function buildDisabledNames(
           }
         }
       }
-    } catch {
-      // Fail-open: default to ANYONE access
-    }
+    } catch { /* fail-open */ }
   }
 
   for (const mod of commands.values()) {
     const cfg = mod['config'] as Record<string, unknown> | undefined;
     const name = (cfg?.['name'] as string | undefined)?.toLowerCase();
-    const cmdRole = Number(
-      (cfg?.['role'] as number | undefined) ?? Role.ANYONE,
-    );
+    const cmdRole = Number((cfg?.['role'] as number | undefined) ?? Role.ANYONE);
     if (name && !accessibleRoles.has(cmdRole)) disabledNames.add(name);
   }
 
   return disabledNames;
 }
 
-/** Deduplicated, alphabetically-sorted visible command modules. */
 function getVisibleMods(
   commands: CommandMap,
   disabledNames: Set<string>,
@@ -213,26 +210,18 @@ function getVisibleMods(
   }
 
   result.sort((a, b) => {
-    const an = String(
-      (a['config'] as Record<string, unknown> | undefined)?.['name'] ?? '',
-    );
-    const bn = String(
-      (b['config'] as Record<string, unknown> | undefined)?.['name'] ?? '',
-    );
+    const an = String((a['config'] as Record<string, unknown> | undefined)?.['name'] ?? '');
+    const bn = String((b['config'] as Record<string, unknown> | undefined)?.['name'] ?? '');
     return an.localeCompare(bn);
   });
 
   return result;
 }
 
-/** Groups visible modules by category, case-insensitive. */
 function groupByCategory(
   mods: Array<Record<string, unknown>>,
 ): Array<[string, Array<Record<string, unknown>>]> {
-  const map = new Map<
-    string,
-    { label: string; mods: Array<Record<string, unknown>> }
-  >();
+  const map = new Map<string, { label: string; mods: Array<Record<string, unknown>> }>();
 
   for (const mod of mods) {
     const cfg = mod['config'] as Record<string, unknown> | undefined;
@@ -240,11 +229,8 @@ function groupByCategory(
     const key = categoryKey(rawCategory);
     const label = formatCategory(rawCategory);
     const entry = map.get(key);
-    if (!entry) {
-      map.set(key, { label, mods: [mod] });
-    } else {
-      entry.mods.push(mod);
-    }
+    if (!entry) map.set(key, { label, mods: [mod] });
+    else entry.mods.push(mod);
   }
 
   return [...map.values()]
@@ -252,21 +238,14 @@ function groupByCategory(
     .map(({ label, mods }) => [label, mods]);
 }
 
-// ── View: Category Detail (shared by both flows) ──────────────────────────────
+// ── Category detail builder (shared) ─────────────────────────────────────────
 
-/**
- * Builds the category detail lines used by both the button flow and the
- * reply-nav flow. Pure function — no side effects.
- */
 function buildCategoryLines(
   catMods: Array<Record<string, unknown>>,
   targetCategory: string,
   prefix: string,
 ): string[] {
-  const lines: string[] = [
-    `**${targetCategory.toUpperCase()} COMMAND CENTER**`,
-    ``,
-  ];
+  const lines: string[] = [`**${targetCategory.toUpperCase()} COMMAND CENTER**`, ``];
 
   for (const mod of catMods) {
     const cfg = mod['config'] as Record<string, unknown> | undefined;
@@ -281,7 +260,7 @@ function buildCategoryLines(
   return lines;
 }
 
-// ── View: Category List — Button Platforms ────────────────────────────────────
+// ── Button Platforms: Category List ──────────────────────────────────────────
 
 async function renderCategoryList(ctx: AppCtx): Promise<void> {
   const { chat, commands, native, event, button, prefix = '' } = ctx;
@@ -291,48 +270,58 @@ async function renderCategoryList(ctx: AppCtx): Promise<void> {
   const categories = groupByCategory(visibleMods);
 
   const flatButtonIds: string[] = [];
-  for (const [cat] of categories) {
+  // Categories that fit inside the Discord 5×5 grid get buttons.
+  const buttonableCategories = categories.slice(0, DISCORD_MAX_BUTTONS);
+  // Overflow categories (>25) get plain-text labels below the grid.
+  const overflowCategories = categories.slice(DISCORD_MAX_BUTTONS);
+
+  for (const [cat] of buttonableCategories) {
     const catId = button.generateID({ id: BUTTON_ID.cat, public: true });
     button.createContext({ id: catId, context: { category: cat } });
-    button.update({
-      id: catId,
-      label: cat,
-      style: ButtonStyle.PRIMARY,
-    });
+    button.update({ id: catId, label: cat, style: ButtonStyle.PRIMARY });
     flatButtonIds.push(catId);
   }
 
-  const buttonGrid: string[][] = chunk(flatButtonIds, 2);
+  // Telegram: fixed 3-column grid per design spec.
+  // Discord: dynamic chunk size so the grid never exceeds 5 ActionRows.
+  const chunkSize =
+    native.platform === Platforms.Telegram
+      ? 3
+      : discordChunkSize(flatButtonIds.length);
+  const buttonGrid: string[][] = chunk(flatButtonIds, chunkSize);
 
-  const message = [
+  const messageLines = [
     `▫️ **Command Menu**`,
     ``,
     `Select a category below`,
-    `💡 ${prefix}help <command> for command details`,
-  ].join('\n');
+  ];
+
+  if (overflowCategories.length > 0) {
+    messageLines.push(
+      ``,
+      `_Additional categories (use \`${prefix}help\`):_`,
+      ...overflowCategories.map(([cat], i) => `${buttonableCategories.length + i + 1}. ${cat}`),
+    );
+  }
+
+  messageLines.push(``, `💡 ${prefix}help <command> for command details`);
 
   const payload = {
     style: MessageStyle.MARKDOWN,
-    message,
+    message: messageLines.join('\n'),
     ...(buttonGrid.length > 0 ? { button: buttonGrid } : {}),
   };
 
   if (event['type'] === 'button_action') {
-    await chat.editMessage({
-      ...payload,
-      message_id_to_edit: event['messageID'] as string,
-    });
+    await chat.editMessage({ ...payload, message_id_to_edit: event['messageID'] as string });
   } else {
     await chat.replyMessage(payload);
   }
 }
 
-// ── View: Category Commands — Button Platforms ────────────────────────────────
+// ── Button Platforms: Category Commands ───────────────────────────────────────
 
-async function renderCategoryCommands(
-  ctx: AppCtx,
-  category: string,
-): Promise<void> {
+async function renderCategoryCommands(ctx: AppCtx, category: string): Promise<void> {
   const { chat, commands, native, event, button, prefix = '' } = ctx;
 
   const disabledNames = await buildDisabledNames(commands, native, event);
@@ -354,33 +343,27 @@ async function renderCategoryCommands(
   const lines = buildCategoryLines(catMods, targetCategory, prefix);
 
   const backId = button.generateID({ id: BUTTON_ID.back, public: true });
-  const backGrid: string[][] = [[backId]];
 
   const payload = {
     style: MessageStyle.MARKDOWN,
     message: lines.join('\n'),
-    button: backGrid,
+    button: [[backId]],
   };
 
   if (event['type'] === 'button_action') {
-    await chat.editMessage({
-      ...payload,
-      message_id_to_edit: event['messageID'] as string,
-    });
+    await chat.editMessage({ ...payload, message_id_to_edit: event['messageID'] as string });
   } else {
     await chat.replyMessage(payload);
   }
 }
 
-// ── View: Numbered Category List — Reply-Nav Platforms ────────────────────────
+// ── Reply-Nav Platforms: Numbered Category List (sent ONCE) ──────────────────
 
 /**
- * Sends a numbered category list and registers a reply state keyed to the
- * returned message ID. The state context stores the ordered category name
- * array so onReply can map a user-typed number directly to a category.
- *
- * Called both from onCommand (first invocation) and from onReply (re-send
- * after each category selection) to create the unlimited-reply loop.
+ * Sends the numbered category menu once and registers state keyed to its
+ * message ID. For unlimited-reply mode the state is re-created under the
+ * same session ID after every reply — this function is only ever called
+ * from onCommand (i.e., the initial /menu invocation).
  */
 async function sendNumberedCategoryList(ctx: AppCtx): Promise<void> {
   const { chat, commands, native, event, state, prefix = '' } = ctx;
@@ -388,7 +371,6 @@ async function sendNumberedCategoryList(ctx: AppCtx): Promise<void> {
   const disabledNames = await buildDisabledNames(commands, native, event);
   const visibleMods = getVisibleMods(commands, disabledNames);
   const categories = groupByCategory(visibleMods);
-
   const categoryNames = categories.map(([cat]) => cat);
 
   const lines: string[] = [
@@ -408,9 +390,6 @@ async function sendNumberedCategoryList(ctx: AppCtx): Promise<void> {
 
   if (!messageID) return;
 
-  // Register state so the user's reply to this specific message is routed here.
-  // context.categories carries the ordered list so onReply can resolve the number
-  // without re-computing the full category list.
   state.create({
     id: state.generateID({ id: String(messageID) }),
     state: STATE.awaiting_category,
@@ -418,13 +397,8 @@ async function sendNumberedCategoryList(ctx: AppCtx): Promise<void> {
   });
 }
 
-// ── View: Category Commands — Reply-Nav Platforms ─────────────────────────────
+// ── Reply-Nav Platforms: Category Commands ────────────────────────────────────
 
-/**
- * Sends the category detail for reply-nav platforms (plain text, no buttons).
- * After sending the detail, re-sends the numbered category list and registers
- * a fresh state entry — this is the mechanism that makes the loop unlimited.
- */
 async function sendCategoryCommandsForReplyNav(
   ctx: AppCtx,
   category: string,
@@ -445,18 +419,14 @@ async function sendCategoryCommandsForReplyNav(
     });
   } else {
     const [, catMods] = catEntry;
-    const lines = buildCategoryLines(catMods, targetCategory, prefix);
     await chat.replyMessage({
       style: MessageStyle.MARKDOWN,
-      message: lines.join('\n'),
+      message: buildCategoryLines(catMods, targetCategory, prefix).join('\n'),
     });
   }
-
-  // Re-send the numbered list and register new state — creates the unlimited loop.
-  await sendNumberedCategoryList(ctx);
 }
 
-// ── Button definitions (button platforms only) ────────────────────────────────
+// ── Button definitions ────────────────────────────────────────────────────────
 
 const BUTTON_ID = { cat: 'cat', back: 'back' } as const;
 
@@ -484,40 +454,58 @@ export const button = {
 
 export const onReply = {
   /**
-   * Fired when the user replies to the bot's numbered category list message.
+   * Fired whenever the user replies to the original numbered menu message.
    *
-   * - Deletes the consumed state first so no stale entry remains.
-   * - Parses the user's reply as a 1-based category index.
-   * - Shows the category commands, then re-sends the numbered list with fresh
-   *   state — this is what makes the loop unlimited.
-   * - Invalid input (non-number, out-of-range) re-sends the menu with a hint
-   *   rather than silently ignoring the reply.
+   * Unlimited-reply mechanism:
+   *   1. Show the requested category's commands.
+   *   2. Delete the current state entry.
+   *   3. Re-create state under the SAME session.id (= same message key).
+   *   4. The original menu message is never re-sent — the user replies to it
+   *      again and this handler fires again, indefinitely.
+   *
+   * Invalid input gets an error reply and the state is immediately re-created
+   * so the user can try again without needing a new /menu invocation.
    */
   [STATE.awaiting_category]: async (ctx: AppCtx): Promise<void> => {
-    const { chat, event, state, session, prefix = '' } = ctx;
+    const { chat, event, state, session } = ctx;
 
     const input = String(event['message'] ?? '').trim();
-    const categoryNames =
-      (session.context['categories'] as string[] | undefined) ?? [];
-
-    // Consume the state before doing anything else — prevents a stale entry
-    // from matching a second reply to the same message.
-    state.delete(session.id);
+    const categoryNames = (session.context['categories'] as string[] | undefined) ?? [];
+    const currentStateId = session.id;
+    const currentContext = session.context;
 
     const num = parseInt(input, 10);
 
     if (isNaN(num) || num < 1 || num > categoryNames.length) {
+      // Show error, but keep state alive so user can retry on the same message.
       await chat.replyMessage({
         style: MessageStyle.MARKDOWN,
-        message: `⚠️ Please reply with a number between 1 and ${categoryNames.length}.`,
+        message: `⚠️ Please reply with a number between **1** and **${categoryNames.length}**.`,
       });
-      // Re-send the menu so the user still has something to reply to.
-      await sendNumberedCategoryList(ctx);
+      // Re-register state on the same message ID so the next reply is still caught.
+      state.delete(currentStateId);
+      state.create({
+        id: currentStateId,
+        state: STATE.awaiting_category,
+        context: currentContext,
+      });
       return;
     }
 
     const selectedCategory = categoryNames[num - 1]!;
+
+    // Show the category — do this BEFORE re-registering state so the detail
+    // message appears before any potential state-related processing.
     await sendCategoryCommandsForReplyNav(ctx, selectedCategory);
+
+    // Re-register state under the SAME session ID (same original menu message key)
+    // so the user can reply to the original message again without a new /menu.
+    state.delete(currentStateId);
+    state.create({
+      id: currentStateId,
+      state: STATE.awaiting_category,
+      context: currentContext,
+    });
   },
 };
 
