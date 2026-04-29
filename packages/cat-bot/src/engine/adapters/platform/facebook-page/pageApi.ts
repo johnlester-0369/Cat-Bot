@@ -264,23 +264,48 @@ export function createPageApi(
 
     async getAvatarUrl(userID: string): Promise<string | null> {
       try {
-        const res = await axios.get<{ profile_pic?: string }>(
-          `${FB_API_BASE}/${userID}`,
-          {
-            params: { fields: 'profile_pic', access_token: pageAccessToken },
+        // WHY /picture edge: The ?fields=profile_pic User Profile API endpoint
+        // requires "Business Asset User Profile Access" (App Review) per official
+        // Meta documentation — most standard Page bots are never approved for it.
+        // The /picture edge (Graph API v25.0) requires only a Page access token for
+        // PSIDs — no App Review needed. redirect=0 (integer, not boolean false) forces
+        // a JSON response instead of the default 302 redirect to the CDN binary.
+        // Axios serialises JS `false` as the string "false" in query params, which the
+        // Graph API may treat as truthy and still return a 302 — so the param is
+        // embedded directly in the URL path as redirect=0 to guarantee correct behaviour.
+        // Response shape: { data: { url, is_silhouette, width, height } }
+        const res = await axios.get<{
+          data?: { url?: string; is_silhouette?: boolean };
+        }>(`${FB_API_BASE}/${userID}/picture?redirect=0`, {
+          params: {
+            type: 'large',
+            access_token: pageAccessToken,
           },
-        );
-        // Profile pic might be undefined if user doesn't have one or permission denied
-        return res.data.profile_pic ?? null;
+        });
+        // is_silhouette = true: user has no profile picture; return null so callers
+        // can render a generic placeholder rather than the FB grey silhouette CDN image
+        if (res.data.data?.is_silhouette) return null;
+        return res.data.data?.url ?? null;
       } catch (err) {
         const axiosErr = err as {
-          response?: { data: unknown };
+          response?: { data?: { error?: { code?: number; message?: string } } };
           message?: string;
         };
         if (isAuthError(err)) onAuthError?.(err);
-        // Graph API errors on profile_pic usually mean the PSID doesn't support it or the user blocked the app
+        // FB error 2018218: Messenger account created with a phone number — the Graph
+        // API User Profile endpoint explicitly does not support these accounts. This is
+        // a permanent platform limitation, not a transient failure; log distinctly so
+        // developers do not spend time debugging a mis-configured credential.
+        const fbCode = axiosErr.response?.data?.error?.code;
+        if (fbCode === 2018218) {
+          logError(
+            `[facebook-page] getAvatarUrl: phone-number Messenger account — profile picture unavailable (FB error 2018218)`,
+            { userID },
+          );
+          return null;
+        }
         logError('❌ getAvatarUrl (page) failed', {
-          error: axiosErr?.response?.data || axiosErr.message,
+          error: axiosErr.response?.data || axiosErr.message,
         });
         return null;
       }
