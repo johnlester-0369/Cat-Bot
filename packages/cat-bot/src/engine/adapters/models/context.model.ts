@@ -174,7 +174,12 @@ export function createThreadContext(
 
       // Fallback for 1:1 threads where getFullThreadInfo might not be supported natively.
       // By mapping user metadata to the thread schema, we avoid breaking repository layers.
-      if (target === defaultThreadID && event['isGroup'] === false) {
+      // Restricted exclusively to Facebook Messenger; other platforms have robust thread info APIs for 1:1 DMs.
+      if (
+        target === defaultThreadID &&
+        event['isGroup'] === false &&
+        api.platform === Platforms.FacebookMessenger
+      ) {
         try {
           const targetUserID = (event['senderID'] ??
             event['userID'] ??
