@@ -110,10 +110,16 @@ export function createPageApi(
           if (isAuthError(err)) {
             onAuthError?.(err);
           }
-          logError('❌ sendMessage (page) failed', {
-            error: axiosErr?.response?.data || axiosErr.message,
+
+          // Log the error without throwing — fca-unofficial compat
+          logError('sendMessage ❌', {
+            error: axiosErr.response?.data || axiosErr.message,
           });
-          if (callback) callback(err, null);
+
+          // Callback with error to match fca-unofficial's error handling pattern
+          if (callback) {
+            callback(err, null);
+          }
         }
       };
       doSend();
