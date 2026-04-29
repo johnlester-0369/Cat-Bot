@@ -59,6 +59,7 @@ export const onCommand = async ({
   chat,
   user,
   event,
+  prefix = '',
 }: AppCtx): Promise<void> => {
   const senderID = event['senderID'] as string;
   const mentions = event['mentions'] as Record<string, string> | undefined;
@@ -86,7 +87,7 @@ export const onCommand = async ({
     } else {
       const targetID = mentionIDs[0] ?? repliedSenderID ?? senderID;
       const avatar = await user.getAvatarUrl(targetID);
-      if (!avatar) throw new Error('Could not fetch user avatar.');
+      if (!avatar) { await chat.replyMessage({ style: MessageStyle.MARKDOWN, message: nonAdminGuide(prefix) }); return; }
       imageUrl = avatar;
     }
 
