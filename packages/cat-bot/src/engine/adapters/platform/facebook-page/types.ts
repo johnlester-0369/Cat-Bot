@@ -20,6 +20,6 @@ export interface FacebookPageConfig {
 }
 
 export interface PlatformEmitter extends EventEmitter {
-  start(commands?: Map<string, unknown>): void;
+  start(commands?: Map<string, unknown>): Promise<void>;
   stop(signal?: string): Promise<void>;
 }

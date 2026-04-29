@@ -199,22 +199,41 @@ export class BotService {
     const platformStr = dto.credentials.platform;
     prefixManager.setPrefix(userId, platformStr, sessionId, dto.botPrefix);
 
-    // Only trigger live slash sync if credentials didn't change.
-    // If they changed, the UI restarts the bot immediately, which safely handles registration on boot.
+    const key = `${userId}:${platformStr}:${sessionId}`;
+    const isActive = sessionManager.isActive(key);
+    const isCurrentlyRetrying = sessionManager.isRetrying(key);
+
     if (!isCredentialsModified) {
-      triggerSlashSync(`${userId}:${platformStr}:${sessionId}`).catch((err) => {
+      // Prefix or non-credential settings changed — sync the live slash menu.
+      triggerSlashSync(key).catch((err) => {
         logger.warn(
           '[bot.service] Slash sync trigger failed on prefix update',
           { error: err },
         );
       });
-    }
-
-    // Clear the old session closure from memory if it is currently stopped.
-    // (If active, the frontend explicitly calls restartBot which will respawn it).
-    const key = `${userId}:${platformStr}:${sessionId}`;
-    if (!sessionManager.isActive(key)) {
-      await sessionManager.unregister(key);
+      // Stale closure should only be cleared when the session is fully at rest.
+      if (!isActive && !isCurrentlyRetrying) {
+        await sessionManager.unregister(key);
+      }
+    } else {
+      // Credentials changed — auto-restart so new tokens take effect immediately
+      // rather than waiting for a manual dashboard restart.
+      if (isActive || isCurrentlyRetrying) {
+        // abortRetry() cancels any live back-off loop before the restart; it is a
+        // no-op when the session is active-and-running (not retrying).
+        sessionManager.abortRetry(key);
+        // Fire-and-forget: the API response must not block on transport boot time.
+        // After abortRetry the isRetrying guard inside restartBot is already cleared.
+        void this.restartBot(userId, sessionId).catch((err) => {
+          logger.error(
+            '[bot.service] Auto-restart on credential update failed (non-fatal)',
+            { error: err },
+          );
+        });
+      } else {
+        // Session was intentionally stopped — only evict the stale lifecycle closure.
+        await sessionManager.unregister(key);
+      }
     }
   }
 
@@ -233,11 +252,15 @@ export class BotService {
   async startBot(userId: string, sessionId: string): Promise<void> {
     const botDetail = await botRepo.getById(userId, sessionId);
     if (!botDetail) throw new Error(`Bot session ${sessionId} not found`);
+    const key = `${userId}:${botDetail.platform}:${sessionId}`;
+    // Start is the only action permitted during retry — abort the back-off loop so
+    // the session boots immediately with the latest credentials from the database.
+    sessionManager.abortRetry(key);
+    if (sessionManager.isLocked(key)) {
+      throw new Error(`Session is locked processing another action.`);
+    }
 
     await botRepo.updateIsRunning(userId, sessionId, true);
-
-    // Key format matches the platform adapter convention: userId:platform:sessionId
-    const key = `${userId}:${botDetail.platform}:${sessionId}`;
 
     // Fast path — session lifecycle already registered (was stopped via stop(), not process-killed)
     try {
@@ -301,10 +324,20 @@ export class BotService {
   async stopBot(userId: string, sessionId: string): Promise<void> {
     const botDetail = await botRepo.getById(userId, sessionId);
     if (!botDetail) throw new Error(`Bot session ${sessionId} not found`);
+    const key = `${userId}:${botDetail.platform}:${sessionId}`;
+    // Stop is blocked during retry — only Start may cancel the back-off loop.
+    // Allowing Stop here would leave the retry loop running orphaned in the background.
+    if (sessionManager.isRetrying(key)) {
+      throw new Error(
+        `Session is in retry state — use Start to abort the retry first, then Stop.`,
+      );
+    }
+    if (sessionManager.isLocked(key)) {
+      throw new Error(`Session is locked processing another action.`);
+    }
 
     await botRepo.updateIsRunning(userId, sessionId, false);
 
-    const key = `${userId}:${botDetail.platform}:${sessionId}`;
     try {
       await sessionManager.stop(key);
     } catch {
@@ -324,6 +357,18 @@ export class BotService {
     if (!botDetail) throw new Error(`Bot session ${sessionId} not found`);
 
     const key = `${userId}:${botDetail.platform}:${sessionId}`;
+    // Restart is blocked during retry for the same reason as Stop — only Start can
+    // cancel the back-off loop safely. updateBot calls abortRetry() before calling
+    // restartBot(), so credential-update auto-restarts bypass this guard correctly.
+    if (sessionManager.isRetrying(key)) {
+      throw new Error(
+        `Session is in retry state — use Start to abort the retry first.`,
+      );
+    }
+    if (sessionManager.isLocked(key)) {
+      throw new Error(`Session is locked processing another action.`);
+    }
+
     // Force a complete teardown of the old session and rebuild from DB
     if (sessionManager.isActive(key)) {
       try {
@@ -352,6 +397,9 @@ export class BotService {
     if (!botDetail) throw new Error(`Bot session ${sessionId} not found`);
 
     const key = `${userId}:${botDetail.platform}:${sessionId}`;
+    if (sessionManager.isLocked(key)) {
+      throw new Error(`Session is locked processing another action.`);
+    }
 
     // Gracefully drain the transport before touching the DB so in-flight messages
     // don't crash against missing credential rows.

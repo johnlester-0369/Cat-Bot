@@ -31,15 +31,34 @@ export interface RetryOptions {
   /**
    * Optional guard — return false to abort retrying immediately without sleeping.
    * Designed for auth/credential errors where every additional attempt is futile.
-   * When absent, all errors are retried up to maxAttempts (existing behaviour).
-   */
+  * When absent, all errors are retried up to maxAttempts (existing behaviour).
+  */
   shouldRetry?: (err: unknown, attempt: number) => boolean;
+  /**
+   * Optional AbortSignal — when aborted, the retry loop exits immediately without
+   * starting another attempt or waiting for the back-off delay to expire.
+   * Platform listeners pass an AbortController.signal here so bot.service.ts can
+   * cancel the loop instantly when the user clicks Start during retry state.
+   */
+  signal?: AbortSignal;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+// Abort-aware sleep: fires immediately when the signal aborts rather than waiting
+// out the full back-off delay, which can be up to 120 s at maximum backoff.
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) { reject(new Error('Retry aborted')); return; }
+    let id: ReturnType<typeof setTimeout>;
+    const handler = () => { clearTimeout(id); reject(new Error('Retry aborted')); };
+    id = setTimeout(() => {
+      signal?.removeEventListener('abort', handler);
+      resolve();
+    }, ms);
+    // { once: true } auto-removes the listener after the signal fires.
+    signal?.addEventListener('abort', handler, { once: true });
+  });
 }
 
 /**
@@ -144,6 +163,10 @@ export async function withRetry<T>(
   let lastErr: unknown;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    // Bail out before starting another transport attempt when the caller aborted.
+    if (options?.signal?.aborted) {
+      throw new Error('Retry aborted');
+    }
     try {
       return await fn();
     } catch (err) {
@@ -172,7 +195,8 @@ export async function withRetry<T>(
         );
       }
 
-      await sleep(delay);
+      // Signal passed so abort fires immediately during the back-off delay.
+      await sleep(delay, options?.signal);
     }
   }
 

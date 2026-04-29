@@ -20,6 +20,88 @@ class SessionManager extends EventEmitter {
   // Tracks which session keys are currently running and their start timestamps (Date.now())
   // Key: `${userId}:${platform}:${sessionId}`
   readonly #active = new Map<string, number>();
+  // Tracks sessions that are currently transitioning state (starting/stopping)
+  readonly #locked = new Map<string, number>();
+  // Tracks sessions currently inside a withRetry back-off loop.
+  // Stored as { abort fn, unique token } — the token prevents a stale finally block
+  // from a previous invocation from evicting a fresher entry when startBot() fires
+  // a new retry sequence before the old one fully unwinds.
+  readonly #retrying = new Map<string, { abort: () => void; token: symbol }>();
+
+  
+  markLocked(key: string): void {
+    // WHY: Support reentrant locks so nested calls increment a counter instead of unlocking prematurely
+    const count = this.#locked.get(key) ?? 0;
+    this.#locked.set(key, count + 1);
+    if (count === 0) {
+      this.emit('locked', { key, locked: true });
+    }
+  }
+
+  markUnlocked(key: string): void {
+    const count = this.#locked.get(key) ?? 0;
+    if (count <= 1) {
+      this.#locked.delete(key);
+      this.emit('locked', { key, locked: false });
+    } else {
+      this.#locked.set(key, count - 1);
+    }
+  }
+
+  isLocked(key: string): boolean {
+    return this.#locked.has(key);
+  }
+
+  getLockedBySessionId(sessionId: string): boolean {
+    for (const key of this.#locked.keys()) {
+      if (key.endsWith(`:${sessionId}`)) return true;
+    }
+    return false;
+  }
+
+  // ── Retry-state tracking ──────────────────────────────────────────────────────
+
+  /**
+   * Registers the session as inside a withRetry back-off loop and stores the abort
+   * callback. Returns a unique symbol token that must be passed to markNotRetrying
+   * to prevent a stale finally block from clearing a newer registration.
+   */
+  markRetrying(key: string, abort: () => void): symbol {
+    const token = Symbol('retry-token');
+    this.#retrying.set(key, { abort, token });
+    return token;
+  }
+
+  /**
+   * Clears retry state only when the stored token matches the caller's token.
+   * Token-gating ensures that if startBot() calls markRetrying() before the old
+   * startSessionWithRetry finally block fires, the new registration is preserved.
+   */
+  markNotRetrying(key: string, token: symbol): void {
+    if (this.#retrying.get(key)?.token === token) {
+      this.#retrying.delete(key);
+    }
+  }
+
+  /** Returns true while the session is inside an active withRetry back-off loop. */
+  isRetrying(key: string): boolean {
+    return this.#retrying.has(key);
+  }
+
+  /**
+   * Cancels the active back-off retry loop for the given session and returns true.
+   * Returns false when the session was not in retry state (no-op safe).
+   *
+   * Called by startBot() so clicking Start during retry immediately cancels the loop
+   * and boots a fresh transport with the latest credentials from the database.
+   */
+  abortRetry(key: string): boolean {
+    const entry = this.#retrying.get(key);
+    if (!entry) return false;
+    entry.abort();
+    this.#retrying.delete(key);
+    return true;
+  }
 
   /**
    * Register an active listener's lifecycle handles against its canonical key.
@@ -42,7 +124,6 @@ class SessionManager extends EventEmitter {
     // Start re-initializes them.
     await session.start();
   }
-
   /**
    * Stops a specific listener without restarting it.
    * Called by the management API on Stop — does NOT flip isRunning in the DB (service layer owns that).

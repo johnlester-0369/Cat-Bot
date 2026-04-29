@@ -7,6 +7,16 @@
  *   - slash-commands.ts → Command menu registration across broadcast scopes
  *   - handlers.ts       → All Telegraf update handler registrations
  *
+ * Retry architecture:
+ *   emitter.start() owns an exponential-backoff retry loop (up to 10 attempts,
+ *   3 s → 120 s). Two guards prevent zombie concurrency:
+ *     isLocked   — another transition is actively running
+ *     isRetrying — back-off sleep is in progress
+ *   Start during retry aborts the loop and boots fresh with latest DB credentials.
+ *   Stop/Restart are blocked at the service layer during retry.
+ *   markActive fires only after full successful boot; markInactive fires on every
+ *   failed attempt to keep the dashboard in sync.
+ *
  * Lifecycle (per Telegraf docs — all handlers must be registered BEFORE launch):
  *   1. Construct Telegraf instance
  *   2. Register or clear slash command menu across all broadcast scopes
@@ -20,7 +30,7 @@ import type { TelegramConfig, TelegramEmitter } from './types.js';
 import { registerSlashMenu } from './slash-commands.js';
 import { attachHandlers } from './handlers.js';
 import { sessionManager } from '@/engine/modules/session/session-manager.lib.js';
-import { isAuthError } from '@/engine/lib/retry.lib.js';
+import { withRetry, isAuthError } from '@/engine/lib/retry.lib.js';
 import {
   PLATFORM_TO_ID,
   Platforms,
@@ -42,6 +52,7 @@ import {
   unregisterTelegramWebhookHandler,
 } from '@/engine/modules/session/telegram-webhook.registry.js';
 import { generateTelegramSecretToken } from '@/server/utils/hash.util.js';
+import { botRepo } from '@/server/repos/bot.repo.js';
 
 /**
  * Creates a Telegram platform listener.
@@ -62,189 +73,259 @@ export function createTelegramListener(
     sessionId: config.sessionId,
   });
 
+  /**
+   * Boots the Telegram transport with an internal exponential-backoff retry loop.
+   *
+   * Spam protection:
+   *   isLocked   — another transition is actively running (concurrent op guard)
+   *   isRetrying — back-off sleep in progress (idle retry guard)
+   * Both checks are synchronous before any await — no race window.
+   */
   emitter.start = async (
     commands: Map<string, Record<string, unknown>>,
   ): Promise<void> => {
-    // Store for the slash-sync closure — captured by reference so restarts see the new commands Map
-    activeCommands = commands;
-
-    sessionLogger.info('[telegram] Starting Listener...');
-
-    activeBot = new Telegraf(config.botToken);
-
-    // Validate bot token with an explicit getMe() call before registering handlers or launching.
-    // bot.launch() calls getMe internally as a fire-and-forget Promise — if it times out or returns
-    // 401, the rejection escapes to app.ts's process.once('unhandledRejection') which crashes every
-    // session. Calling getMe() here surfaces the error inside start() where withRetry can classify it:
-    //   - ETIMEDOUT / network → rethrow → withRetry retries with backoff
-    //   - HTTP 401 Unauthorized → rethrow → shouldRetry returns false → session goes offline
-    try {
-      await activeBot.telegram.getMe();
-    } catch (err) {
-      activeBot = null; // Release the instance — a fresh one is created on the next attempt
-      throw err; // Propagate so startSessionWithRetry's shouldRetry can classify it
-    }
-
-    // Step 1: Register or clear slash command menu across all broadcast scopes
-    await registerSlashMenu(
-      activeBot,
-      commands,
-      config.prefix,
-      config.userId,
-      config.sessionId,
-      sessionLogger,
-    );
-
-    // Step 2: Attach all update handlers — must happen before bot.launch()
-    attachHandlers(
-      activeBot,
-      emitter,
-      config.prefix,
-      config.userId,
-      config.sessionId,
-    );
-
-    // Catch errors thrown inside any Telegraf middleware or handler.
-    // Without this, handler rejections surface as unhandled promise rejections
-    // which crash Node ≥15 and take down every other platform session.
-    // _ctx typed as unknown because callback_query / message contexts have different shapes.
-    activeBot.catch((err: unknown, _ctx: unknown) => {
-      sessionLogger.error('[telegram] Handler error (session continues)', {
-        error: err,
-      });
-    });
-
-    // Step 3: Start receiving updates.
-    // Webhook mode: set TELEGRAM_WEBHOOK_DOMAIN to your public HTTPS domain (e.g. "example.com").
-    //   → bot.createWebhook() registers the URL with Telegram's Bot API and returns a
-    //     RequestListener. The handler is stored in the registry so server/app.ts can route
-    //     incoming POST requests to this session without an extra port or server.
-    // Polling mode (default): no public domain required; works in local development.
-    const rawWebhookDomain = env.TELEGRAM_WEBHOOK_DOMAIN;
-    if (rawWebhookDomain) {
-      // Strip any protocol prefix — Telegraf builds the full HTTPS URL from the bare domain.
-      const domain = rawWebhookDomain.replace(/^https?:\/\//, '');
-      const webhookPath = `/api/v1/telegram-webhook/${config.userId}/${config.sessionId}`;
-      const handler = await activeBot.createWebhook({
-        domain,
-        path: webhookPath,
-        // Derived from ENCRYPTION_KEY + userId + sessionId — unique per session, no extra env var.
-        // Telegraf validates X-Telegram-Bot-Api-Secret-Token on every POST; non-Telegram senders rejected.
-        secret_token: generateTelegramSecretToken(
-          config.userId,
-          config.sessionId,
-        ),
-        // message_reaction is opt-in since Bot API 7.0 — Telegram only delivers these
-        // updates to a webhook endpoint when allowed_updates is explicitly set via
-        // setWebhook(). createWebhook() spreads extra keys directly into setWebhook(),
-        // so omitting this list means reactions silently never arrive in webhook mode.
-        // Must mirror the allowedUpdates array in the polling launch() call below.
-        allowed_updates: [
-          'message',
-          'message_reaction',
-          'message_reaction_count',
-          'callback_query',
-        ],
-      });
-      registerTelegramWebhookHandler(
-        `${config.userId}:${config.sessionId}`,
-        handler,
-      );
-      sessionLogger.info(
-        `[telegram] Webhook mode active — Telegram will POST to https://${domain}${webhookPath}`,
-      );
-    } else {
-      // Long-polling fallback — all handlers must be registered before launch() per Telegraf docs.
-      activeBot
-        .launch({
-          // message_reaction and message_reaction_count are opt-in since Bot API 7.0 —
-          // Telegram does not deliver them unless explicitly requested here.
-          allowedUpdates: [
-            'message',
-            'message_reaction',
-            'message_reaction_count',
-            'callback_query',
-          ],
-        })
-        .catch((err: unknown) => {
-          // "Bot is stopped!" is emitted during graceful stop() — not an error condition.
-          // All other errors are logged per-session so one failing account never brings down others.
-          if (err instanceof Error && err.message === 'Bot is stopped!') return;
-          if (isAuthError(err)) {
-            sessionLogger.error(
-              '[telegram] Session offline — bot token revoked during active polling',
-              { error: err },
-            );
-            // Alert UI proactively if token dies mid-session
-            void sessionManager.markInactive(
-              `${config.userId}:${Platforms.Telegram}:${config.sessionId}`,
-            );
-          } else {
-            sessionLogger.warn(
-              '[telegram] Polling interrupted (non-fatal; will recover if network restores)',
-              { error: err },
-            );
-          }
-        });
-      sessionLogger.info('[telegram] Bot running (long-polling).');
-    }
-
-    sessionLogger.info('[telegram] Listener active');
-
-    // Register the slash sync callback AFTER launch succeeds.
-    // The closure captures activeBot and activeCommands by variable reference so restarts automatically
-    // bind to the new Telegraf instance without needing to re-register.
     const smKey = `${config.userId}:${Platforms.Telegram}:${config.sessionId}`;
-    registerSlashSync(smKey, async () => {
-      if (!activeBot || !activeCommands) return;
-      const livePrefix = prefixManager.getPrefix(
-        config.userId,
-        Platforms.Telegram,
-        config.sessionId,
-      );
-      // Fetch current enabled/disabled state from DB to filter the command menu accurately
-      const rows = await findSessionCommands(
-        config.userId,
-        Platforms.Telegram,
-        config.sessionId,
-      );
-      // WHY: Explicitly cast as Set<string> because database exports fall back to `any`, causing Set<unknown> inference
-      const disabledNames = new Set<string>(
-        rows
-          .filter(
-            (r: { isEnable: boolean; commandName: string }) => !r.isEnable,
-          )
-          .map((r: { commandName: string }) => r.commandName),
-      );
-      await registerSlashMenu(
-        activeBot,
-        activeCommands,
-        livePrefix,
-        config.userId,
-        config.sessionId,
-        sessionLogger,
-        disabledNames,
-        true, // forceRegister — dashboard toggle changes enabled-set, not the config hash
-      );
-    });
+    if (sessionManager.isLocked(smKey)) return;
+    if (sessionManager.isRetrying(smKey)) return;
+
+    // Claim retry slot synchronously so a rapid second call sees isRetrying = true.
+    const controller = new AbortController();
+    const retryToken = sessionManager.markRetrying(smKey, () => controller.abort());
+
+    // Signal the dashboard offline immediately; markActive fires on successful boot only.
+    void sessionManager.markInactive(smKey);
+
+    let isFirstAttempt = true;
+
+    try {
+      await withRetry(
+        async () => {
+          if (controller.signal.aborted) throw new Error('Retry aborted');
+
+          // Tear down partial state from the previous failed attempt before retrying.
+          if (!isFirstAttempt) {
+            try {
+              unregisterSlashSync(smKey);
+              unregisterTelegramWebhookHandler(`${config.userId}:${config.sessionId}`);
+              activeCommands = null;
+              if (activeBot) {
+                try { activeBot.stop('Restarting'); } catch { /* suppress "not running" */ }
+                activeBot = null;
+              }
+            } catch {
+              // Non-fatal — a failed cleanup must not block the next start attempt
+            }
+          }
+          isFirstAttempt = false;
+
+          sessionManager.markLocked(smKey);
+          try {
+            activeCommands = commands;
+
+            sessionLogger.info('[telegram] Starting Listener...');
+
+            // WHY: Fetching inside the retry loop guarantees every attempt uses the
+            // latest credentials — covers credential-update auto-restarts.
+            const botDetail = await botRepo.getById(config.userId, config.sessionId);
+            const botToken = botDetail
+              ? ((botDetail.credentials as any).telegramToken ?? config.botToken)
+              : config.botToken;
+            const prefix = botDetail
+              ? (botDetail.prefix ?? config.prefix)
+              : config.prefix;
+            activeBot = new Telegraf(botToken);
+
+            // Validate bot token before registering handlers or launching.
+            // bot.launch() calls getMe() fire-and-forget — if it fails, the rejection
+            // escapes to an unhandledRejection and can crash every platform session.
+            // Calling getMe() here lets withRetry classify it: 401 → auth error → no retry.
+            try {
+              await activeBot.telegram.getMe();
+            } catch (err) {
+              activeBot = null; // Release — a fresh instance is created on the next attempt
+              throw err;
+            }
+
+            // Step 1: Register or clear slash command menu across all broadcast scopes
+            await registerSlashMenu(
+              activeBot,
+              commands,
+              prefix,
+              config.userId,
+              config.sessionId,
+              sessionLogger,
+            );
+
+            // Step 2: Attach all update handlers — must happen before bot.launch()
+            attachHandlers(
+              activeBot,
+              emitter,
+              prefix,
+              config.userId,
+              config.sessionId,
+            );
+
+            // Catch errors thrown inside any Telegraf middleware or handler.
+            // Without this, handler rejections surface as unhandled promise rejections
+            // which crash Node ≥15 and take down every other platform session.
+            activeBot.catch((err: unknown, _ctx: unknown) => {
+              sessionLogger.error('[telegram] Handler error (session continues)', {
+                error: err,
+              });
+            });
+
+            // Step 3: Start receiving updates.
+            const rawWebhookDomain = env.TELEGRAM_WEBHOOK_DOMAIN;
+            if (rawWebhookDomain) {
+              const domain = rawWebhookDomain.replace(/^https?:\/\//, '');
+              const webhookPath = `/api/v1/telegram-webhook/${config.userId}/${config.sessionId}`;
+              const handler = await activeBot.createWebhook({
+                domain,
+                path: webhookPath,
+                // Derived from ENCRYPTION_KEY + userId + sessionId — unique per session.
+                secret_token: generateTelegramSecretToken(
+                  config.userId,
+                  config.sessionId,
+                ),
+                // message_reaction is opt-in since Bot API 7.0 — must mirror allowedUpdates below.
+                allowed_updates: [
+                  'message',
+                  'message_reaction',
+                  'message_reaction_count',
+                  'callback_query',
+                ],
+              });
+              registerTelegramWebhookHandler(
+                `${config.userId}:${config.sessionId}`,
+                handler,
+              );
+              sessionLogger.info(
+                `[telegram] Webhook mode active — Telegram will POST to https://${domain}${webhookPath}`,
+              );
+            } else {
+              // Long-polling fallback — all handlers must be registered before launch().
+              activeBot
+                .launch({
+                  allowedUpdates: [
+                    'message',
+                    'message_reaction',
+                    'message_reaction_count',
+                    'callback_query',
+                  ],
+                })
+                .catch((err: unknown) => {
+                  // "Bot is stopped!" is emitted during graceful stop() — not an error condition.
+                  if (err instanceof Error && err.message === 'Bot is stopped!')
+                    return;
+                  if (isAuthError(err)) {
+                    sessionLogger.error(
+                      '[telegram] Session offline — bot token revoked during active polling',
+                      { error: err },
+                    );
+                    void sessionManager.markInactive(smKey);
+                  } else {
+                    sessionLogger.warn(
+                      '[telegram] Polling interrupted (non-fatal; will recover if network restores)',
+                      { error: err },
+                    );
+                  }
+                });
+              sessionLogger.info('[telegram] Bot running (long-polling).');
+            }
+
+            sessionLogger.info('[telegram] Listener active');
+
+            // Register the slash sync callback AFTER launch succeeds.
+            registerSlashSync(smKey, async () => {
+              if (!activeBot || !activeCommands) return;
+              const livePrefix = prefixManager.getPrefix(
+                config.userId,
+                Platforms.Telegram,
+                config.sessionId,
+              );
+              const rows = await findSessionCommands(
+                config.userId,
+                Platforms.Telegram,
+                config.sessionId,
+              );
+              // WHY: Explicitly cast as Set<string> because database exports fall back to `any`
+              const disabledNames = new Set<string>(
+                rows
+                  .filter(
+                    (r: { isEnable: boolean; commandName: string }) => !r.isEnable,
+                  )
+                  .map((r: { commandName: string }) => r.commandName),
+              );
+              await registerSlashMenu(
+                activeBot,
+                activeCommands,
+                livePrefix,
+                config.userId,
+                config.sessionId,
+                sessionLogger,
+                disabledNames,
+                true, // forceRegister — dashboard toggle changes enabled-set, not the config hash
+              );
+            });
+
+            // markActive only after full successful boot.
+            await sessionManager.markActive(smKey);
+          } finally {
+            sessionManager.markUnlocked(smKey);
+          }
+        },
+        {
+          signal: controller.signal,
+          maxAttempts: 10,
+          initialDelayMs: 3_000,
+          backoffFactor: 2,
+          maxDelayMs: 120_000,
+          onRetry: (attempt, err) => {
+            sessionLogger.warn(
+              `[telegram] Start attempt ${attempt}/10 failed — retrying with backoff`,
+              { error: err },
+            );
+            // Keep the dashboard in sync: session remains offline during back-off.
+            void sessionManager.markInactive(smKey);
+          },
+          // Auth errors (HTTP 401 / invalid token) are permanent — stop retrying immediately.
+          shouldRetry: (err) => !isAuthError(err),
+        },
+      ).catch((err: unknown) => {
+        if (controller.signal.aborted) return;
+        sessionLogger.error(
+          `[telegram] Permanent startup failure after 10 attempts — session offline`,
+          { error: err },
+        );
+        void sessionManager.markInactive(smKey);
+      });
+    } finally {
+      sessionManager.markNotRetrying(smKey, retryToken);
+    }
   };
 
   emitter.stop = async (signal?: string): Promise<void> => {
-    sessionLogger.info('[telegram] Stopping Listener...');
-    // Clean up before stopping the bot so stale callbacks don't fire on a dead session
-    unregisterSlashSync(
-      `${config.userId}:${Platforms.Telegram}:${config.sessionId}`,
-    );
-    // Remove the webhook handler entry so server/app.ts returns 404 for this dead session
-    unregisterTelegramWebhookHandler(`${config.userId}:${config.sessionId}`);
-    activeCommands = null;
-    if (activeBot) {
-      try {
-        activeBot.stop(signal || 'Restarting');
-      } catch {
-        // Suppress "Bot is not running!" — start() may have set activeBot but aborted before launch()
+    const smKey = `${config.userId}:${Platforms.Telegram}:${config.sessionId}`;
+    if (sessionManager.isLocked(smKey)) return;
+
+    sessionManager.markLocked(smKey);
+    try {
+      sessionLogger.info('[telegram] Stopping Listener...');
+      // Clean up before stopping the bot so stale callbacks don't fire on a dead session
+      unregisterSlashSync(smKey);
+      // Remove the webhook handler entry so server/app.ts returns 404 for this dead session
+      unregisterTelegramWebhookHandler(`${config.userId}:${config.sessionId}`);
+      activeCommands = null;
+      if (activeBot) {
+        try {
+          activeBot.stop(signal || 'Restarting');
+        } catch {
+          // Suppress "Bot is not running!" — start() may have set activeBot but aborted before launch()
+        }
+        activeBot = null;
       }
-      activeBot = null;
+    } finally {
+      sessionManager.markUnlocked(smKey);
     }
   };
 
