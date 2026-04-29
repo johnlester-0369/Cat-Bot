@@ -17,6 +17,13 @@
  *   'message_unsend'   — Discord, Facebook Messenger
  *   'button_action'    — Discord, Telegram, Facebook Page
  *
+ * Retry architecture:
+ *   Each platform listener (discord/, telegram/, facebook-messenger/, facebook-page/)
+ *   owns its own exponential-backoff retry loop inside emitter.start(). This file is
+ *   a pure orchestrator — it wires start/stop lifecycle handles but applies NO retry
+ *   logic of its own. One failing platform session is fully self-contained and cannot
+ *   cause zombie behaviour in the shared orchestrator.
+ *
  * Transports that do not support a given type never emit it — no guards needed in app.ts.
  */
 
@@ -28,7 +35,8 @@ import { createFacebookPageListener } from './facebook-page/index.js';
 import { createLogger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 import type { SessionLogger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 import { sessionManager } from '@/engine/modules/session/session-manager.lib.js';
-import { withRetry, isAuthError } from '@/engine/lib/retry.lib.js';
+// NOTE: withRetry and isAuthError are intentionally absent here — each platform listener
+// owns its own retry loop so failures are self-contained and predictable.
 import {
   Platforms,
   PLATFORM_TO_ID,
@@ -117,70 +125,6 @@ const FORWARDED_EVENTS = [
   'button_action',
 ] as const;
 
-/**
- * Starts a single platform session with automatic retry on failure.
- *
- * WHY: A plain .catch(log) leaves the session permanently dead after the
- * first startup error (bad token, temporary network blip at boot time).
- * Wrapping with withRetry means transient errors self-heal without operator intervention.
- *
- * isFirstAttempt guard: on the very first call there is nothing to clean up,
- * so we skip stop() to avoid calling unregisterPageSession (FB Page) or
- * destroy() (Discord) on an object that was never initialized.
- *
- * start/stop accept void | Promise<void> — FB Page's PlatformEmitter.start() is
- * typed as returning void (fire-and-forget webhook server bind), so we normalise
- * both callbacks with Promise.resolve() rather than requiring Promise<void> everywhere.
- */
-async function startSessionWithRetry(
-  label: string,
-  smKey: string,
-  start: () => void | Promise<void>,
-  stop: (signal?: string) => void | Promise<void>,
-  sessionLogger: SessionLogger,
-): Promise<void> {
-  let isFirstAttempt = true;
-
-  await withRetry(
-    async () => {
-      // Clean up any partial state from a previous failed attempt before retrying.
-      // All stop() implementations guard against being called on uninitialized instances.
-      if (!isFirstAttempt) {
-        try {
-          await Promise.resolve(stop());
-        } catch {
-          // Non-fatal — a failed stop() should never block the next start() attempt
-        }
-      }
-      isFirstAttempt = false;
-      await Promise.resolve(start());
-    },
-    {
-      maxAttempts: 10,
-      initialDelayMs: 3_000,
-      backoffFactor: 2,
-      maxDelayMs: 120_000,
-      onRetry: (attempt, err) => {
-        sessionLogger.warn(
-          `[${label}] Start attempt ${attempt}/10 failed — retrying with backoff`,
-          { error: err },
-        );
-      },
-      // Auth errors (TokenInvalid, HTTP 401, bad appstate) are permanent — stop retrying immediately.
-      shouldRetry: (err) => !isAuthError(err),
-    },
-  ).catch((err: unknown) => {
-    // All 10 attempts exhausted — log and leave this session offline.
-    // Other sessions on other platforms continue running unaffected.
-    sessionLogger.error(
-      `[${label}] Permanent startup failure after 10 attempts — session offline`,
-      { error: err },
-    );
-    // Ensure dashboard updates to reflect offline status regardless of auth error or exhausted retries
-    void sessionManager.markInactive(smKey);
-  });
-}
-
 // Retain singletons so external services (like bot.service.ts) can dynamically
 // attach new sessions directly to the running application state.
 let globalEmitter: UnifiedPlatformEmitter | null = null;
@@ -225,115 +169,102 @@ export function createUnifiedPlatformListener(
 
   /**
    * Boots all session listeners in parallel.
-   * Errors are caught per-session so one failing account never prevents
-   * the rest of that platform or other platforms from starting.
+   * Each platform listener owns its own retry loop — a failing session is self-contained.
+   * Errors are caught per-session so one failing account never prevents others from starting.
    */
   emitter.start = async (
     commands: Map<string, Record<string, unknown>>,
   ): Promise<void> => {
     activeCommands = commands;
 
+    // Retry and markActive are now owned by each Discord listener internally.
     config.discord.forEach((c, i) => {
       const l = discordListeners[i]!;
-      const label = `${Platforms.Discord}:${c.userId}:${c.sessionId}`;
       const smKey = `${c.userId}:${Platforms.Discord}:${c.sessionId}`;
       const sessionLogger = createLogger({
         userId: c.userId,
         platformId: PLATFORM_TO_ID[Platforms.Discord],
         sessionId: c.sessionId,
       });
-      // markActive only after start() resolves so status tracks real transport readiness
-      const startFn = async () => {
-        await l.start(commands);
-        await sessionManager.markActive(smKey);
-      };
       const stopFn = async (signal?: string) => {
         await sessionManager.markInactive(smKey);
         await l.stop(signal);
       };
       sessionManager.register(smKey, {
-        start: () =>
-          startSessionWithRetry(label, smKey, startFn, stopFn, sessionLogger),
+        start: () => l.start(commands),
         stop: stopFn,
       });
-      void startSessionWithRetry(label, smKey, startFn, stopFn, sessionLogger);
+      void sessionManager.start(smKey).catch((err) =>
+        sessionLogger.error(`[discord] Fatal startup error:`, { error: err })
+      );
     });
 
+    // Retry and markActive are now owned by each Telegram listener internally.
     config.telegram.forEach((c, i) => {
       const l = telegramListeners[i]!;
-      const label = `${Platforms.Telegram}:${c.userId}:${c.sessionId}`;
       const smKey = `${c.userId}:${Platforms.Telegram}:${c.sessionId}`;
       const sessionLogger = createLogger({
         userId: c.userId,
         platformId: PLATFORM_TO_ID[Platforms.Telegram],
         sessionId: c.sessionId,
       });
-      const startFn = async () => {
-        await l.start(commands);
-        await sessionManager.markActive(smKey);
-      };
       const stopFn = async (signal?: string) => {
         await sessionManager.markInactive(smKey);
         await l.stop(signal);
       };
       sessionManager.register(smKey, {
-        start: () =>
-          startSessionWithRetry(label, smKey, startFn, stopFn, sessionLogger),
+        start: () => l.start(commands),
         stop: stopFn,
       });
-      void startSessionWithRetry(label, smKey, startFn, stopFn, sessionLogger);
+      void sessionManager.start(smKey).catch((err) =>
+        sessionLogger.error(`[telegram] Fatal startup error:`, { error: err })
+      );
     });
 
-    // Facebook Messenger MQTT login — no commands/prefix needed at transport level
+    // Facebook Messenger MQTT login — no commands/prefix needed at transport level.
+    // Retry and markActive are now owned by each FB Messenger listener internally.
     config.fbMessenger.forEach((c, i) => {
       const l = fbMessengerListeners[i]!;
-      const label = `${Platforms.FacebookMessenger}:${c.userId}:${c.sessionId}`;
       const smKey = `${c.userId}:${Platforms.FacebookMessenger}:${c.sessionId}`;
       const sessionLogger = createLogger({
         userId: c.userId,
         platformId: PLATFORM_TO_ID[Platforms.FacebookMessenger],
         sessionId: c.sessionId,
       });
-      const startFn = async () => {
-        await l.start();
-        await sessionManager.markActive(smKey);
-      };
       const stopFn = async (signal?: string) => {
         await sessionManager.markInactive(smKey);
         await l.stop(signal);
       };
       sessionManager.register(smKey, {
-        start: () =>
-          startSessionWithRetry(label, smKey, startFn, stopFn, sessionLogger),
+        start: () => l.start(),
         stop: stopFn,
       });
-      void startSessionWithRetry(label, smKey, startFn, stopFn, sessionLogger);
+      void sessionManager.start(smKey).catch((err) =>
+        sessionLogger.error(`[facebook-messenger] Fatal startup error:`, { error: err })
+      );
     });
 
-    // Facebook Page webhook server — Express startup; no commands/prefix at transport level
+    // Facebook Page webhook server — Express startup; no commands/prefix at transport level.
+    // Retry and markActive are now owned by each FB Page listener internally.
     config.fbPage.forEach((c, i) => {
       const l = fbPageListeners[i]!;
-      const label = `${Platforms.FacebookPage}:${c.userId}:${c.sessionId}`;
       const smKey = `${c.userId}:${Platforms.FacebookPage}:${c.sessionId}`;
       const sessionLogger = createLogger({
         userId: c.userId,
         platformId: PLATFORM_TO_ID[Platforms.FacebookPage],
         sessionId: c.sessionId,
       });
-      const startFn = async () => {
-        await Promise.resolve(l.start());
-        await sessionManager.markActive(smKey);
-      };
       const stopFn = async (signal?: string) => {
         await sessionManager.markInactive(smKey);
         await l.stop(signal);
       };
       sessionManager.register(smKey, {
-        start: () =>
-          startSessionWithRetry(label, smKey, startFn, stopFn, sessionLogger),
+        start: () => l.start(),
         stop: stopFn,
       });
-      void startSessionWithRetry(label, smKey, startFn, stopFn, sessionLogger);
+      void sessionManager.start(smKey).catch((err) =>
+        sessionLogger.error(`[facebook-page] Fatal startup error:`, { error: err })
+      );
     });
   };
 
@@ -343,6 +274,9 @@ export function createUnifiedPlatformListener(
 /**
  * Dynamically spawns a new session onto the live platform orchestrator without
  * restarting the process. Used exclusively by the web dashboard integration.
+ *
+ * Retry is owned by each platform listener — this function simply creates the
+ * listener, wires its events to the global emitter, and registers its lifecycle.
  */
 export async function spawnDynamicSession(
   platform: string,
@@ -376,9 +310,7 @@ export async function spawnDynamicSession(
   );
 
   // Generic EventEmitter for wiring up to the unified event pipeline
-  // Exact listener types are captured locally in startFn/stopFn closures to satisfy strict function types
   let listener: EventEmitter;
-  let label = '';
   let smKey = '';
   let startFn: () => Promise<void>;
   let stopFn: (signal?: string) => Promise<void>;
@@ -387,17 +319,14 @@ export async function spawnDynamicSession(
   if (platform === Platforms.Discord) {
     const l = createDiscordListener(sessionConfig as DiscordConfig);
     listener = l;
-    label = `${Platforms.Discord}:${sessionConfig.userId}:${sessionConfig.sessionId}`;
     smKey = `${sessionConfig.userId}:${Platforms.Discord}:${sessionConfig.sessionId}`;
     sessionLogger = createLogger({
       userId: sessionConfig.userId,
       platformId: PLATFORM_TO_ID[Platforms.Discord],
       sessionId: sessionConfig.sessionId,
     });
-    startFn = async () => {
-      await l.start(activeCommands!);
-      await sessionManager.markActive(smKey);
-    };
+    // Retry is inside l.start() — wire directly.
+    startFn = () => l.start(activeCommands!);
     stopFn = async (signal?: string) => {
       await sessionManager.markInactive(smKey);
       await l.stop(signal);
@@ -405,17 +334,13 @@ export async function spawnDynamicSession(
   } else if (platform === Platforms.Telegram) {
     const l = createTelegramListener(sessionConfig as TelegramConfig);
     listener = l;
-    label = `${Platforms.Telegram}:${sessionConfig.userId}:${sessionConfig.sessionId}`;
     smKey = `${sessionConfig.userId}:${Platforms.Telegram}:${sessionConfig.sessionId}`;
     sessionLogger = createLogger({
       userId: sessionConfig.userId,
       platformId: PLATFORM_TO_ID[Platforms.Telegram],
       sessionId: sessionConfig.sessionId,
     });
-    startFn = async () => {
-      await l.start(activeCommands!);
-      await sessionManager.markActive(smKey);
-    };
+    startFn = () => l.start(activeCommands!);
     stopFn = async (signal?: string) => {
       await sessionManager.markInactive(smKey);
       await l.stop(signal);
@@ -425,17 +350,13 @@ export async function spawnDynamicSession(
       sessionConfig as FbMessengerConfig,
     );
     listener = l;
-    label = `${Platforms.FacebookMessenger}:${sessionConfig.userId}:${sessionConfig.sessionId}`;
     smKey = `${sessionConfig.userId}:${Platforms.FacebookMessenger}:${sessionConfig.sessionId}`;
     sessionLogger = createLogger({
       userId: sessionConfig.userId,
       platformId: PLATFORM_TO_ID[Platforms.FacebookMessenger],
       sessionId: sessionConfig.sessionId,
     });
-    startFn = async () => {
-      await l.start();
-      await sessionManager.markActive(smKey);
-    };
+    startFn = () => l.start();
     stopFn = async (signal?: string) => {
       await sessionManager.markInactive(smKey);
       await l.stop(signal);
@@ -443,17 +364,13 @@ export async function spawnDynamicSession(
   } else if (platform === Platforms.FacebookPage) {
     const l = createFacebookPageListener(sessionConfig as FbPageConfig);
     listener = l;
-    label = `${Platforms.FacebookPage}:${sessionConfig.userId}:${sessionConfig.sessionId}`;
     smKey = `${sessionConfig.userId}:${Platforms.FacebookPage}:${sessionConfig.sessionId}`;
     sessionLogger = createLogger({
       userId: sessionConfig.userId,
       platformId: PLATFORM_TO_ID[Platforms.FacebookPage],
       sessionId: sessionConfig.sessionId,
     });
-    startFn = async () => {
-      await Promise.resolve(l.start());
-      await sessionManager.markActive(smKey);
-    };
+    startFn = () => l.start();
     stopFn = async (signal?: string) => {
       await sessionManager.markInactive(smKey);
       await l.stop(signal);
@@ -469,13 +386,14 @@ export async function spawnDynamicSession(
     );
   }
 
-  // 3. Register lifecycle so API restarts (/restart) operate correctly
+  // 3. Register lifecycle — retry is owned by each platform listener
   sessionManager.register(smKey, {
-    start: () =>
-      startSessionWithRetry(label, smKey, startFn, stopFn, sessionLogger),
+    start: startFn,
     stop: stopFn,
   });
 
-  // 4. Boot the session transport
-  void startSessionWithRetry(label, smKey, startFn, stopFn, sessionLogger);
+  // 4. Boot the session transport (retry loop runs inside the listener)
+  void sessionManager.start(smKey).catch((err) => {
+    sessionLogger.error(`[${platform}] Fatal startup error:`, { error: err });
+  });
 }
