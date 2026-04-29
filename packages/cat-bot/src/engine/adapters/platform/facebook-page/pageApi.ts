@@ -134,27 +134,63 @@ export function createPageApi(
     getUserInfo(
       userIds: string[],
       callback: (
-        err: unknown,
+        err: null,
         users: Record<string, { name: string }> | null,
       ) => void,
     ): void {
-      // Graph API has no batch user endpoint — fetch sequentially.
-      // Parallel requests risk hitting rate limits on large arrays.
+      // WHY conversations endpoint: GET /{PSID}?fields=name targets the User node
+      // directly and fails with GraphMethodException error_subcode 33 — it requires
+      // "Business Asset User Profile Access" (App Review). The documented Messenger
+      // Platform approach for reading a sender's name is:
+      //   GET /{page-id}/conversations?user_id={PSID}&fields=participants
+      // which only requires pages_messaging + pages_read_engagement — same permissions
+      // already needed for the bot to receive and send messages.
       const fetchAll = async () => {
         try {
           const results: Record<string, { name: string }> = {};
           for (const uid of userIds) {
-            const res = await axios.get<{ name: string }>(
-              `${FB_API_BASE}/${uid}`,
-              {
-                params: { fields: 'name', access_token: pageAccessToken },
-              },
-            );
-            results[uid] = { name: res.data.name };
+            try {
+              const res = await axios.get<{
+                data: Array<{
+                  participants?: {
+                    data?: Array<{ id: string; name?: string }>;
+                  };
+                }>;
+              }>(`${FB_API_BASE}/${pageId}/conversations`, {
+                params: {
+                  user_id: uid,
+                  fields: 'participants',
+                  access_token: pageAccessToken,
+                },
+              });
+              // Participants includes both the Page and the user — match by PSID
+              // to extract the human sender's display name specifically
+              const conv = res.data.data[0];
+              const participant = conv?.participants?.data?.find(
+                (p) => p.id === uid,
+              );
+              results[uid] = { name: participant?.name ?? `User ${uid}` };
+            } catch (uidErr) {
+              const typedErr = uidErr as {
+                response?: { data?: unknown };
+                message?: string;
+              };
+              logError(`[facebook-page] getUserInfo failed for ${uid}`, {
+                error: typedErr?.response?.data ?? typedErr?.message,
+              });
+              results[uid] = { name: `User ${uid}` };
+            }
           }
           callback(null, results);
         } catch (err) {
-          callback(err, null);
+          const typedErr = err as {
+            response?: { data?: unknown };
+            message?: string;
+          };
+          logError('[facebook-page] getUserInfo outer failure', {
+            error: typedErr?.response?.data ?? typedErr?.message,
+          });
+          callback(null, {});
         }
       };
       fetchAll();
