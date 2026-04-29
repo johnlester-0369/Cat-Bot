@@ -124,17 +124,11 @@ function getOptionalEnv(key: string): string | undefined {
 /**
  * Retrieves and validates NODE_ENV environment variable.
  * @returns Validated NodeEnv value
- * @throws {Error} If NODE_ENV is missing or not a valid value
+ * @throws {Error} If NODE_ENV is provided but not a valid value
  */
 function getNodeEnv(): NodeEnv {
-  const value = process.env.NODE_ENV;
-  if (value === undefined || value === '') {
-    throw new Error(
-      `[ENV] Missing required environment variable: NODE_ENV\n` +
-        `Valid values are: ${VALID_NODE_ENVS.join(', ')}\n` +
-        `Please check your .env file or environment configuration`,
-    );
-  }
+  // Default to development if undefined or empty to improve out-of-the-box DX
+  const value = process.env.NODE_ENV || 'development';
   if (!VALID_NODE_ENVS.includes(value as NodeEnv)) {
     throw new Error(
       `[ENV] Invalid NODE_ENV value: "${value}"\n` +

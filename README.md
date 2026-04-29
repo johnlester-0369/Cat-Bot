@@ -90,7 +90,6 @@ Minimum required fields for local development:
 
 ```env
 PORT=3000
-NODE_ENV=development
 DATABASE_TYPE=json
 
 # Generate with: openssl rand -base64 32
@@ -1232,7 +1231,6 @@ BETTER_AUTH_SECRET=your_production_secret
 BETTER_AUTH_URL=https://your-domain.com
 ENCRYPTION_KEY=your_64_hex_char_key_here
 
-NODE_ENV=production
 LOG_LEVEL=warn
 ```
 
@@ -1745,7 +1743,6 @@ Full reference from `packages/cat-bot/.env.example`:
 ```env
 # Server
 PORT=3000
-NODE_ENV=development               # development | production
 LOG_LEVEL=info                     # error | warn | info | http | verbose | debug | silly
 
 # Auth
