@@ -21,7 +21,6 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/express": "^5.0.6",
-    "@types/lru-cache": "^7.10.10",
     "@types/node": "^25.5.0",
     "@types/nodemailer": "^8.0.0",
     "eslint": "^10.1.0",
