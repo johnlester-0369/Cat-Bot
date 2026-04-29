@@ -3,9 +3,9 @@
  *
  * Image source priority:
  *  1. Photo attachment in the replied message        ← required for FB Page non-admin
- *  2. @mention avatar                                ← optional (page admin / other platforms)
- *  3. Replied-to user's avatar                       ← optional (page admin / other platforms)
- *  4. Sender's own avatar (self)                     ← optional (page admin / other platforms)
+ *  2. @mention avatar                                ← optional
+ *  3. Replied-to user's avatar                       ← optional
+ *  4. Sender's own avatar (self)                     ← optional
  *
  * Degree must be a number between 0 and 360.
  * Note: this endpoint uses the param name `img` (not `image`).
@@ -35,13 +35,27 @@ export const config: CommandConfig = {
   category: 'fun',
   usage: [
     '<degrees 0-360> (reply to uploaded photo)  ← FB Page non-admin: upload a photo then reply to it with this command',
-    '<degrees 0-360> <self>                      ← uses your own avatar (page admin / other platforms)',
-    '<degrees 0-360> @mention                    ← uses the mentioned user\'s avatar (page admin / other platforms)',
-    '<degrees 0-360> (reply to user\'s message)  ← uses the replied user\'s avatar (page admin / other platforms)',
+    '<degrees 0-360> <self>                      ← uses your own avatar',
+    '<degrees 0-360> @mention                    ← uses the mentioned user\'s avatar',
+    '<degrees 0-360> (reply to user\'s message)  ← uses the replied user\'s avatar',
   ],
   cooldown: 5,
   hasPrefix: true,
 };
+
+// ── Non-Page-Admin Usage Guide ──────────────────────────────────────────────
+// Exclusive to Facebook Page non-admin users.
+// Page admins and other platform users do not need to follow these steps.
+
+export const nonAdminGuide: string = [
+  '🎨 **How to use /huerotate (FB Page non-admin only):**',
+  '1️⃣  Send a photo in the conversation (tap the photo/camera icon).',
+  '2️⃣  Reply to that photo with the command: `!huerotate <degrees 0-360>`',
+  '3️⃣  The bot will apply the effect to your uploaded photo and reply with the result.',
+  '',
+  '⚠️ You must reply directly to the photo message — typing the command',
+  '   in a new message without replying to a photo will not work.',
+].join('\n');
 
 // ── Command Handler ───────────────────────────────────────────────────────────
 

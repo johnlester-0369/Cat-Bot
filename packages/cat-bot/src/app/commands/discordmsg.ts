@@ -1,11 +1,22 @@
 /**
  * /discordmsg — Fake Discord Message Generator
  *
- * Builds a fake Discord message card using the sender's username and avatar.
+ * Builds a fake Discord message card. The username and avatar are resolved
+ * with the same image-source priority as all other commands in this set:
+ *
+ * Image / identity source priority:
+ *  1. Photo attachment in the replied message        ← required for FB Page non-admin
+ *     (avatar URL taken from the attachment; username falls back to sender's)
+ *  2. @mention user                                  ← optional
+ *  3. Replied-to user                                ← optional
+ *  4. Sender themselves (self)                       ← optional
+ *
  * The message content comes from the args prompt. Color defaults to #ffcc99
  * and timestamp is generated at the moment the command is run.
  *
- * Usage: !discordmsg <message content>
+ * Usage examples:
+ *   FB Page non-admin : upload photo → reply to it: !discordmsg <message>
+ *   Page admin / other: !discordmsg <message> [@mention | reply | self]
  *
  * ⚠️  `createUrl` registry name 'popcat' is assumed — confirm with the
  *     Cat Bot engine team that this registry key exists.
@@ -25,12 +36,31 @@ export const config: CommandConfig = {
   version: '1.0.0',
   role: Role.ANYONE,
   author: 'AjiroDesu',
-  description: 'Generate a fake Discord message card.',
+  description: 'Generate a fake Discord message card using a photo or avatar.',
   category: 'fun',
-  usage: ['<message content>', '(reply to a message)'],
+  usage: [
+    '<message> (reply to uploaded photo)  ← FB Page non-admin: upload a photo then reply to it with this command',
+    '<message> <self>                      ← uses your own avatar',
+    '<message> @mention                    ← uses the mentioned user\'s avatar',
+    '<message> (reply to user\'s message)  ← uses the replied user\'s avatar',
+  ],
   cooldown: 5,
   hasPrefix: true,
 };
+
+// ── Non-Page-Admin Usage Guide ──────────────────────────────────────────────
+// Exclusive to Facebook Page non-admin users.
+// Page admins and other platform users do not need to follow these steps.
+
+export const nonAdminGuide: string = [
+  '💬 **How to use /discordmsg (FB Page non-admin only):**',
+  '1️⃣  Send a photo in the conversation (tap the photo/camera icon).',
+  '2️⃣  Reply to that photo with the command: `!discordmsg <message>`',
+  '3️⃣  The bot will apply the effect to your uploaded photo and reply with the result.',
+  '',
+  '⚠️ You must reply directly to the photo message — typing the command',
+  '   in a new message without replying to a photo will not work.',
+].join('\n');
 
 // ── Command Handler ───────────────────────────────────────────────────────────
 
@@ -53,16 +83,32 @@ export const onCommand = async ({
     | undefined;
   const repliedSenderID = messageReply?.['senderID'] as string | undefined;
 
-  // Priority: @mention → replied-to user → self
-  const targetID = mentionIDs[0] ?? repliedSenderID ?? senderID;
+  // ── Image source resolution ────────────────────────────────────────────────
+  // Priority 1: photo attachment in the replied message (FB Page non-admin)
+  const repliedAttachments = messageReply?.['attachments'] as
+    | Array<{ type?: string; url?: string; previewUrl?: string }>
+    | undefined;
+  const attachedImageUrl = repliedAttachments?.find(
+    (a) => a.type === 'photo' || a.type === 'image',
+  )?.url;
 
   try {
-    const [username, avatarUrl] = await Promise.all([
-      user.getName(targetID),
-      user.getAvatarUrl(targetID),
-    ]);
+    let avatarUrl: string;
+    let username: string | null;
 
-    if (!avatarUrl) throw new Error('Could not fetch your avatar.');
+    if (attachedImageUrl) {
+      // Non-page-admin FB Page: use the uploaded photo as the avatar
+      avatarUrl = attachedImageUrl;
+      username = await user.getName(senderID);
+    } else {
+      // Page admin / other platforms: resolve from mention → reply → self
+      const targetID = mentionIDs[0] ?? repliedSenderID ?? senderID;
+      [username, avatarUrl] = await Promise.all([
+        user.getName(targetID),
+        user.getAvatarUrl(targetID),
+      ]);
+      if (!avatarUrl) throw new Error('Could not fetch user avatar.');
+    }
 
     const base = createUrl('popcat', '/v2/discord-message');
     if (!base) throw new Error('Failed to build Discord Message API URL.');
