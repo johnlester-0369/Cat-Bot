@@ -1,13 +1,18 @@
 /**
- * /huerotate — Hue Rotate Avatar
+ * /huerotate — Hue Rotate a Photo or User's Avatar
  *
- * Fetches the target user's avatar (mention → replied-to user → self) and
- * applies a hue rotation in degrees using the PopCat /v2/hue-rotate endpoint.
+ * Image source priority:
+ *  1. Photo attachment in the replied message        ← required for FB Page non-admin
+ *  2. @mention avatar                                ← optional (page admin / other platforms)
+ *  3. Replied-to user's avatar                       ← optional (page admin / other platforms)
+ *  4. Sender's own avatar (self)                     ← optional (page admin / other platforms)
+ *
  * Degree must be a number between 0 and 360.
- *
  * Note: this endpoint uses the param name `img` (not `image`).
  *
- * Usage: !huerotate <degrees> [@user]
+ * Usage examples:
+ *   FB Page non-admin : upload photo → reply to it: !huerotate <degrees>
+ *   Page admin / other: !huerotate <degrees> [@mention | reply]
  *
  * ⚠️  `createUrl` registry name 'popcat' is assumed.
  */
@@ -18,18 +23,27 @@ import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 import { createUrl } from '@/engine/utils/api.util.js';
 import type { CommandConfig } from '@/engine/types/module-config.types.js';
 
+// ── Command Config ────────────────────────────────────────────────────────────
+
 export const config: CommandConfig = {
   name: 'huerotate',
   aliases: ['hue'] as string[],
   version: '1.0.0',
   role: Role.ANYONE,
   author: 'AjiroDesu',
-  description: "Rotate the hue of a user's avatar by degrees.",
+  description: "Rotate the hue of a photo or a user's avatar by degrees.",
   category: 'fun',
-  usage: '<degrees 0-360> [@user]',
+  usage: [
+    '<degrees 0-360> (reply to uploaded photo)  ← FB Page non-admin: upload a photo then reply to it with this command',
+    '<degrees 0-360> <self>                      ← uses your own avatar (page admin / other platforms)',
+    '<degrees 0-360> @mention                    ← uses the mentioned user\'s avatar (page admin / other platforms)',
+    '<degrees 0-360> (reply to user\'s message)  ← uses the replied user\'s avatar (page admin / other platforms)',
+  ],
   cooldown: 5,
   hasPrefix: true,
 };
+
+// ── Command Handler ───────────────────────────────────────────────────────────
 
 export const onCommand = async ({
   chat,
@@ -46,7 +60,6 @@ export const onCommand = async ({
     | null
     | undefined;
   const repliedSenderID = messageReply?.['senderID'] as string | undefined;
-  const targetID = mentionIDs[0] ?? repliedSenderID ?? senderID;
 
   // Strip mention tokens and find the degree value from remaining args
   const mentionTexts = Object.values(mentions ?? {});
@@ -73,15 +86,32 @@ export const onCommand = async ({
     return;
   }
 
+  // ── Image source resolution ────────────────────────────────────────────────
+  // Priority 1: photo attachment in the replied message (FB Page non-admin)
+  const repliedAttachments = messageReply?.['attachments'] as
+    | Array<{ type?: string; url?: string; previewUrl?: string }>
+    | undefined;
+  const attachedImageUrl = repliedAttachments?.find(
+    (a) => a.type === 'photo' || a.type === 'image',
+  )?.url;
+
   try {
-    const avatarUrl = await user.getAvatarUrl(targetID);
-    if (!avatarUrl) throw new Error('Could not fetch user avatar.');
+    let imageUrl: string;
+
+    if (attachedImageUrl) {
+      imageUrl = attachedImageUrl;
+    } else {
+      const targetID = mentionIDs[0] ?? repliedSenderID ?? senderID;
+      const avatar = await user.getAvatarUrl(targetID);
+      if (!avatar) throw new Error('Could not fetch user avatar.');
+      imageUrl = avatar;
+    }
 
     const base = createUrl('popcat', '/v2/hue-rotate');
     if (!base) throw new Error('Failed to build Hue Rotate API URL.');
 
     // Note: this endpoint uses `img` not `image`
-    const params = new URLSearchParams({ img: avatarUrl, deg: String(deg) });
+    const params = new URLSearchParams({ img: imageUrl, deg: String(deg) });
     const res = await fetch(`${base}?${params.toString()}`);
     if (!res.ok) throw new Error(`API responded with status ${res.status}`);
 

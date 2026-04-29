@@ -1,5 +1,14 @@
 /**
- * /mnm — M&M Avatar Overlay
+ * /mnm — M&M Avatar Overlay on a Photo or User's Avatar
+ *
+ * Image source priority:
+ *  1. Photo attachment in the replied message        ← required for FB Page non-admin
+ *  2. @mention avatar                                ← optional (page admin / other platforms)
+ *  3. Replied-to user's avatar                       ← optional (page admin / other platforms)
+ *  4. Sender's own avatar (self)                     ← optional (page admin / other platforms)
+ *
+ * The image is passed to the PopCat /v2/mnm endpoint and returned as a
+ * Buffer attachment.
  *
  * ⚠️  `createUrl` registry name 'popcat' is assumed.
  */
@@ -10,17 +19,26 @@ import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 import { createUrl } from '@/engine/utils/api.util.js';
 import type { CommandConfig } from '@/engine/types/module-config.types.js';
 
+// ── Command Config ────────────────────────────────────────────────────────────
+
 export const config: CommandConfig = {
   name: 'mnm',
   version: '1.0.0',
   role: Role.ANYONE,
   author: 'AjiroDesu',
-  description: "Turn a user's avatar into an M&M.",
+  description: "Turn a photo or a user's avatar into an M&M.",
   category: 'fun',
-  usage: '[@user]',
+  usage: [
+    '(reply to uploaded photo)  ← FB Page non-admin: upload a photo then reply to it with this command',
+    '<self>                      ← uses your own avatar (page admin / other platforms)',
+    '@mention                    ← uses the mentioned user\'s avatar (page admin / other platforms)',
+    '(reply to user\'s message)  ← uses the replied user\'s avatar (page admin / other platforms)',
+  ],
   cooldown: 5,
   hasPrefix: true,
 };
+
+// ── Command Handler ───────────────────────────────────────────────────────────
 
 export const onCommand = async ({
   chat,
@@ -35,16 +53,32 @@ export const onCommand = async ({
     | null
     | undefined;
   const repliedSenderID = messageReply?.['senderID'] as string | undefined;
-  const targetID = mentionIDs[0] ?? repliedSenderID ?? senderID;
+
+  // ── Image source resolution ────────────────────────────────────────────────
+  // Priority 1: photo attachment in the replied message (FB Page non-admin)
+  const repliedAttachments = messageReply?.['attachments'] as
+    | Array<{ type?: string; url?: string; previewUrl?: string }>
+    | undefined;
+  const attachedImageUrl = repliedAttachments?.find(
+    (a) => a.type === 'photo' || a.type === 'image',
+  )?.url;
 
   try {
-    const avatarUrl = await user.getAvatarUrl(targetID);
-    if (!avatarUrl) throw new Error('Could not fetch user avatar.');
+    let imageUrl: string;
+
+    if (attachedImageUrl) {
+      imageUrl = attachedImageUrl;
+    } else {
+      const targetID = mentionIDs[0] ?? repliedSenderID ?? senderID;
+      const avatar = await user.getAvatarUrl(targetID);
+      if (!avatar) throw new Error('Could not fetch user avatar.');
+      imageUrl = avatar;
+    }
 
     const base = createUrl('popcat', '/v2/mnm');
     if (!base) throw new Error('Failed to build M&M API URL.');
 
-    const res = await fetch(`${base}?image=${encodeURIComponent(avatarUrl)}`);
+    const res = await fetch(`${base}?image=${encodeURIComponent(imageUrl)}`);
     if (!res.ok) throw new Error(`API responded with status ${res.status}`);
 
     await chat.replyMessage({
