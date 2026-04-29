@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import { requireSession } from '@/server/validators/auth-session.validator.js';
-import { botService } from '@/server/services/bot.service.js';
+import { botService, BusyError } from '@/server/services/bot.service.js';
 import type {
   CreateBotRequestDto,
   UpdateBotRequestDto,
@@ -146,12 +146,16 @@ export class BotController {
       await botService.startBot(userId, sessionId);
       res.status(200).json({ status: 'started' });
     } catch (error) {
+      if (error instanceof BusyError) {
+        res.status(423).json({ error: error.message });
+        return;
+      }
       console.error('[BotController.start]', error);
       res.status(500).json({ error: 'Failed to start bot' });
     }
   }
 
-  // POST /api/v1/bots/:id/stop — persists isRunning = false and tears down the transport
+  // POST /api/v1/bots/:id/stop — persists isRunning = false and tears down the platform transport
   async stop(req: Request, res: Response): Promise<void> {
     const userId = await requireSession(req, res);
     if (!userId) return;
@@ -166,6 +170,10 @@ export class BotController {
       await botService.stopBot(userId, sessionId);
       res.status(200).json({ status: 'stopped' });
     } catch (error) {
+      if (error instanceof BusyError) {
+        res.status(423).json({ error: error.message });
+        return;
+      }
       console.error('[BotController.stop]', error);
       res.status(500).json({ error: 'Failed to stop bot' });
     }
@@ -186,6 +194,10 @@ export class BotController {
       await botService.restartBot(userId, sessionId);
       res.status(200).json({ status: 'restarted' });
     } catch (error) {
+      if (error instanceof BusyError) {
+        res.status(423).json({ error: error.message });
+        return;
+      }
       console.error('[BotController.restart]', error);
       res.status(500).json({ error: 'Failed to restart bot' });
     }

@@ -3,7 +3,7 @@ import axios from 'axios';
 import { botRepo } from '@/server/repos/bot.repo.js';
 import { spawnDynamicSession } from '@/engine/adapters/platform/index.js';
 import { sessionManager } from '@/engine/modules/session/session-manager.lib.js';
-import { logger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
+import { logger, createLogger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
 import { prefixManager } from '@/engine/modules/prefix/prefix-manager.lib.js';
 import { triggerSlashSync } from '@/engine/modules/prefix/slash-sync.lib.js';
 import { Platforms } from '@/engine/modules/platform/platform.constants.js';
@@ -19,6 +19,50 @@ import type {
   GetBotDetailResponseDto,
   UpdateBotRequestDto,
 } from '@/server/dtos/bot.dto.js';
+
+/**
+ * Thrown when a button action (start / stop / restart) is blocked by either the
+ * 10-second per-button cooldown or the session lock — distinct from generic errors
+ * so the controller can return HTTP 423 (Locked) instead of 500.
+ */
+export class BusyError extends Error {
+  readonly action: string;
+  constructor(action: string) {
+    super(`${action} is busy`);
+    this.action = action;
+    this.name = 'BusyError';
+  }
+}
+
+// 10-second per-button cooldown per session — prevents zombie MQTT/WebSocket listener
+// accumulation from rapid Start / Stop / Restart clicks that bypass the session lock
+// (the lock is held only during the transport transition, not across the full lifecycle).
+const ACTION_COOLDOWN_MS = 10_000;
+const actionCooldowns = new Map<string, { expiry: number; action: string }>(); // `${userId}:${sessionId}` → { expiry ms, action }
+
+// Restart action gets its own isolated cooldown so users can immediately restart without hitting the start/stop cooldown.
+const RESTART_COOLDOWN_MS = 10_000;
+const restartCooldowns = new Map<string, { expiry: number; action: string }>(); // `${userId}:${sessionId}` → { expiry ms, action }
+
+// Global session-level cooldown (omitting 'action') prevents interleaving
+// conflicting commands (e.g., start then immediate stop) which can cause zombie listeners.
+function getActiveSessionCooldownAction(userId: string, sessionId: string): string | undefined {
+  const entry = actionCooldowns.get(`${userId}:${sessionId}`);
+  return entry !== undefined && Date.now() < entry.expiry ? entry.action : undefined;
+}
+
+function setSessionCooldown(userId: string, sessionId: string, action: string): void {
+  actionCooldowns.set(`${userId}:${sessionId}`, { expiry: Date.now() + ACTION_COOLDOWN_MS, action });
+}
+
+function getActiveRestartCooldownAction(userId: string, sessionId: string): string | undefined {
+  const entry = restartCooldowns.get(`${userId}:${sessionId}`);
+  return entry !== undefined && Date.now() < entry.expiry ? entry.action : undefined;
+}
+
+function setRestartCooldown(userId: string, sessionId: string, action: string): void {
+  restartCooldowns.set(`${userId}:${sessionId}`, { expiry: Date.now() + RESTART_COOLDOWN_MS, action });
+}
 
 // Fetches the Discord Application (Client) ID via the bot token.
 // GET /users/@me with a Bot token returns the bot user object whose `id` equals
@@ -249,15 +293,29 @@ export class BotService {
    * Falls back to spawnDynamicSession when the session was never registered or the process restarted
    * — rebuilds the platform config from stored credentials so no extra API call is needed.
    */
-  async startBot(userId: string, sessionId: string): Promise<void> {
+  async startBot(userId: string, sessionId: string, bypassCooldown = false): Promise<void> {
     const botDetail = await botRepo.getById(userId, sessionId);
     if (!botDetail) throw new Error(`Bot session ${sessionId} not found`);
+    // Cooldown check must come before the lock so rapid clicks never reach platform.start()
+    // at all — the session lock is released quickly between transitions, giving a narrow
+    // window where a burst of clicks can each pass isLocked and queue concurrent starts.
+    if (!bypassCooldown) {
+      const activeAction = getActiveSessionCooldownAction(userId, sessionId);
+      if (activeAction) {
+        const slog = createLogger({ userId, platformId: botDetail.platformId, sessionId });
+        slog.warn(`[bot.service] start is busy — ${activeAction} in progress`);
+        throw new BusyError('start');
+      }
+      setSessionCooldown(userId, sessionId, 'start');
+    }
     const key = `${userId}:${botDetail.platform}:${sessionId}`;
     // Start is the only action permitted during retry — abort the back-off loop so
     // the session boots immediately with the latest credentials from the database.
     sessionManager.abortRetry(key);
     if (sessionManager.isLocked(key)) {
-      throw new Error(`Session is locked processing another action.`);
+      const slog = createLogger({ userId, platformId: botDetail.platformId, sessionId });
+      slog.warn('[bot.service] start is busy');
+      throw new BusyError('start');
     }
 
     await botRepo.updateIsRunning(userId, sessionId, true);
@@ -324,16 +382,27 @@ export class BotService {
   async stopBot(userId: string, sessionId: string): Promise<void> {
     const botDetail = await botRepo.getById(userId, sessionId);
     if (!botDetail) throw new Error(`Bot session ${sessionId} not found`);
+    // Same burst-guard as startBot — stop must not interleave with an in-flight start
+    // or produce a second MQTT stopListeningAsync call on an already-torn-down connection.
+    const activeAction = getActiveSessionCooldownAction(userId, sessionId);
+    if (activeAction) {
+      const slog = createLogger({ userId, platformId: botDetail.platformId, sessionId });
+      slog.warn(`[bot.service] stop is busy — ${activeAction} in progress`);
+      throw new BusyError('stop');
+    }
+    setSessionCooldown(userId, sessionId, 'stop');
     const key = `${userId}:${botDetail.platform}:${sessionId}`;
     // Stop is blocked during retry — only Start may cancel the back-off loop.
     // Allowing Stop here would leave the retry loop running orphaned in the background.
     if (sessionManager.isRetrying(key)) {
-      throw new Error(
-        `Session is in retry state — use Start to abort the retry first, then Stop.`,
-      );
+      const slog = createLogger({ userId, platformId: botDetail.platformId, sessionId });
+      slog.warn('[bot.service] stop is busy — session is in retry state, use Start to abort');
+      throw new BusyError('stop');
     }
     if (sessionManager.isLocked(key)) {
-      throw new Error(`Session is locked processing another action.`);
+      const slog = createLogger({ userId, platformId: botDetail.platformId, sessionId });
+      slog.warn('[bot.service] stop is busy');
+      throw new BusyError('stop');
     }
 
     await botRepo.updateIsRunning(userId, sessionId, false);
@@ -355,18 +424,29 @@ export class BotService {
   async restartBot(userId: string, sessionId: string): Promise<void> {
     const botDetail = await botRepo.getById(userId, sessionId);
     if (!botDetail) throw new Error(`Bot session ${sessionId} not found`);
+    // Restart spawns a full teardown + fresh transport boot — two rapid clicks would produce
+    // two concurrent boot sequences racing on the same MQTT/WebSocket connection.
+    const activeRestart = getActiveRestartCooldownAction(userId, sessionId);
+    if (activeRestart) {
+      const slog = createLogger({ userId, platformId: botDetail.platformId, sessionId });
+      slog.warn(`[bot.service] restart is busy — ${activeRestart} in progress`);
+      throw new BusyError('restart');
+    }
+    setRestartCooldown(userId, sessionId, 'restart');
 
     const key = `${userId}:${botDetail.platform}:${sessionId}`;
     // Restart is blocked during retry for the same reason as Stop — only Start can
     // cancel the back-off loop safely. updateBot calls abortRetry() before calling
     // restartBot(), so credential-update auto-restarts bypass this guard correctly.
     if (sessionManager.isRetrying(key)) {
-      throw new Error(
-        `Session is in retry state — use Start to abort the retry first.`,
-      );
+      const slog = createLogger({ userId, platformId: botDetail.platformId, sessionId });
+      slog.warn('[bot.service] restart is busy — session is in retry state, use Start to abort');
+      throw new BusyError('restart');
     }
     if (sessionManager.isLocked(key)) {
-      throw new Error(`Session is locked processing another action.`);
+      const slog = createLogger({ userId, platformId: botDetail.platformId, sessionId });
+      slog.warn('[bot.service] restart is busy');
+      throw new BusyError('restart');
     }
 
     // Force a complete teardown of the old session and rebuild from DB
@@ -381,7 +461,7 @@ export class BotService {
     }
     // Unregister so startBot falls through to a fresh spawn with new credentials
     await sessionManager.unregister(key);
-    await this.startBot(userId, sessionId);
+    await this.startBot(userId, sessionId, true);
   }
 
   /**

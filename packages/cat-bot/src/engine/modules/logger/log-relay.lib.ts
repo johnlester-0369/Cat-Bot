@@ -72,4 +72,3 @@ class LogRelay extends EventEmitter {
  * Socket.IO namespace subscribers without triggering Node's memory-leak warning.
  */
 export const logRelay = new LogRelay();
-logRelay.setMaxListeners(50);
