@@ -1215,6 +1215,9 @@ For deep-dive architecture documentation covering each platform adapter, the mid
 
 For production deployments use **NeonDB** (serverless PostgreSQL) or **MongoDB** for durable persistence. Both support the full feature set.
 
+> **⚠️ CRITICAL: Remove `VITE_URL` in Production**
+> Ensure `VITE_URL` is completely removed from your environment variables when deploying to platforms like Render or Railway. Leaving it set (e.g., to `http://localhost:5173`) will cause "trusted origin" errors in the authentication layer (`better-auth`). In production, same-origin is inherently trusted.
+
 ### Option A — NeonDB (Recommended)
 
 NeonDB runs schema initialization automatically at boot via the `dbReady` promise — no manual migration step.
@@ -1748,7 +1751,7 @@ LOG_LEVEL=info                     # error | warn | info | http | verbose | debu
 # Auth
 BETTER_AUTH_SECRET=                # openssl rand -base64 32
 BETTER_AUTH_URL=http://localhost:3000
-VITE_URL=http://localhost:5173     # dev proxy origin
+VITE_URL=http://localhost:5173     # dev proxy origin (REMOVE in production to avoid trusted origin errors)
 
 # Database — choose one
 DATABASE_TYPE=json                 # json | mongodb | neondb | (unset = prisma-sqlite)
