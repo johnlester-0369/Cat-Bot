@@ -32,14 +32,18 @@ export function registerBotMonitorHandlers(io: SocketIOServer): void {
   });
 
   // ── Per-session log forwarding ────────────────────────────────────────────────
+  // ── Per-session log forwarding ────────────────────────────────────────────
   // Routes each keyed log entry to the Socket.IO room for that session so clients
   // subscribed to a specific bot only receive that bot's log stream.
   logRelay.on('log:keyed', (data: { key: string; entry: string }) => {
-    io.to(`bot-log:${data.key}`).emit('bot:log:keyed', data.entry);
+    // Include the session key in the payload so each client-side handler can filter by its
+    // own sessionKey. The singleton socket may join multiple bot-log rooms simultaneously
+    // (concurrent bot detail pages open), making the event name alone insufficient to isolate
+    // which hook instance should process a given delivery.
+    io.to(`bot-log:${data.key}`).emit('bot:log:keyed', { key: data.key, entry: data.entry });
   });
 
   // ── Session status broadcast ──────────────────────────────────────────────────
-  // Session manager emits 'status' whenever markActive/markInactive is called.
   // The key is the full `${userId}:${platform}:${sessionId}` string; the web client
   // extracts the sessionId (UUID) by splitting on ':' and taking the last segment.
   sessionManager.on(
@@ -48,6 +52,10 @@ export function registerBotMonitorHandlers(io: SocketIOServer): void {
       io.emit('bot:status:change', data);
     },
   );
+
+  // Tracks which session keys each socket has subscribed to for accurate subscriber-count
+  // cleanup on disconnect — prevents phantom entries from keeping emitKeyed emitting.
+  const socketSubscriptions = new Map<string, Set<string>>();
 
   // ── Per-connection request handler ────────────────────────────────────────────
   io.on('connection', (socket) => {
@@ -91,12 +99,27 @@ export function registerBotMonitorHandlers(io: SocketIOServer): void {
     socket.on('bot:log:subscribe', (key: unknown) => {
       if (typeof key !== 'string') return;
       void socket.join(`bot-log:${key}`);
-      socket.emit('bot:log:history', logRelay.getKeyedHistory(key));
+      // Guard: only count once per socket per key — a Set deduplicates so re-subscribing
+      // without unsubscribing first does not inflate the count and corrupt later cleanup.
+      const subs = socketSubscriptions.get(socket.id) ?? new Set<string>();
+      socketSubscriptions.set(socket.id, subs);
+      if (!subs.has(key)) {
+        subs.add(key);
+        logRelay.addSubscriber(key);
+      }
+      // Pair key with entries so the client onHistory handler can confirm this delivery
+      // belongs to the session it is managing — same singleton-socket isolation problem as keyed logs.
+      socket.emit('bot:log:history', { key, entries: logRelay.getKeyedHistory(key) });
     });
 
     socket.on('bot:log:unsubscribe', (key: unknown) => {
       if (typeof key !== 'string') return;
       void socket.leave(`bot-log:${key}`);
+      // Only decrement when this socket was actually counted — prevents underflow from
+      // duplicate unsubscribe calls that were never matched by an addSubscriber.
+      if (socketSubscriptions.get(socket.id)?.delete(key)) {
+        logRelay.removeSubscriber(key);
+      }
     });
 
     // Purge the server-side history buffer so the next subscribe hydration on this session
@@ -104,6 +127,19 @@ export function registerBotMonitorHandlers(io: SocketIOServer): void {
     socket.on('bot:log:clear', (key: unknown) => {
       if (typeof key !== 'string') return;
       logRelay.clearKeyedHistory(key);
+    });
+
+    // Decrement subscriber counts for every log room this socket had joined.
+    // Without this, phantom subscriber entries keep emitKeyed emitting into empty rooms
+    // after a browser tab closes — one leaked entry per page visit would accumulate.
+    socket.on('disconnect', () => {
+      const keys = socketSubscriptions.get(socket.id);
+      if (keys) {
+        for (const key of keys) {
+          logRelay.removeSubscriber(key);
+        }
+        socketSubscriptions.delete(socket.id);
+      }
     });
   });
 }

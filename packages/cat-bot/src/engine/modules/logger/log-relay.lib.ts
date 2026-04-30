@@ -26,7 +26,10 @@ class LogRelay extends EventEmitter {
   readonly #history: string[] = [];
   // Per-session sliding windows — keyed by `${userId}:${platformId}:${sessionId}` so the
   // bot detail page can hydrate its console with only that session's buffered history.
-  readonly #keyedHistory = new Map<string, string[]>();
+  readonly #keyedHistory = new Map<string, Array<{ format: () => string; cached?: string }>>();
+  // Tracks active Socket.IO subscriber count per session key. When zero, emitKeyed skips
+  // the EventEmitter dispatch entirely — no bandwidth wasted on unwatched sessions.
+  readonly #subscribers = new Map<string, number>();
 
   constructor() {
     super();
@@ -43,27 +46,66 @@ class LogRelay extends EventEmitter {
   }
 
   /**
-   * Stores `entry` in the per-session sliding window for `key` and emits 'log:keyed'
-   * so bot-monitor.socket.ts can forward the entry to the session-specific Socket.IO room.
+   * Enqueues a lazy format closure in the per-session sliding window for `key`.
+   * The closure is invoked only when a subscriber is actively watching (live emit) or
+   * when `getKeyedHistory` is called (hydration) — chalk rendering never runs for idle sessions.
    * Key format matches session-logger: `${userId}:${platformId}:${sessionId}`.
    */
-  emitKeyed(key: string, entry: string): void {
+  emitKeyed(key: string, format: () => string): void {
+    // Store as a lazy entry — the format closure is cheap to enqueue and captures the same
+    // raw data that would otherwise be pre-rendered into a 150–300 char ANSI string. Idle
+    // sessions accumulate compact closures in the ring buffer instead of rendered strings.
+    const entry: { format: () => string; cached?: string } = { format };
     const hist = this.#keyedHistory.get(key) ?? [];
     hist.push(entry);
     if (hist.length > this.#MAX_HISTORY) hist.shift();
     this.#keyedHistory.set(key, hist);
-    this.emit('log:keyed', { key, entry });
+    // Invoke the closure and broadcast only when a subscriber is watching — this is the
+    // sole code path where chalk formatting runs for an idle (unsubscribed) session's entry.
+    if ((this.#subscribers.get(key) ?? 0) > 0) {
+      const formatted = format();
+      entry.cached = formatted;                    // cache so getKeyedHistory re-uses the same string
+      this.emit('log:keyed', { key, entry: formatted });
+    }
   }
 
-  /** Returns a copy of the per-session sliding window for hydrating a newly subscribed client. */
+  /** Lazily formats and returns the per-session sliding window for hydrating a newly subscribed client. */
   getKeyedHistory(key: string): string[] {
-    return [...(this.#keyedHistory.get(key) ?? [])];
+    // `??=` formats and caches on first access; subsequent calls return the pre-rendered string.
+    // Idle entries (never seen by a subscriber) are formatted exactly once here, on hydration.
+    return (this.#keyedHistory.get(key) ?? []).map((e) => (e.cached ??= e.format()));
   }
 
-  /** Wipes the per-session sliding window. Called on bot stop/restart so the next
+  /**
    *  subscribe hydration delivers only post-restart logs, not stale pre-restart entries. */
   clearKeyedHistory(key: string): void {
     this.#keyedHistory.delete(key);
+  }
+
+  /**
+   * Increments the subscriber count for a session key. Called by bot-monitor.socket.ts
+   * when a client joins the bot-log room — enables live emission in emitKeyed.
+   */
+  addSubscriber(key: string): void {
+    this.#subscribers.set(key, (this.#subscribers.get(key) ?? 0) + 1);
+  }
+
+  /**
+   * Decrements the subscriber count. Called on unsubscribe and socket disconnect.
+   * Dropping to zero means emitKeyed will skip the EventEmitter dispatch again.
+   */
+  removeSubscriber(key: string): void {
+    const count = this.#subscribers.get(key) ?? 0;
+    if (count <= 1) {
+      this.#subscribers.delete(key);
+    } else {
+      this.#subscribers.set(key, count - 1);
+    }
+  }
+
+  /** Returns true when at least one Socket.IO client is subscribed to this session's logs. */
+  isConnected(key: string): boolean {
+    return (this.#subscribers.get(key) ?? 0) > 0;
   }
 }
 

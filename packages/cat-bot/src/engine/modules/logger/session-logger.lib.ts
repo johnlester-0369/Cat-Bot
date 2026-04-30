@@ -102,13 +102,12 @@ export class SessionLogger {
     // Mirrors Winston's `silent: env.isTest` — suppress relay emission during test runs
     // so unit tests don't accumulate phantom entries in the log history sliding window.
     if (env.isTest) return;
-    const line = this.#format(level, message, extra);
-    // Global emission keeps any system-wide log view intact (all sessions visible).
-    logRelay.emit('log', line);
-    // Keyed emission routes this entry to the session-specific Socket.IO room so the
-    // bot detail page receives only logs from the bot it is currently viewing.
     const key = `${this.#meta.userId}:${this.#meta.platformId}:${this.#meta.sessionId}`;
-    logRelay.emitKeyed(key, line);
+    // Lazy closure — chalk ANSI rendering is deferred to LogRelay, which only calls
+    // format() when a subscriber is active (live emit) or on history hydration.
+    // Idle sessions pay zero formatting cost while still accumulating buffered history
+    // so late subscribers receive recent logs when they open the console.
+    logRelay.emitKeyed(key, () => this.#format(level, message, extra));
   }
 
   info(message: string, meta?: Record<string, unknown>): void {
