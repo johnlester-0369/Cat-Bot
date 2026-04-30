@@ -476,8 +476,7 @@ export default function AdminUsersPage() {
                 </Button>
               </Dialog.CloseTrigger>
               <Button
-                variant="filled"
-                color="error"
+                className="!bg-[rgb(var(--light-color-error))] !text-[rgb(var(--light-color-surface))]"
                 size="sm"
                 onClick={() => {
                   void handleBanUser()
