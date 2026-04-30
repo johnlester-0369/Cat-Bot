@@ -3,11 +3,11 @@
  *
  * Registers two push channels onto the shared Socket.IO server:
  *
- *   1. LOG STREAMING
- *      Subscribes to the logRelay EventEmitter (fed by logger.lib.ts's relay
- *      transport) and broadcasts each entry to all authenticated connections as
- *      'bot:log'. All clients see all process logs — acceptable for self-hosted
- *      deployments where every authenticated user is an operator.
+ *   1. PER-SESSION LOG STREAMING
+ *      Subscribes to logRelay's 'log:keyed' event and forwards each entry
+ *      exclusively to the Socket.IO room scoped to that session key
+ *      ('bot-log:<userId>:<platformId>:<sessionId>'). Only the client
+ *      that subscribed via 'bot:log:subscribe' receives that session's logs.
  *
  *   2. BOT STATUS
  *      'bot:status:request' { sessionIds }  → query current active state
@@ -23,16 +23,7 @@ import { sessionManager } from '@/engine/modules/session/session-manager.lib.js'
 import { logRelay } from '@/engine/modules/logger/log-relay.lib.js';
 
 export function registerBotMonitorHandlers(io: SocketIOServer): void {
-  // ── Global log broadcast ─────────────────────────────────────────────────────
-  // Each log entry is forwarded to all connected (authenticated) sockets so every
-  // open console tab receives the same live stream without per-session filtering.
-  // entry is a raw ANSI string — the client renders it with ansi-to-react.
-  logRelay.on('log', (entry: string) => {
-    io.emit('bot:log', entry);
-  });
-
-  // ── Per-session log forwarding ────────────────────────────────────────────────
-  // ── Per-session log forwarding ────────────────────────────────────────────
+  // ── Per-session log forwarding — keyed rooms only, no global broadcast ───────
   // Routes each keyed log entry to the Socket.IO room for that session so clients
   // subscribed to a specific bot only receive that bot's log stream.
   logRelay.on('log:keyed', (data: { key: string; entry: string }) => {
@@ -88,14 +79,9 @@ export function registerBotMonitorHandlers(io: SocketIOServer): void {
       socket.emit('bot:status:response', { statuses });
     });
 
-    // Client requests the sliding window history on page load
-    // so the dashboard doesn't start with a blank console
-    socket.on('bot:log:request_history', () => {
-      socket.emit('bot:log:history', logRelay.getHistory());
-    });
-
-    // Subscribe the requesting socket to the session-specific log room and immediately
-    // hydrate with the buffered history — prevents a blank console on initial page load.
+    // Subscribe the socket to the session-specific room for real-time log streaming.
+    // History is fetched separately via HTTP GET /api/v1/bots/:id/logs on mount —
+    // decouples history hydration from the socket lifecycle and avoids global delivery.
     socket.on('bot:log:subscribe', (key: unknown) => {
       if (typeof key !== 'string') return;
       void socket.join(`bot-log:${key}`);
@@ -107,9 +93,6 @@ export function registerBotMonitorHandlers(io: SocketIOServer): void {
         subs.add(key);
         logRelay.addSubscriber(key);
       }
-      // Pair key with entries so the client onHistory handler can confirm this delivery
-      // belongs to the session it is managing — same singleton-socket isolation problem as keyed logs.
-      socket.emit('bot:log:history', { key, entries: logRelay.getKeyedHistory(key) });
     });
 
     socket.on('bot:log:unsubscribe', (key: unknown) => {
