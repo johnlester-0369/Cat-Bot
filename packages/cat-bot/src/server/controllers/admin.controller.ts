@@ -217,6 +217,28 @@ export class AdminController {
       res.status(500).json({ error: 'Failed to verify user' });
     }
   }
+
+  // DELETE /api/v1/admin/bots/:userId/:sessionId
+  // Admin-privileged hard delete — works on any user's session without a user auth cookie.
+  // Delegates to botService.deleteBot which stops the live transport first, then unregisters
+  // the session closure, and finally wipes all DB rows in dependency order (commands, events,
+  // credentials, then the session row itself). Same teardown path as the user-facing delete.
+  async deleteBot(req: Request, res: Response): Promise<void> {
+    if (!(await requireAdmin(req, res))) return;
+    const userId = String(req.params['userId'] ?? '');
+    const sessionId = String(req.params['sessionId'] ?? '');
+    if (!userId || !sessionId) {
+      res.status(400).json({ error: 'Missing userId or sessionId param' });
+      return;
+    }
+    try {
+      await botService.deleteBot(userId, sessionId);
+      res.status(200).json({ status: 'deleted' });
+    } catch (error) {
+      console.error('[AdminController.deleteBot]', error);
+      res.status(500).json({ error: 'Failed to delete bot session' });
+    }
+  }
 }
 
 export const adminController = new AdminController();
