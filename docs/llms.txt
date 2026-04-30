@@ -1345,8 +1345,18 @@ Declared in `config.role`. Enforced before `onCommand` runs — no boilerplate n
 | `Role.BOT_ADMIN` | `3` | Bot admins — also accessible by: `SYSTEM_ADMIN` only; premium-only users are **denied** |
 | `Role.SYSTEM_ADMIN` | `4` | System admins **only** — no other role can invoke; bypasses every gate |
 
-> **SYSTEM ADMIN SETUP:** System admin IDs are registered in the web dashboard at `/admin/dashboard/settings`. Only users who are already system admins can grant or revoke the role. System admins bypass every role gate — they can invoke any command regardless of its declared `role` level.
+**Access Truth Table — invoker role (rows) vs required command role (columns):**
 
+| Invoker ↓ / Required → | ANYONE (0) | THREAD_ADMIN (1) | PREMIUM (2) | BOT_ADMIN (3) | SYSTEM_ADMIN (4) |
+|---|---|---|---|---|---|
+| **Any user** | ✅ | ❌ | ❌ | ❌ | ❌ |
+| **THREAD_ADMIN** | ✅ | ✅ | ❌ | ❌ | ❌ |
+| **PREMIUM** | ✅ | ✅ | ✅ | ❌ | ❌ |
+| **BOT_ADMIN** | ✅ | ✅ | ✅ | ✅ | ❌ |
+| **SYSTEM_ADMIN** | ✅ | ✅ | ✅ | ✅ | ✅ |
+
+> **SYSTEM ADMIN SETUP:** System admin IDs are registered in the web dashboard at
+> `/admin/dashboard/settings`. Only users who are already system admins can grant or
 Role access is strictly hierarchical by numeric value: a role can always invoke commands at **lower** numeric levels (e.g. `BOT_ADMIN` can invoke `PREMIUM` and `THREAD_ADMIN` commands; `PREMIUM` can invoke `THREAD_ADMIN` commands; but `THREAD_ADMIN` cannot invoke `PREMIUM` or `BOT_ADMIN` commands).
 
 **Import path:** `import { Role } from '@/engine/constants/role.constants.js'`

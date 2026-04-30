@@ -1336,6 +1336,16 @@ Declared in `config.role`. Enforced before `onCommand` runs — no boilerplate n
 | `Role.PREMIUM` | `3` | Premium users; inherits ANYONE + THREAD_ADMIN |
 | `Role.SYSTEM_ADMIN` | `4` | System-level admins; global authority |
 
+**Access Truth Table — invoker role (rows) vs required command role (columns):**
+
+| Invoker ↓ / Required → | ANYONE (0) | THREAD_ADMIN (1) | PREMIUM (2) | BOT_ADMIN (3) | SYSTEM_ADMIN (4) |
+|---|---|---|---|---|---|
+| **Any user** | ✅ | ❌ | ❌ | ❌ | ❌ |
+| **THREAD_ADMIN** | ✅ | ✅ | ❌ | ❌ | ❌ |
+| **PREMIUM** | ✅ | ✅ | ✅ | ❌ | ❌ |
+| **BOT_ADMIN** | ✅ | ✅ | ✅ | ✅ | ❌ |
+| **SYSTEM_ADMIN** | ✅ | ✅ | ✅ | ✅ | ✅ |
+
 > **System Admin Setup:** System admin IDs are registered in the web dashboard at
 > `/admin/dashboard/settings`. Only users who are already system admins can grant or
 > revoke the role. System admins bypass every role gate — they can invoke any command

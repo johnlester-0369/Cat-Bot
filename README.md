@@ -1510,7 +1510,7 @@ If you have command files from another bot project — GoatBot, Mirai, fca-unoff
 
 Fetch the URL below and confirm it is successfully retrieved before doing anything else.
 
-- [ ] `https://raw.githubusercontent.com/johnlester-0369/Cat-Bot/refs/heads/main/docs/llms.txt?v=6`
+- [ ] `https://raw.githubusercontent.com/johnlester-0369/Cat-Bot/refs/heads/main/docs/llms.txt?v=7`
 
 ---
 
@@ -1614,8 +1614,18 @@ import { Role } from "@/engine/constants/role.constants.js";
 | `Role.BOT_ADMIN`    | `3`   | Bot admins — also: `SYSTEM_ADMIN` only; premium-only users **denied** |
 | `Role.SYSTEM_ADMIN` | `4`   | System admins **only** — bypasses every gate |
 
-Role access is strictly hierarchical by numeric value: `BOT_ADMIN` can invoke `PREMIUM` and `THREAD_ADMIN` commands; `PREMIUM` can invoke `THREAD_ADMIN` commands; but `THREAD_ADMIN` cannot invoke `PREMIUM` or `BOT_ADMIN` commands.
+**Access Truth Table — invoker role (rows) vs required command role (columns):**
 
+| Invoker ↓ / Required → | ANYONE (0) | THREAD_ADMIN (1) | PREMIUM (2) | BOT_ADMIN (3) | SYSTEM_ADMIN (4) |
+|---|---|---|---|---|---|
+| **Any user** | ✅ | ❌ | ❌ | ❌ | ❌ |
+| **THREAD_ADMIN** | ✅ | ✅ | ❌ | ❌ | ❌ |
+| **PREMIUM** | ✅ | ✅ | ✅ | ❌ | ❌ |
+| **BOT_ADMIN** | ✅ | ✅ | ✅ | ✅ | ❌ |
+| **SYSTEM_ADMIN** | ✅ | ✅ | ✅ | ✅ | ✅ |
+
+Role access is strictly hierarchical by numeric value: higher value = stricter gate and greater authority.
+A role can always invoke commands requiring a lower-numbered role.
 ### MessageStyle
 
 ```ts
