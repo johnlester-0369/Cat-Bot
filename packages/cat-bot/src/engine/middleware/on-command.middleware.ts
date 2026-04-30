@@ -263,9 +263,9 @@ export const enforcePermission: MiddlewareFn<OnCommandCtx> = async function (
       return; // Do NOT call next() — chain halts; handler never runs
     }
   } else if (role === Role.PREMIUM) {
-    // Premium-gate: only premium users and bot admins may invoke.
-    // Thread admins alone do NOT qualify — PREMIUM is a separate privilege tier
-    // that grants ANYONE + THREAD_ADMIN + PREMIUM but intentionally excludes BOT_ADMIN.
+    // Premium-gate: premium users and bot admins may invoke; SYSTEM_ADMIN bypassed above.
+    // Thread admins alone do NOT qualify — PREMIUM (2) sits above THREAD_ADMIN (1) in the
+    // hierarchy, so a thread-admin role alone never satisfies the PREMIUM gate.
     const sessionUserId = ctx.native.userId ?? '';
     const sessionId = ctx.native.sessionId ?? '';
     let allowed = await isBotAdmin(
@@ -290,7 +290,7 @@ export const enforcePermission: MiddlewareFn<OnCommandCtx> = async function (
     }
   }
 
-  // role > 3 or unrecognised: fall through and allow (forward-compatible default)
+  // role > 4 (SYSTEM_ADMIN) or unrecognised future value: fall through and allow (forward-compatible default)
   await next();
 };
 
