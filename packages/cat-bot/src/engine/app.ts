@@ -99,55 +99,60 @@ async function loadCommands(): Promise<Map<string, Record<string, unknown>>> {
     (f) => (f.endsWith('.js') || f.endsWith('.ts')) && !f.endsWith('.d.ts'),
   );
 
-  for (const file of files) {
-    try {
-      const mod = (await import(
-        pathToFileURL(path.join(dir, file)).href
-      )) as Record<string, unknown>;
-      const cfg = mod['config'] as
-        | { name?: string; aliases?: string[] }
-        | undefined;
+  // Saturate the Node.js I/O thread pool by importing all command files
+  // concurrently — sequential import() serialises disk reads unnecessarily
+  // on startup, compounding linearly with command count.
+  await Promise.allSettled(
+    files.map(async (file) => {
+      try {
+        const mod = (await import(
+          pathToFileURL(path.join(dir, file)).href
+        )) as Record<string, unknown>;
+        const cfg = mod['config'] as
+          | { name?: string; aliases?: string[] }
+          | undefined;
 
-      if (!cfg?.name) {
-        logger.warn(`⚠️  Skipping ${file}: missing config.name`);
-        continue;
-      }
-      if (
-        typeof mod['onCommand'] !== 'function' &&
-        typeof mod['onChat'] !== 'function'
-      ) {
-        logger.warn(`⚠️  Skipping ${file}: missing onStart/onChat`);
-        continue;
-      }
+        if (!cfg?.name) {
+          logger.warn(`⚠️  Skipping ${file}: missing config.name`);
+          return;
+        }
+        if (
+          typeof mod['onCommand'] !== 'function' &&
+          typeof mod['onChat'] !== 'function'
+        ) {
+          logger.warn(`⚠️  Skipping ${file}: missing onStart/onChat`);
+          return;
+        }
 
-      // Discord strict requirement: command names and option names must be lowercase.
-      // Normalise them at load time so developers don't encounter API errors
-      // if they accidentally use camelCase or TitleCase in their command configs.
-      if (cfg.name) cfg.name = cfg.name.toLowerCase();
-      const rawCfg = mod['config'] as { options?: Array<{ name?: string }> };
-      if (Array.isArray(rawCfg.options)) {
-        for (const opt of rawCfg.options) {
-          if (opt && typeof opt.name === 'string') {
-            opt.name = opt.name.toLowerCase();
+        // Discord strict requirement: command names and option names must be lowercase.
+        // Normalise them at load time so developers don't encounter API errors
+        // if they accidentally use camelCase or TitleCase in their command configs.
+        if (cfg.name) cfg.name = cfg.name.toLowerCase();
+        const rawCfg = mod['config'] as { options?: Array<{ name?: string }> };
+        if (Array.isArray(rawCfg.options)) {
+          for (const opt of rawCfg.options) {
+            if (opt && typeof opt.name === 'string') {
+              opt.name = opt.name.toLowerCase();
+            }
           }
         }
-      }
 
-      commands.set(cfg.name.toLowerCase(), mod);
-      commandRegistry.set(cfg.name.toLowerCase(), mod);
-      logger.info(`Loaded command: ${cfg.name}`);
-      // Register each alias so e.g. '/bal' dispatches the same onCommand as '/balance'.
-      // Aliases point to the same module reference — no duplication of handler logic.
-      if (Array.isArray(cfg.aliases)) {
-        for (const alias of cfg.aliases) {
-          commands.set(String(alias).toLowerCase(), mod);
-          logger.info(`  ↳ Alias: ${String(alias).toLowerCase()}`);
+        commands.set(cfg.name.toLowerCase(), mod);
+        commandRegistry.set(cfg.name.toLowerCase(), mod);
+        logger.info(`Loaded command: ${cfg.name}`);
+        // Register each alias so e.g. '/bal' dispatches the same onCommand as '/balance'.
+        // Aliases point to the same module reference — no duplication of handler logic.
+        if (Array.isArray(cfg.aliases)) {
+          for (const alias of cfg.aliases) {
+            commands.set(String(alias).toLowerCase(), mod);
+            logger.info(`  ↳ Alias: ${String(alias).toLowerCase()}`);
+          }
         }
+      } catch (err) {
+        logger.error(`❌ Failed to load command ${file}`, { error: err });
       }
-    } catch (err) {
-      logger.error(`❌ Failed to load command ${file}`, { error: err });
-    }
-  }
+    }),
+  );
 
   logger.info(`Loaded ${commands.size} command(s)`);
   return commands;
@@ -174,38 +179,40 @@ async function loadEventModules(): Promise<
     (f) => (f.endsWith('.js') || f.endsWith('.ts')) && !f.endsWith('.d.ts'),
   );
 
-  for (const file of files) {
-    try {
-      const mod = (await import(
-        pathToFileURL(path.join(dir, file)).href
-      )) as Record<string, unknown>;
-      const cfg = mod['config'] as
-        | {
-            name?: string;
-            eventType?: string[];
-            onEvent?: (...args: unknown[]) => unknown;
-          }
-        | undefined;
+  await Promise.allSettled(
+    files.map(async (file) => {
+      try {
+        const mod = (await import(
+          pathToFileURL(path.join(dir, file)).href
+        )) as Record<string, unknown>;
+        const cfg = mod['config'] as
+          | {
+              name?: string;
+              eventType?: string[];
+              onEvent?: (...args: unknown[]) => unknown;
+            }
+          | undefined;
 
-      if (!cfg?.name || !Array.isArray(cfg.eventType)) continue;
+        if (!cfg?.name || !Array.isArray(cfg.eventType)) return;
 
-      // Validate that event module exports onEvent handler
-      if (typeof mod['onEvent'] !== 'function') {
-        logger.warn(`⚠️  Skipping ${file}: missing onEvent handler`);
-        continue;
+        // Validate that event module exports onEvent handler
+        if (typeof mod['onEvent'] !== 'function') {
+          logger.warn(`⚠️  Skipping ${file}: missing onEvent handler`);
+          return;
+        }
+
+        for (const type of cfg.eventType) {
+          if (!events.has(type)) events.set(type, []);
+          events.get(type)!.push(mod);
+        }
+        eventRegistry.set(cfg.name.toLowerCase(), mod);
+
+        logger.info(`Loaded event handler: ${cfg.name}`);
+      } catch (err) {
+        logger.error(`Failed to load event ${file}`, { error: err });
       }
-
-      for (const type of cfg.eventType) {
-        if (!events.has(type)) events.set(type, []);
-        events.get(type)!.push(mod);
-      }
-      eventRegistry.set(cfg.name.toLowerCase(), mod);
-
-      logger.info(`Loaded event handler: ${cfg.name}`);
-    } catch (err) {
-      logger.error(`Failed to load event ${file}`, { error: err });
-    }
-  }
+    }),
+  );
 
   return events;
 }
