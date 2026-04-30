@@ -1608,13 +1608,13 @@ import { Role } from "@/engine/constants/role.constants.js";
 
 | Constant            | Value | Who can invoke                                |
 | ------------------- | ----- | --------------------------------------------- |
-| `Role.ANYONE`       | `0`   | All users (default)                           |
-| `Role.THREAD_ADMIN` | `1`   | Thread/group admins                           |
-| `Role.BOT_ADMIN`    | `2`   | Bot admins added via `/admin add`             |
-| `Role.PREMIUM`      | `3`   | Premium users                                 |
-| `Role.SYSTEM_ADMIN` | `4`   | System-level admins; bypasses every role gate |
+| `Role.ANYONE`       | `0`   | All users — every role can invoke ANYONE commands |
+| `Role.THREAD_ADMIN` | `1`   | Thread/group admins — also: `PREMIUM`, `BOT_ADMIN`, `SYSTEM_ADMIN` |
+| `Role.PREMIUM`      | `2`   | Premium users — also: `BOT_ADMIN`, `SYSTEM_ADMIN`; thread admins alone **denied** |
+| `Role.BOT_ADMIN`    | `3`   | Bot admins — also: `SYSTEM_ADMIN` only; premium-only users **denied** |
+| `Role.SYSTEM_ADMIN` | `4`   | System admins **only** — bypasses every gate |
 
-Higher roles automatically inherit access to commands requiring lower roles.
+Role access is strictly hierarchical by numeric value: `BOT_ADMIN` can invoke `PREMIUM` and `THREAD_ADMIN` commands; `PREMIUM` can invoke `THREAD_ADMIN` commands; but `THREAD_ADMIN` cannot invoke `PREMIUM` or `BOT_ADMIN` commands.
 
 ### MessageStyle
 
