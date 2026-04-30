@@ -1735,7 +1735,7 @@ It covers, among other things:
 | Adapter             | `DATABASE_TYPE` | Best For                 | Notes                                                                                              |
 | ------------------- | --------------- | ------------------------ | -------------------------------------------------------------------------------------------------- |
 | **JSON**            | `json`          | Local development, demos | Zero runtime deps; data in `packages/database/database/database.json`; not suitable for production |
-| **Prisma + SQLite** | _(unset)_       | Single-server production | Requires `prisma generate` + `prisma migrate dev`; WAL mode enabled for concurrent reads           |
+| **Prisma + SQLite** | `prisma-sqlite` | Single-server production | Requires `prisma generate` + `prisma migrate dev`; WAL mode enabled for concurrent reads           |
 | **MongoDB**         | `mongodb`       | Production, cloud        | Atlas M0 free tier supported; non-transactional on M0                                              |
 | **NeonDB**          | `neondb`        | Production, serverless   | Schema auto-initialized at boot via `dbReady` promise; connection pooling via `pg.Pool`            |
 
@@ -1767,7 +1767,7 @@ BETTER_AUTH_URL=http://localhost:3000
 VITE_URL=http://localhost:5173     # dev proxy origin (REMOVE in production to avoid trusted origin errors)
 
 # Database — choose one
-DATABASE_TYPE=json                 # json | mongodb | neondb | (unset = prisma-sqlite)
+DATABASE_TYPE=json                 # json | mongodb | neondb | prisma-sqlite
 
 # NeonDB (when DATABASE_TYPE=neondb)
 NEON_DATABASE_URL=postgres://...
