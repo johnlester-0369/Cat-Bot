@@ -6,7 +6,7 @@ import './load-env.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { pool } from '../adapters/neondb/src/client.js';
+import { pool, initDb } from '../adapters/neondb/src/client.js';
 import { PrismaClient } from '../adapters/prisma-sqlite/src/generated/prisma/client.js';
 import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
 
@@ -308,6 +308,9 @@ function rows<T>(db: Record<string, any[]>, key: string): T[] {
 async function main() {
   console.log(`neondb-to-sqlite migration`);
   console.log(`  Target : ${DB_SQLITE_FILE}`);
+
+  // Ensure NeonDB tables exist before reading
+  await initDb();
 
   const client = await pool.connect();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
