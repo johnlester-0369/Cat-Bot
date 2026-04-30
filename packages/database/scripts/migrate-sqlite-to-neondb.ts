@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 import { PrismaClient } from '../adapters/prisma-sqlite/src/generated/prisma/client.js';
 import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
-import { pool } from '../adapters/neondb/src/client.js';
+import { pool, initDb } from '../adapters/neondb/src/client.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -303,6 +303,9 @@ const tablesDef = [
 async function main() {
   console.log(`sqlite-to-neondb migration`);
   console.log(`  Source : ${DB_SQLITE_FILE}`);
+
+  // Ensure NeonDB tables exist before proceeding to avoid undefined_table errors
+  await initDb();
 
   const adapter = new PrismaBetterSqlite3({ url: `file:${DB_SQLITE_FILE}` });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
