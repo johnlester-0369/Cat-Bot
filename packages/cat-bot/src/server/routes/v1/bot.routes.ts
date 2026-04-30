@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { botController } from '@/server/controllers/bot.controller.js';
+import { botController } from '@/server/controllers/v1/bot.controller.js';
 // Commands/events toggle endpoints share the /:id base path with the bot routes
-import { botSessionConfigController } from '@/server/controllers/bot-session-config.controller.js';
+import { botSessionConfigController } from '@/server/controllers/v1/bot-session-config.controller.js';
 
 const botRouter = Router();
 

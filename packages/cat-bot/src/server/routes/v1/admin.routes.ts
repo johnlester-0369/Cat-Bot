@@ -7,7 +7,7 @@
  */
 
 import { Router } from 'express';
-import { adminController } from '@/server/controllers/admin.controller.js';
+import { adminController } from '@/server/controllers/v1/admin.controller.js';
 
 const adminRouter = Router();
 

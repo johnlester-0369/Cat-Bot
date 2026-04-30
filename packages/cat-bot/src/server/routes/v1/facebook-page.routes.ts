@@ -13,7 +13,7 @@ import { Router } from 'express';
 import {
   handleVerification,
   handleWebhookEvent,
-} from '../../controllers/facebook-page.controller.js';
+} from '@/server/controllers/v1/facebook-page.controller.js';
 
 const router = Router();
 

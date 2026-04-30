@@ -12,14 +12,14 @@ import { logger } from '@/engine/modules/logger/logger.lib.js'; // Relocated mod
 import {
   getSession,
   findAnySessionForUserId,
-} from '../../engine/modules/session/facebook-page-session.lib.js';
-import type { FacebookWebhookBody } from '../models/page-session.model.js';
-import { generateVerifyToken } from '../utils/hash.util.js';
+} from '@/engine/modules/session/facebook-page-session.lib.js';
+import type { FacebookWebhookBody } from '@/server/models/page-session.model.js';
+import { generateVerifyToken } from '@/server/utils/hash.util.js';
 import {
   checkAndResolveOtp,
   isPendingFbPageValidation,
   notifyWebhookVerified,
-} from '../socket/validation.socket.js';
+} from '@/server/socket/validation.socket.js';
 
 /**
  * GET /api/v1/facebook-page/:user_id

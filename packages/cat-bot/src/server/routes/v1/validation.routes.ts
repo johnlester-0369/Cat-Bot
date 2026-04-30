@@ -15,7 +15,7 @@ import {
   verifyResetTokenCustom,
   confirmPasswordResetCustom,
   checkEmailStatus,
-} from '../../controllers/validation.controller.js';
+} from '@/server/controllers/v1/validation.controller.js';
 
 const validationRouter = Router();
 

@@ -7,7 +7,7 @@
  */
 
 import { logger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
-import type { PageSessionConfig } from '../../../server/models/page-session.model.js';
+import type { PageSessionConfig } from '@/server/models/page-session.model.js';
 
 // Keyed by `userId:pageId` — POST /facebook-page/:user_id resolves sessions via
 // (user_id URL param + entry.id page ID from the webhook payload) without iterating.

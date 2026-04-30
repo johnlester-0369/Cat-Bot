@@ -15,7 +15,7 @@ import cors from 'cors';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import fs from 'node:fs';
-import { getTelegramWebhookHandler } from '../engine/modules/session/telegram-webhook.registry.js';
+import { getTelegramWebhookHandler } from '@/engine/modules/session/telegram-webhook.registry.js';
 
 import facebookPageRoutes from './routes/v1/facebook-page.routes.js';
 import apiV1Router from './routes/v1/index.js';
