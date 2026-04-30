@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { ChevronLeft, ChevronRight, MoreHorizontal } from 'lucide-react'
 import Button from '@/components/ui/buttons/Button'
 import { cn } from '@/utils/cn.util'
@@ -224,8 +225,35 @@ const Pagination = forwardRefWithAs<'nav', PaginationOwnProps>((props, ref) => {
     className,
     ...rest
   } = props
-
   const Component = as || 'nav'
+
+  // Track viewport width to adjust the number of visible page buttons —
+  // 7 buttons + labels overflow a 375px phone, 3 fits cleanly.
+  const [viewport, setViewport] = useState<'mobile' | 'tablet' | 'desktop'>(() => {
+    if (typeof window === 'undefined') return 'desktop'
+    if (window.innerWidth < 640) return 'mobile'
+    if (window.innerWidth < 1024) return 'tablet'
+    return 'desktop'
+  })
+
+  useEffect(() => {
+    const update = () => {
+      if (window.innerWidth < 640) setViewport('mobile')
+      else if (window.innerWidth < 1024) setViewport('tablet')
+      else setViewport('desktop')
+    }
+    // passive: true — resize never needs preventDefault, signals browser for perf
+    window.addEventListener('resize', update, { passive: true })
+    return () => window.removeEventListener('resize', update)
+  }, [])
+
+  // Cap visible pages per breakpoint; still respects the consumer's maxVisiblePages
+  // if they pass a lower value than the cap (Math.min preserves the stricter limit)
+  const effectiveMaxVisiblePages =
+    viewport === 'mobile' ? Math.min(maxVisiblePages, 3) :
+    viewport === 'tablet' ? Math.min(maxVisiblePages, 5) :
+    maxVisiblePages
+
   // Calculate total pages
   const totalPages = Math.ceil(totalItems / itemsPerPage)
 
@@ -278,7 +306,7 @@ const Pagination = forwardRefWithAs<'nav', PaginationOwnProps>((props, ref) => {
   const pageNumbers = generatePageNumbers(
     currentPage,
     totalPages,
-    maxVisiblePages,
+    effectiveMaxVisiblePages,
   )
 
   // Check if buttons should be disabled
@@ -298,7 +326,16 @@ const Pagination = forwardRefWithAs<'nav', PaginationOwnProps>((props, ref) => {
     >
       {/* Info Text */}
       {showInfo && (
-        <p className={cn('text-muted', config.text)}>{getInfoText()}</p>
+        <>
+          {/* "X/Y" compact form on mobile — full sentence would wrap and misalign */}
+          <p className={cn('text-on-surface-variant sm:hidden', config.text)}>
+            {currentPage}/{totalPages}
+          </p>
+          {/* Full "Showing X to Y of Z items" on sm+ where horizontal space allows it */}
+          <p className={cn('text-on-surface-variant hidden sm:block', config.text)}>
+            {getInfoText()}
+          </p>
+        </>
       )}
 
       {/* Navigation Controls */}
@@ -313,7 +350,7 @@ const Pagination = forwardRefWithAs<'nav', PaginationOwnProps>((props, ref) => {
             disabled={isPreviousDisabled}
             aria-label="Go to previous page"
           >
-            {previousLabel}
+            <span className="hidden sm:inline">{previousLabel}</span>
           </Button>
         )}
 
@@ -371,7 +408,7 @@ const Pagination = forwardRefWithAs<'nav', PaginationOwnProps>((props, ref) => {
             disabled={isNextDisabled}
             aria-label="Go to next page"
           >
-            {nextLabel}
+            <span className="hidden sm:inline">{nextLabel}</span>
           </Button>
         )}
       </div>

@@ -143,6 +143,14 @@ export class AdminService {
       `/api/v1/admin/users/${encodeURIComponent(userId)}/verify`,
     )
   }
+
+  // Admin-scope delete — composite key (userId + sessionId) lets the admin target any
+  // user's session without needing that user's auth cookie. Mirrors user-facing deleteBot.
+  async deleteBot(userId: string, sessionId: string): Promise<void> {
+    await apiClient.delete(
+      `/api/v1/admin/bots/${encodeURIComponent(userId)}/${encodeURIComponent(sessionId)}`,
+    )
+  }
 }
 
 export const adminService = new AdminService()

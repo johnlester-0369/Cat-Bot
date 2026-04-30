@@ -16,6 +16,12 @@ adminRouter.get('/bots', (req, res) => {
   void adminController.listBots(req, res);
 });
 
+// DELETE /api/v1/admin/bots/:userId/:sessionId — admin force-deletes any bot session
+// userId + sessionId form the composite PK used by botService.deleteBot internally.
+adminRouter.delete('/bots/:userId/:sessionId', (req, res) => {
+  void adminController.deleteBot(req, res);
+});
+
 // GET /api/v1/admin/users — all registered users (paginated + search)
 adminRouter.get('/users', (req, res) => {
   void adminController.listUsers(req, res);

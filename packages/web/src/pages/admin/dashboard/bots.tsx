@@ -8,6 +8,11 @@ import { Bot, Search } from 'lucide-react'
 import Badge from '@/components/ui/data-display/Badge'
 import { useAdminBots } from '@/features/admin/hooks/useAdminBots'
 import { useDebounce } from '@/hooks/useDebounce'
+import Dialog from '@/components/ui/overlay/Dialog'
+import Button from '@/components/ui/buttons/Button'
+import Alert from '@/components/ui/feedback/Alert'
+import adminService from '@/features/admin/services/admin.service'
+import type { AdminBotItemDto } from '@/features/admin/services/admin.service'
 
 /**
  * AdminBotsPage
@@ -26,7 +31,8 @@ export default function AdminBotsPage() {
     setPage(1)
   }
 
-  const { bots, total, stats, isLoading, error } = useAdminBots(
+  // refetch drives table refresh after delete without a full page reload
+  const { bots, total, stats, isLoading, error, refetch } = useAdminBots(
     page,
     10,
     debouncedSearch,
@@ -34,6 +40,40 @@ export default function AdminBotsPage() {
 
   const activeBots = stats?.activeBots ?? 0
   const totalBots = stats?.totalBots ?? 0
+
+  const [deleteTarget, setDeleteTarget] = useState<AdminBotItemDto | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  const openDeleteDialog = (bot: AdminBotItemDto) => {
+    setDeleteTarget(bot)
+    setDeleteError(null)
+  }
+
+  // Guard against closing mid-request — same pattern as ban dialog in users.tsx
+  const closeDeleteDialog = () => {
+    if (isDeleting) return
+    setDeleteTarget(null)
+    setDeleteError(null)
+  }
+
+  const handleDeleteBot = async (): Promise<void> => {
+    if (!deleteTarget) return
+    setIsDeleting(true)
+    setDeleteError(null)
+    try {
+      await adminService.deleteBot(deleteTarget.userId, deleteTarget.sessionId)
+      setDeleteTarget(null)
+      // Fire-and-forget refresh — dialog already closed, no need to await the re-fetch
+      void refetch()
+    } catch (err) {
+      setDeleteError(
+        err instanceof Error ? err.message : 'Failed to delete bot session',
+      )
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -131,16 +171,17 @@ export default function AdminBotsPage() {
                 <Table.Row>
                   <Table.Head>Nickname</Table.Head>
                   <Table.Head>Owner</Table.Head>
-                  <Table.Head>Platform</Table.Head>
-                  <Table.Head>Prefix</Table.Head>
-                  <Table.Head>Status</Table.Head>
-                </Table.Row>
-              </Table.Header>
-              <Table.Body>
-                {isLoading && <Table.Loading colSpan={5} rows={4} />}
-                {!isLoading &&
-                  bots.map((session) => (
-                    <Table.Row key={`${session.userId}:${session.sessionId}`}>
+              <Table.Head>Platform</Table.Head>
+              <Table.Head>Prefix</Table.Head>
+              <Table.Head>Status</Table.Head>
+              <Table.Head align="right">Actions</Table.Head>
+            </Table.Row>
+          </Table.Header>
+          <Table.Body>
+            {isLoading && <Table.Loading colSpan={6} rows={4} />}
+            {!isLoading &&
+              bots.map((session) => (
+                <Table.Row key={`${session.userId}:${session.sessionId}`}>
                       <Table.Cell className="font-medium">
                         {session.nickname}
                       </Table.Cell>
@@ -181,13 +222,23 @@ export default function AdminBotsPage() {
                           {session.isRunning ? 'Running' : 'Stopped'}
                         </Badge>
                       </Table.Cell>
+                      <Table.Cell align="right">
+                        <Button
+                          variant="tonal"
+                          color="error"
+                          size="xs"
+                          onClick={() => openDeleteDialog(session)}
+                        >
+                          Delete
+                        </Button>
+                      </Table.Cell>
                     </Table.Row>
                   ))}
                 {!isLoading &&
                   bots.length === 0 &&
                   (totalBots > 0 || searchQuery.trim() !== '') && (
                     <Table.Empty
-                      colSpan={5}
+                      colSpan={6}
                       message={
                         searchQuery.trim()
                           ? `No bot sessions match "${searchQuery}"`
@@ -208,6 +259,72 @@ export default function AdminBotsPage() {
           )}
         </>
       )}
+
+      {/* Delete dialog — controlled by deleteTarget state; no Trigger needed.
+          closeOnEsc / closeOnOverlayClick disabled mid-request to prevent abandoning
+          an in-flight delete that has already torn down the live transport. */}
+      <Dialog.Root
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) closeDeleteDialog()
+        }}
+        closeOnEsc={!isDeleting}
+        closeOnOverlayClick={!isDeleting}
+      >
+        <Dialog.Positioner position="center">
+          <Dialog.Backdrop />
+          <Dialog.Content size="sm">
+            <Dialog.Header>
+              <Dialog.Title>Delete Bot Session</Dialog.Title>
+              <Dialog.CloseTrigger />
+            </Dialog.Header>
+            <Dialog.Body>
+              <p className="text-body-md text-on-surface-variant mb-4">
+                Are you sure you want to permanently delete{' '}
+                <span className="font-semibold text-on-surface">
+                  {deleteTarget?.nickname}
+                </span>{' '}
+                owned by{' '}
+                <span className="font-semibold text-on-surface">
+                  {deleteTarget?.userName ?? deleteTarget?.userEmail ?? deleteTarget?.userId} ({deleteTarget?.userEmail})
+                </span>
+                ? This action cannot be undone and removes all associated data.
+              </p>
+              {deleteError !== null && (
+                <div className="mt-3">
+                  <Alert
+                    variant="tonal"
+                    color="error"
+                    title={deleteError}
+                    size="sm"
+                  />
+                </div>
+              )}
+            </Dialog.Body>
+            <Dialog.Footer>
+              <Dialog.CloseTrigger asChild>
+                <Button
+                  variant="text"
+                  color="neutral"
+                  size="sm"
+                  disabled={isDeleting}
+                >
+                  Cancel
+                </Button>
+              </Dialog.CloseTrigger>
+              <Button
+                className="!bg-[rgb(var(--light-color-error))] !text-[rgb(var(--light-color-surface))]"
+                size="sm"
+                onClick={() => void handleDeleteBot()}
+                isLoading={isDeleting}
+                disabled={isDeleting}
+              >
+                Yes, Delete Bot
+              </Button>
+            </Dialog.Footer>
+          </Dialog.Content>
+        </Dialog.Positioner>
+      </Dialog.Root>
     </div>
   )
 }
