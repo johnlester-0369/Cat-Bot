@@ -279,6 +279,4 @@ export async function attachEventHandlers(
     if (!clientId) return;
     await clearGuildCommands(guild.id, clientId, token, sessionLogger);
   });
-
-  sessionLogger.info('[discord] Listener active');
 }
