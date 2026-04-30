@@ -1256,11 +1256,16 @@ LOG_LEVEL=warn
 npm run seed:admin
 ```
 
-4. Build and start:
+4. Build the project:
 
 ```bash
-npm run build:all     # compile cat-bot (includes database) + React dashboard
-npm start             # serves everything from one process
+npm install; npm run build:all
+```
+
+5. Start the production server:
+
+```bash
+npm start
 ```
 
 ### Option B — MongoDB
