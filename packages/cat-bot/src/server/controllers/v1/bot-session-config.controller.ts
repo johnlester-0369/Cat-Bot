@@ -15,7 +15,7 @@
  */
 
 import type { Request, Response } from 'express';
-import { requireSession } from '@/server/validators/auth-session.validator.js';
+import { requireSession, checkAdminSession } from '@/server/validators/auth-session.validator.js';
 import { botRepo } from '@/server/repos/bot.repo.js';
 import { ID_TO_PLATFORM } from '@/engine/modules/platform/platform.constants.js';
 import {
@@ -35,6 +35,7 @@ import type { ToggleEnabledRequestDto } from '@/server/dtos/bot-session-config.d
 // Resolves as a no-op for platforms without a registered sync (FB Messenger, FB Page) or stopped sessions.
 import { triggerSlashSync } from '@/engine/modules/prefix/slash-sync.lib.js';
 import { isPlatformAllowed } from '@/engine/modules/platform/platform-filter.util.js';
+import { Role } from '@/engine/constants/role.constants.js';
 
 // ── Shared Ownership Resolver ─────────────────────────────────────────────────
 
@@ -68,6 +69,9 @@ export class BotSessionConfigController {
   async getCommands(req: Request, res: Response): Promise<void> {
     const userId = await requireSession(req, res);
     if (!userId) return;
+    // Probe admin status before filtering — SYSTEM_ADMIN commands are exclusively
+    // visible to admin-portal callers and must not appear in the user dashboard.
+    const isAdmin = await checkAdminSession(req);
 
     const sessionId = String(req.params['id']);
     if (!sessionId) {
@@ -95,7 +99,14 @@ export class BotSessionConfigController {
         // Filter out commands that are structurally disallowed on this session's platform
         .filter((cmd: { commandName: string; isEnable: boolean }) => {
           const mod = commandRegistry.get(cmd.commandName.toLowerCase());
-          return mod && isPlatformAllowed(mod, platform);
+          if (!mod || !isPlatformAllowed(mod, platform)) return false;
+          // SYSTEM_ADMIN commands are invisible to non-admin callers — prevents ordinary
+          // users from discovering commands that are exclusively managed via the admin portal.
+          if (!isAdmin) {
+            const cfg = mod['config'] as Record<string, unknown> | undefined;
+            if (cfg?.['role'] === Role.SYSTEM_ADMIN) return false;
+          }
+          return true;
         })
         .map((cmd: { commandName: string; isEnable: boolean }) => {
           const mod = commandRegistry.get(cmd.commandName.toLowerCase());
@@ -142,6 +153,8 @@ export class BotSessionConfigController {
   async toggleCommand(req: Request, res: Response): Promise<void> {
     const userId = await requireSession(req, res);
     if (!userId) return;
+    // Same admin-status probe as getCommands — the SYSTEM_ADMIN guard below depends on it.
+    const isAdmin = await checkAdminSession(req);
 
     const sessionId = String(req.params['id']);
     const commandName = String(req.params['name']);
@@ -166,6 +179,18 @@ export class BotSessionConfigController {
         .status(400)
         .json({ error: 'Command not available for this platform' });
       return;
+    }
+
+    // Block non-admin callers from toggling SYSTEM_ADMIN commands — these are exclusively
+    // managed through the admin portal to prevent privilege escalation via the user dashboard.
+    if (!isAdmin) {
+      const cfg = mod['config'] as Record<string, unknown> | undefined;
+      if (cfg?.['role'] === Role.SYSTEM_ADMIN) {
+        res
+          .status(403)
+          .json({ error: 'Forbidden: system admin commands cannot be modified' });
+        return;
+      }
     }
 
     try {
