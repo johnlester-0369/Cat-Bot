@@ -11,6 +11,10 @@
  * the `export type *` in src/index.ts — zero additional wiring required.
  */
 
+// Guarantee packages/database/database/ exists before PrismaBetterSqlite3 opens the .sqlite file.
+// Must run before any repo import that accesses the prisma singleton.
+import './ensure-db-dir.js';
+
 // --- BOT SESSION COMMANDS ---
 export {
   upsertSessionCommands,
