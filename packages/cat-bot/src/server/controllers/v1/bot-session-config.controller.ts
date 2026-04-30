@@ -153,6 +153,8 @@ export class BotSessionConfigController {
   async toggleCommand(req: Request, res: Response): Promise<void> {
     const userId = await requireSession(req, res);
     if (!userId) return;
+    // Same admin-status probe as getCommands — the SYSTEM_ADMIN guard below depends on it.
+    const isAdmin = await checkAdminSession(req);
 
     const sessionId = String(req.params['id']);
     const commandName = String(req.params['name']);
@@ -177,6 +179,18 @@ export class BotSessionConfigController {
         .status(400)
         .json({ error: 'Command not available for this platform' });
       return;
+    }
+
+    // Block non-admin callers from toggling SYSTEM_ADMIN commands — these are exclusively
+    // managed through the admin portal to prevent privilege escalation via the user dashboard.
+    if (!isAdmin) {
+      const cfg = mod['config'] as Record<string, unknown> | undefined;
+      if (cfg?.['role'] === Role.SYSTEM_ADMIN) {
+        res
+          .status(403)
+          .json({ error: 'Forbidden: system admin commands cannot be modified' });
+        return;
+      }
     }
 
     try {
