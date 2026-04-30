@@ -17,7 +17,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promises as fs } from 'node:fs';
 
-import { pool } from '../adapters/neondb/src/client.js';
+import { pool, initDb } from '../adapters/neondb/src/client.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -316,6 +316,9 @@ const tables = [
 async function main(): Promise<void> {
   console.log('neondb-to-json migration');
   console.log(`  Output : ${DB_JSON_FILE}`);
+
+  // Ensure NeonDB tables exist before reading
+  await initDb();
 
   const outDb: Record<string, any[]> = {};
   const client = await pool.connect();

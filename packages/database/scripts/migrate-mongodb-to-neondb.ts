@@ -4,7 +4,7 @@
  */
 import './load-env.js';
 import { mongoClient, getMongoDb } from '../adapters/mongodb/src/client.js';
-import { pool } from '../adapters/neondb/src/client.js';
+import { pool, initDb } from '../adapters/neondb/src/client.js';
 
 const collectionsMap: Record<string, string> = {
   botSessionCommand: 'botSessionCommands',
@@ -337,6 +337,9 @@ function deepConvert(obj: any): any {
 
 async function main() {
   console.log(`mongodb-to-neondb migration`);
+
+  // Ensure NeonDB tables exist before proceeding to avoid undefined_table errors
+  await initDb();
 
   const mongoDb = getMongoDb();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

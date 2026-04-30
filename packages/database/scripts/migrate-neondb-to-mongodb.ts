@@ -3,7 +3,7 @@
  * Direct migration from NeonDB/Postgres to MongoDB.
  */
 import '../scripts/load-env.js';
-import { pool } from '../adapters/neondb/src/client.js';
+import { pool, initDb } from '../adapters/neondb/src/client.js';
 import { mongoClient, getMongoDb } from '../adapters/mongodb/src/client.js';
 
 const tablesDef = [
@@ -327,6 +327,9 @@ function convertDates(obj: any): any {
 
 async function main() {
   console.log(`neondb-to-mongodb migration`);
+
+  // Ensure NeonDB tables exist before reading
+  await initDb();
 
   const client = await pool.connect();
   const db: Record<string, any[]> = {};
