@@ -2,6 +2,29 @@ import 'dotenv/config';
 import { auth } from '../src/server/lib/better-auth.lib.js';
 import readline from 'readline/promises';
 import { stdin, stdout } from 'process';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+// Reconstruct __dirname from import.meta.url — ESM scripts have no __dirname global.
+// Anchors path resolution to this file, not to whatever CWD npm uses at invocation time.
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Creates packages/database/database/ before the adapter writes its first file.
+// The json adapter writes database.json and prisma-sqlite writes database.sqlite
+// into that directory — both throw ENOENT on their first open() if it is absent.
+function ensureDbDir(): void {
+  const dbType = process.env['DATABASE_TYPE'];
+  // Unset DATABASE_TYPE silently defaults to prisma-sqlite, which also needs the dir.
+  if (dbType === 'json' || dbType === 'prisma-sqlite' || dbType === undefined) {
+    const dbDir = path.resolve(__dirname, '../../database/database');
+    if (!fs.existsSync(dbDir)) {
+      fs.mkdirSync(dbDir, { recursive: true });
+      console.log(`📁 Created database directory: ${dbDir}`);
+    }
+  }
+}
 
 // ── Usage ─────────────────────────────────────────────────────────────────────
 //   npx tsx scripts/reset-password.ts [email]
@@ -9,6 +32,8 @@ import { stdin, stdout } from 'process';
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
+  ensureDbDir();
+
   const rl = readline.createInterface({ input: stdin, output: stdout });
 
   let email = (process.argv[2] ?? '').trim().toLowerCase();
