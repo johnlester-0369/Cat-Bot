@@ -2,6 +2,7 @@ import { CheckCircle2 } from 'lucide-react'
 import Alert from '@/components/ui/feedback/Alert'
 import { Field } from '@/components/ui/forms/Field'
 import Input from '@/components/ui/forms/Input'
+import ClipboardButton from '@/components/ui/forms/ClipboardButton'
 import type { ValidationStatus } from '@/features/users/hooks/useBotValidation'
 
 export interface VerificationStatusDisplayProps {
@@ -68,11 +69,28 @@ export function VerificationStatusDisplay({
           </div>
           <Field.Root>
             <Field.Label>Webhook URL</Field.Label>
-            <Input readOnly value={status.webhookUrl} />
+            {/* Wrap input in flex container to place clipboard button alongside it matching the pattern in settings.tsx */}
+            <div className="flex gap-2">
+              <Input readOnly value={status.webhookUrl} className="font-mono" />
+              <ClipboardButton
+                text={status.webhookUrl}
+                size="md"
+                aria-label="Copy webhook URL"
+                className="flex-shrink-0"
+              />
+            </div>
           </Field.Root>
           <Field.Root>
             <Field.Label>Verify Token</Field.Label>
-            <Input readOnly value={status.verifyToken} />
+            <div className="flex gap-2">
+              <Input readOnly value={status.verifyToken} className="font-mono" />
+              <ClipboardButton
+                text={status.verifyToken}
+                size="md"
+                aria-label="Copy verify token"
+                className="flex-shrink-0"
+              />
+            </div>
           </Field.Root>
         </div>
 
@@ -85,9 +103,17 @@ export function VerificationStatusDisplay({
             After the webhook is verified, send this exact message to your
             Facebook Page:
           </p>
-          <p className="font-mono text-3xl font-bold tracking-widest text-on-surface py-2">
-            {status.otp}
-          </p>
+          {/* Allow 1-click copy of the OTP so the user doesn't have to manually highlight it */}
+          <div className="flex items-center gap-4 py-2">
+            <p className="font-mono text-3xl font-bold tracking-widest text-on-surface">
+              {status.otp}
+            </p>
+            <ClipboardButton
+              text={status.otp}
+              size="md"
+              aria-label="Copy OTP"
+            />
+          </div>
           <p className="text-body-sm text-on-surface-variant animate-pulse">
             Waiting for webhook verification…
           </p>
@@ -108,9 +134,16 @@ export function VerificationStatusDisplay({
             complete verification:
           </p>
         </div>
-        <p className="font-mono text-3xl font-bold tracking-widest text-on-surface py-2">
-          {status.otp}
-        </p>
+        <div className="flex items-center gap-4 py-2">
+          <p className="font-mono text-3xl font-bold tracking-widest text-on-surface">
+            {status.otp}
+          </p>
+          <ClipboardButton
+            text={status.otp}
+            size="md"
+            aria-label="Copy OTP"
+          />
+        </div>
         <p className="text-body-sm text-on-surface-variant animate-pulse">
           Waiting for confirmation from Facebook…
         </p>
