@@ -328,6 +328,8 @@ function convertDates(obj: any): any {
     for (const [k, v] of Object.entries(obj)) out[k] = convertDates(v);
     return out;
   }
+  // Fallback to preserve all other scalar values (non-date strings, numbers, booleans)
+  return obj;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
