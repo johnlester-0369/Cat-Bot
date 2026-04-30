@@ -6,6 +6,7 @@ import type {
   UpdateBotRequestDto,
 } from '@/server/dtos/bot.dto.js';
 import { Platforms } from '@/engine/modules/platform/platform.constants.js';
+import { logRelay } from '@/engine/modules/logger/log-relay.lib.js';
 
 export class BotController {
   // Session verification happens before any business logic so the service layer
@@ -220,6 +221,36 @@ export class BotController {
     } catch (error) {
       console.error('[BotController.delete]', error);
       res.status(500).json({ error: 'Failed to delete bot' });
+    }
+  }
+
+  // GET /api/v1/bots/:id/logs — returns the in-memory ANSI log history for this session.
+  // The key `userId:platformId:sessionId` scopes the response to exactly one session's
+  // sliding window buffer in logRelay — no cross-session data can leak through this endpoint.
+  // History is in-memory only; it resets on process restart (not persisted to DB).
+  async getLogs(req: Request, res: Response): Promise<void> {
+    const userId = await requireSession(req, res);
+    if (!userId) return;
+
+    const sessionId = String(req.params['id']);
+    if (!sessionId) {
+      res.status(400).json({ error: 'Missing session ID' });
+      return;
+    }
+
+    try {
+      const bot = await botService.getBot(userId, sessionId);
+      if (!bot) {
+        res.status(404).json({ error: 'Bot not found' });
+        return;
+      }
+      // platformId is the numeric integer stored in DB — matches the session-logger key format
+      const key = `${userId}:${bot.platformId}:${sessionId}`;
+      const entries = logRelay.getKeyedHistory(key);
+      res.status(200).json({ entries });
+    } catch (error) {
+      console.error('[BotController.getLogs]', error);
+      res.status(500).json({ error: 'Failed to fetch bot logs' });
     }
   }
 }

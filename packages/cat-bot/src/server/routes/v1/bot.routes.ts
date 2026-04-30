@@ -46,6 +46,12 @@ botRouter.delete('/:id', (req, res) => {
   void botController.delete(req, res);
 });
 
+// GET /api/v1/bots/:id/logs — returns in-memory ANSI log history for this session.
+// Must be registered before /:id/commands to prevent Express matching 'logs' as :name.
+botRouter.get('/:id/logs', (req, res) => {
+  void botController.getLogs(req, res);
+});
+
 // GET /api/v1/bots/:id/commands — lists all registered commands with their enabled status.
 // Returns whatever bot_session_commands contains; synced at bot startup.
 botRouter.get('/:id/commands', (req, res) => {
