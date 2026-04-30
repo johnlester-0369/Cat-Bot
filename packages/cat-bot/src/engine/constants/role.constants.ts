@@ -12,21 +12,25 @@
  *
  * Mapping:
  *   0  ANYONE       — any user can invoke the command (default)
- *   1  THREAD_ADMIN — only platform thread admins can invoke
- *   2  BOT_ADMIN    — only bot admins provisioned via the web dashboard can invoke
- *   3  PREMIUM      — only premium users (BotPremium table) can invoke; inherits ANYONE + THREAD_ADMIN
+ *   1  THREAD_ADMIN — accessible by: THREAD_ADMIN, PREMIUM, BOT_ADMIN, SYSTEM_ADMIN
+ *   2  PREMIUM      — accessible by: PREMIUM, BOT_ADMIN, SYSTEM_ADMIN (thread admins do NOT qualify)
+ *   3  BOT_ADMIN    — accessible by: BOT_ADMIN, SYSTEM_ADMIN only
+ *
+ * Numeric ordering is intentional: higher value = stricter gate and greater authority.
+ * A role can always invoke commands requiring a lower-numbered role.
+ * Exception: ANYONE (0) commands are accessible by every role — the ANYONE gate is a no-op.
  */
 
 export const Role = {
   /** Any user can invoke this command — no privilege check performed. */
   ANYONE: 0,
-  /** Only platform thread admins (bot_threads.admins relation) can invoke. */
+  /** Accessible by: thread/group admins, PREMIUM, BOT_ADMIN, SYSTEM_ADMIN. ANYONE alone is denied. */
   THREAD_ADMIN: 1,
-  /** Only bot admins (BotAdmin table for this owner session) can invoke. */
-  BOT_ADMIN: 2,
-  /** Only premium users (BotPremium table for this owner session) can invoke.
-   *  Premium users inherit ANYONE and THREAD_ADMIN access but NOT BOT_ADMIN. */
-  PREMIUM: 3,
+  /** Accessible by: premium users, BOT_ADMIN, SYSTEM_ADMIN. Thread admins alone are denied. */
+  PREMIUM: 2,
+  /** Accessible by: bot admins (BotAdmin table for this owner session) and SYSTEM_ADMIN only.
+   *  Thread admins and premium-only users are both denied. */
+  BOT_ADMIN: 3,
   /** Only system admins (configured globally) can invoke; highest authority across all bots. */
   SYSTEM_ADMIN: 4,
 } as const;
