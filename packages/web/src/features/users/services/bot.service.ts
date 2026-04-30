@@ -106,6 +106,16 @@ export class BotService {
     await apiClient.post(`/api/v1/bots/${id}/restart`)
   }
 
+  // Fetches the in-memory ANSI log history for this session via HTTP.
+  // Returns at most 100 buffered entries (log-relay's MAX_HISTORY sliding window).
+  // History resets on process restart — the endpoint returns [] on a cold start.
+  async getLogs(sessionId: string): Promise<{ entries: string[] }> {
+    const response = await apiClient.get<{ entries: string[] }>(
+      `/api/v1/bots/${sessionId}/logs`,
+    )
+    return response.data
+  }
+
   // Permanently deletes the bot session and all its associated data server-side.
   async deleteBot(id: string): Promise<void> {
     await apiClient.delete(`/api/v1/bots/${id}`)
