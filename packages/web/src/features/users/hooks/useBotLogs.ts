@@ -32,16 +32,23 @@ export function useBotLogs(sessionKey?: string): UseBotLogsReturn {
     const socket = getSocket()
     if (!socket.connected) socket.connect()
 
-    const onHistory = (entries: string[]) => {
+    const onHistory = (data: { key: string; entries: string[] }) => {
       if (cancelled) return
-      // Hydrate with the server's per-session sliding window on subscribe
-      setLogs(entries.slice(-MAX_ENTRIES))
+      // Reject history deliveries intended for a different session. The singleton socket
+      // may be subscribed to multiple bot-log rooms when concurrent bot detail pages are
+      // open — without this guard, Console A receives Console B's history on mount.
+      if (data.key !== sessionKey) return
+      setLogs(data.entries.slice(-MAX_ENTRIES))
     }
 
-    const onLog = (entry: string) => {
+    const onLog = (data: { key: string; entry: string }) => {
       if (cancelled) return
+      // Reject log entries emitted by other bot sessions sharing this singleton socket.
+      // The server emits 'bot:log:keyed' to a room, but the client socket.on() listener
+      // fires for every 'bot:log:keyed' event the socket receives across all joined rooms.
+      if (data.key !== sessionKey) return
       setLogs((prev) => {
-        const next = [...prev, entry]
+        const next = [...prev, data.entry]
         return next.length > MAX_ENTRIES ? next.slice(-MAX_ENTRIES) : next
       })
     }
@@ -55,6 +62,9 @@ export function useBotLogs(sessionKey?: string): UseBotLogsReturn {
     return () => {
       socket.off('bot:log:history', onHistory)
       socket.off('bot:log:keyed', onLog)
+      // Tell the server to decrement the subscriber count so emitKeyed stops broadcasting
+      // for this session — prevents bandwidth waste when the console tab closes or unmounts.
+      socket.emit('bot:log:unsubscribe', sessionKey)
       cancelled = true
     }
   }, [sessionKey])
