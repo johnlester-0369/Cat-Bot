@@ -52,3 +52,32 @@ export async function requireAdmin(
   }
   return { id: sessionData.user.id };
 }
+
+/**
+ * Non-throwing admin role probe via the REGULAR user auth session.
+ *
+ * WHY `auth` and NOT `adminAuth`:
+ *   The better-auth admin plugin persists `role` on the user row in the database.
+ *   `auth.api.getSession()` always returns the full user record including the `role`
+ *   field — so any user whose account has role='admin' will expose that fact through
+ *   their normal session cookie (better-auth.session_token).
+ *
+ *   `adminAuth` is the SEPARATE admin-portal auth instance that issues its own
+ *   `ba-admin.session_token` cookie. Dashboard users only carry the regular cookie,
+ *   so calling `adminAuth.api.getSession()` here always returns null for them —
+ *   which was the bug: the check silently passed as non-admin for everyone on the
+ *   user dashboard, but worked only when the admin-portal cookie was also present.
+ *
+ * Returns true when the request carries a valid regular session where the user's
+ * database role === 'admin'. Returns false for all other cases (no session, wrong
+ * role, or any error). Never writes an HTTP response — safe to call as a secondary
+ * check alongside requireSession() without risking a double-response.
+ */
+export async function checkAdminSession(req: Request): Promise<boolean> {
+  try {
+    const sessionData = await auth.api.getSession({ headers: toHeaders(req) });
+    return sessionData?.user.role === 'admin';
+  } catch {
+    return false;
+  }
+}
