@@ -1339,15 +1339,15 @@ Declared in `config.role`. Enforced before `onCommand` runs — no boilerplate n
 
 | Constant | Value | Who Can Invoke |
 |---|---|---|
-| `Role.ANYONE` | `0` | All users (DEFAULT) |
-| `Role.THREAD_ADMIN` | `1` | Thread/group admins only |
-| `Role.BOT_ADMIN` | `2` | Bot admins added via `/admin add` |
-| `Role.PREMIUM` | `3` | Premium users; inherits ANYONE + THREAD_ADMIN |
-| `Role.SYSTEM_ADMIN` | `4` | System-level admins; global authority |
+| `Role.ANYONE` | `0` | All users — every role can invoke ANYONE commands |
+| `Role.THREAD_ADMIN` | `1` | Thread/group admins — also accessible by: `PREMIUM`, `BOT_ADMIN`, `SYSTEM_ADMIN` |
+| `Role.PREMIUM` | `2` | Premium users — also accessible by: `BOT_ADMIN`, `SYSTEM_ADMIN`; thread admins alone are **denied** |
+| `Role.BOT_ADMIN` | `3` | Bot admins — also accessible by: `SYSTEM_ADMIN` only; premium-only users are **denied** |
+| `Role.SYSTEM_ADMIN` | `4` | System admins **only** — no other role can invoke; bypasses every gate |
 
-> **SYSTEM ADMIN SETUP:** System admin IDs are registered in the web dashboard at `/admin/dashboard/settings`. Only users who are already system admins can grant or revoke the role. System admins bypass every role gate — they can invoke any command regardless of its declared `role` level, and this short-circuit fires before `Role.THREAD_ADMIN`, `Role.BOT_ADMIN`, and `Role.PREMIUM` checks run.
+> **SYSTEM ADMIN SETUP:** System admin IDs are registered in the web dashboard at `/admin/dashboard/settings`. Only users who are already system admins can grant or revoke the role. System admins bypass every role gate — they can invoke any command regardless of its declared `role` level.
 
-Higher roles automatically inherit access to commands requiring lower roles (e.g. a bot admin can always run thread-admin commands).
+Role access is strictly hierarchical by numeric value: a role can always invoke commands at **lower** numeric levels (e.g. `BOT_ADMIN` can invoke `PREMIUM` and `THREAD_ADMIN` commands; `PREMIUM` can invoke `THREAD_ADMIN` commands; but `THREAD_ADMIN` cannot invoke `PREMIUM` or `BOT_ADMIN` commands).
 
 **Import path:** `import { Role } from '@/engine/constants/role.constants.js'`
 
