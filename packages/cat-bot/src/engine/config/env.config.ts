@@ -18,6 +18,8 @@ import 'dotenv/config';
  */
 export type NodeEnv = 'development' | 'production' | 'test';
 
+export type DatabaseType = 'json' | 'mongodb' | 'neondb' | 'prisma-sqlite';
+
 /**
  * Environment configuration type definition.
  * IMPORTANT: With exactOptionalPropertyTypes: true, optional properties
@@ -36,7 +38,7 @@ interface EnvConfig {
   readonly TELEGRAM_WEBHOOK_DOMAIN?: string | undefined;
 
   // Database
-  readonly DATABASE_TYPE?: string | undefined;
+  readonly DATABASE_TYPE: DatabaseType;
 
   // Bot Management API / Web
   readonly BETTER_AUTH_SECRET: string;
@@ -88,6 +90,17 @@ const VALID_LOG_LEVELS = [
   'verbose',
   'debug',
   'silly',
+] as const;
+
+/**
+ * Valid database adapter types. 'prisma-sqlite' is the SQLite/Prisma adapter;
+ * the other three map directly to their respective packages/database/adapters/ sub-folders.
+ */
+const VALID_DATABASE_TYPES = [
+  'json',
+  'mongodb',
+  'neondb',
+  'prisma-sqlite',
 ] as const;
 
 // ============================================================================
@@ -154,6 +167,21 @@ function getLogLevel(): string {
   return value;
 }
 
+/**
+ * Retrieves and validates DATABASE_TYPE environment variable.
+ * Required — fails at startup rather than silently routing all DB calls to the wrong adapter.
+ */
+function getValidatedDatabaseType(): DatabaseType {
+  const value = getRequiredEnv('DATABASE_TYPE');
+  if (!VALID_DATABASE_TYPES.includes(value as DatabaseType)) {
+    throw new Error(
+      `[ENV] Invalid DATABASE_TYPE value: "${value}"\n` +
+        `Valid values are: ${VALID_DATABASE_TYPES.join(', ')}`,
+    );
+  }
+  return value as DatabaseType;
+}
+
 // ============================================================================
 // CONFIGURATION OBJECT
 // ============================================================================
@@ -190,7 +218,7 @@ export const env: EnvConfig = {
   TELEGRAM_WEBHOOK_DOMAIN: getOptionalEnv('TELEGRAM_WEBHOOK_DOMAIN'),
 
   // Database
-  DATABASE_TYPE: getOptionalEnv('DATABASE_TYPE'),
+  DATABASE_TYPE: getValidatedDatabaseType(),
 
   // Bot Management API / Web
   BETTER_AUTH_SECRET: getRequiredEnv('BETTER_AUTH_SECRET'),
