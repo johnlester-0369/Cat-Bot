@@ -1305,6 +1305,34 @@ GOOGLE_APP_PASSWORD=xxxx xxxx xxxx xxxx
 VITE_EMAIL_SERVICES_ENABLE=true
 ```
 
+### Groq API Key (AI Agent)
+
+The `/ai` command and the Agentic AI features (`onChat` conversational trigger, `test_command`, `send_result`, `help` tools) all require a **Groq API key**. Without it, the bot starts normally but every AI invocation returns an error.
+
+> **Free tier:** Groq's hosted inference API has a generous free tier with no credit card required — ideal for development and personal deployments.
+
+**How to get your `GROQ_API_KEY`:**
+
+1. Go to [console.groq.com](https://console.groq.com) and sign up with your email or Google account.
+2. After logging in, open the **API Keys** section from the left sidebar (or navigate directly to [console.groq.com/keys](https://console.groq.com/keys)).
+3. Click **Create API Key**, give it a descriptive name (e.g. `cat-bot`), and click **Submit**.
+4. **Copy the key immediately** — Groq only shows it once. Store it in a password manager or secure notes application.
+
+> **Security note:** Your API key is equivalent to a password. Never commit it to version control or share it publicly. Always load it from your `.env` file or an environment variable.
+
+Add to your `.env`:
+
+```env
+GROQ_API_KEY=gsk_xxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+> **Rate limits (free tier, 2026):** Rate limits are per organization, not per API key. Creating multiple keys under the same organization shares the same request bucket — create a separate organization if you need independent rate limit pools.
+
+If `GROQ_API_KEY` is absent, the bot starts normally. The `/ai` command and the conversational `onChat` trigger will respond with:
+```
+AI Error: GROQ_API_KEY environment variable is not set. AI capabilities are disabled.
+```
+
 ### Telegram Webhooks (recommended for production)
 
 By default, Telegram sessions use long-polling — no public domain required. However, for production deployments, webhook mode is highly recommended for better reliability and scalability:
