@@ -9,6 +9,10 @@
  * while the runtime module is skipped entirely when the prisma-sqlite adapter is active.
  */
 
+// Guarantee packages/database/database/ exists before store.ts touches the filesystem.
+// Must run before any repo import that calls getDb() or saveDb().
+import './ensure-db-dir.js';
+
 // --- BOT SESSION COMMANDS ---
 export {
   upsertSessionCommands,
