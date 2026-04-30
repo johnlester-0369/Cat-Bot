@@ -21,29 +21,13 @@ import { EventEmitter } from 'node:events';
 // ── Singleton ─────────────────────────────────────────────────────────────────
 
 class LogRelay extends EventEmitter {
-  // Sliding window of raw ANSI strings — one entry per log line, same as terminal output
   readonly #MAX_HISTORY = 100;
-  readonly #history: string[] = [];
   // Per-session sliding windows — keyed by `${userId}:${platformId}:${sessionId}` so the
   // bot detail page can hydrate its console with only that session's buffered history.
   readonly #keyedHistory = new Map<string, Array<{ format: () => string; cached?: string }>>();
   // Tracks active Socket.IO subscriber count per session key. When zero, emitKeyed skips
   // the EventEmitter dispatch entirely — no bandwidth wasted on unwatched sessions.
   readonly #subscribers = new Map<string, number>();
-
-  constructor() {
-    super();
-    this.on('log', (entry: string) => {
-      this.#history.push(entry);
-      if (this.#history.length > this.#MAX_HISTORY) {
-        this.#history.shift();
-      }
-    });
-  }
-
-  getHistory(): string[] {
-    return [...this.#history];
-  }
 
   /**
    * Enqueues a lazy format closure in the per-session sliding window for `key`.

@@ -11,8 +11,6 @@
 import winston from 'winston';
 import { env } from '@/engine/config/env.config.js';
 import type { TransformableInfo } from 'logform';
-import { Writable } from 'node:stream';
-import { logRelay } from './log-relay.lib.js';
 import { createSessionLogger } from './session-logger.lib.js';
 
 // ============================================================================
@@ -105,32 +103,6 @@ const createFileTransports = () => {
   return transports;
 };
 
-// ============================================================================
-// LOGGER INSTANCE
-// ============================================================================
-
-// ── Socket relay transport ──────────────────────────────────────────────────────────────────────
-// Forwards every log line to the logRelay EventEmitter as a raw ANSI string.
-// devFormat is used here (not JSON) so the string emitted to the relay is byte-for-byte identical
-// to what Winston prints to the terminal — the web console renders it with ansi-to-react.
-const relayStream = new Writable({
-  write(chunk: Buffer, _encoding: BufferEncoding, callback: () => void) {
-    // chunk is already an ANSI-formatted string from devFormat — emit as-is.
-    // strip trailing newline so the web component controls its own line spacing.
-    const line = chunk.toString().trimEnd();
-    if (line) logRelay.emit('log', line);
-    callback();
-  },
-});
-
-const relayTransport = new winston.transports.Stream({
-  stream: relayStream,
-  // devFormat produces colourised terminal output — the relay carries the ANSI string, not JSON.
-  // All levels forwarded so the web console shows debug-level platform events identical to terminal.
-  format: devFormat,
-  level: 'debug',
-});
-
 /**
  * Configured Winston logger instance.
  *
@@ -146,7 +118,6 @@ const logger = winston.createLogger({
   transports: [
     consoleTransport,
     ...(env.isProduction ? createFileTransports() : []),
-    relayTransport,
   ],
   // In development, exit on error to fail fast
   exitOnError: env.isDevelopment,
