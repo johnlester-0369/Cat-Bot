@@ -1332,7 +1332,7 @@ The build and start commands are the same for every platform:
 
 ### Render
 
-Render provisions a unique `*.onrender.com` HTTPS subdomain automatically and manages TLS certificates. The `PORT` environment variable is injected by Render (default `10000`) — Cat-Bot reads it via `env.config.ts`, so no port configuration is needed.
+Render provisions a unique `*.onrender.com` HTTPS subdomain automatically and manages TLS certificates.
 
 **Steps:**
 
@@ -1361,8 +1361,6 @@ Render provisions a unique `*.onrender.com` HTTPS subdomain automatically and ma
 ### Railway
 
 Railway does not assign a public domain until you explicitly generate one — the domain is needed before you can fill in `BETTER_AUTH_URL` and `TELEGRAM_WEBHOOK_DOMAIN`, so the sequence differs from Render.
-
-Railway injects `PORT` automatically; Cat-Bot reads it via `env.config.ts` — no port configuration is needed.
 
 **Steps:**
 
