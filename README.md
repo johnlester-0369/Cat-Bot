@@ -88,6 +88,38 @@ cd packages/cat-bot
 cp .env.example .env
 ```
 
+#### Getting OpenSSL
+
+`BETTER_AUTH_SECRET` and `ENCRYPTION_KEY` require a cryptographically-secure random value — never use a simple password or a hardcoded string. If you don't have OpenSSL, pick one of the options below.
+
+**Option A — Install OpenSSL locally (recommended)**
+
+Running `openssl rand` on your own machine means the generated secret never touches any external server.
+
+| OS | How to install |
+|---|---|
+| **Windows** | Via [Git for Windows](https://git-scm.com/download/win) (easiest — OpenSSL is bundled), or with a package manager: `choco install openssl` (Chocolatey) / `scoop install openssl` (Scoop) |
+| **macOS** | LibreSSL is pre-installed and compatible for key generation. For full OpenSSL: `brew install openssl` |
+| **Linux (Debian / Ubuntu)** | `sudo apt install openssl` |
+| **Linux (Fedora / RHEL)** | `sudo dnf install openssl` |
+
+Verify your installation:
+
+```bash
+openssl version
+```
+
+**Option B — Generate online (no install required)**
+
+Both tools use the **Web Crypto API** — the same CSPRNG source as OpenSSL — and generate entirely in your browser. Nothing is transmitted to any server.
+
+| Tool | URL | Notes |
+|---|---|---|
+| **HexHero Random Key Generator** ⭐ | [hexhero.com/tools/random-key-generator](https://www.hexhero.com/tools/random-key-generator) | Explicitly matches `openssl rand` output; selectable Base64 / hex / 128–512 bit |
+| **RandomKeygen** | [randomkeygen.com](https://randomkeygen.com) | Quick all-purpose generator; widely used |
+
+> **Security reminder:** Never commit generated secrets to version control. Always load them exclusively from your `.env` file.
+
 Minimum required fields for local development:
 
 ```env
