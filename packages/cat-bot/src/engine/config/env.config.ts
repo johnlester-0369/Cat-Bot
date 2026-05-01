@@ -59,6 +59,13 @@ interface EnvConfig {
    * starts normally when absent but AI features will gracefully reject.
    */
   readonly GROQ_API_KEY?: string | undefined;
+  /**
+   * Controls whether E2EE send methods (sendMessageE2EE / sendMediaE2EE) are used for
+   * Facebook Messenger private chats. Meta enabled E2EE by default — set to false only
+   * for debugging E2EE send failures or testing legacy appstate compatibility.
+   * Defaults to true when unset.
+   */
+  readonly FCA_ENABLE_E2EE: boolean;
 
   // Derived boolean helpers
   readonly isDevelopment: boolean;
@@ -182,6 +189,24 @@ function getValidatedDatabaseType(): DatabaseType {
   return value as DatabaseType;
 }
 
+/**
+ * Retrieves and validates FCA_ENABLE_E2EE environment variable.
+ * Defaults to true when unset — matches Meta's platform default of E2EE-on for private chats.
+ * Fails fast on any value that is not exactly 'true' or 'false' to prevent silent misconfiguration.
+ */
+function getFcaEnableE2EE(): boolean {
+  const value = getOptionalEnv('FCA_ENABLE_E2EE');
+  // Unset → default true; Meta enabled E2EE by default so the bot must match that default
+  if (value === undefined) return true;
+  if (value !== 'true' && value !== 'false') {
+    throw new Error(
+      `[ENV] Invalid FCA_ENABLE_E2EE value: "${value}"\n` +
+        `Valid values are: true, false`,
+    );
+  }
+  return value === 'true';
+}
+
 // ============================================================================
 // CONFIGURATION OBJECT
 // ============================================================================
@@ -234,6 +259,8 @@ export const env: EnvConfig = {
   ENCRYPTION_KEY: getRequiredEnv('ENCRYPTION_KEY'),
   // Groq API — optional; only needed for AI-powered commands/agent
   GROQ_API_KEY: getOptionalEnv('GROQ_API_KEY'),
+  // Facebook Messenger E2EE — optional; defaults to true matching Meta's platform default
+  FCA_ENABLE_E2EE: getFcaEnableE2EE(),
 
   // Derived boolean helpers for convenience
   isDevelopment: nodeEnv === 'development',
