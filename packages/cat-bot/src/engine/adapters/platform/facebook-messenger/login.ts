@@ -20,6 +20,7 @@ import type { SessionLogger } from '@/engine/modules/logger/logger.lib.js'; // R
 // fcaInstance attached as a property. Import as default to access the full surface.
 // @ts-expect-error - no published @types package
 import fca from '@johnlester-0369/fca-unofficial-e2ee';
+import { env } from '@/engine/config/env.config.js';
 
 /**
  * Logs in via fca-unofficial using the appstate string loaded from the database.
@@ -96,7 +97,7 @@ export async function startBot(
         selfListen: false,
         forceLogin: true,
         logLevel: 'silent',
-        enableE2EE: true,
+        enableE2EE: env.FCA_ENABLE_E2EE,
       });
 
       // extra layer of login validation to ensure the appstate is valid
