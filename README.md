@@ -1196,6 +1196,37 @@ Your command module never imports `discord.js`. Your button handler never calls 
   </tr>
 </table>
 
+### Platform Chat Examples
+
+#### `ping` — Across All Platforms
+
+<table>
+  <tr>
+    <td align="center"><strong>Discord</strong></td>
+    <td align="center"><strong>Telegram</strong></td>
+  </tr>
+  <tr>
+    <td><img src="assets/discord.jpg" alt="Ping on Discord" /></td>
+    <td><img src="assets/telegram.jpg" alt="Ping on Telegram" /></td>
+  </tr>
+  <tr>
+    <td align="center"><strong>Facebook Page</strong></td>
+    <td align="center"><strong>Facebook Messenger</strong></td>
+  </tr>
+  <tr>
+    <td><img src="assets/fb-page.jpg" alt="Ping on Facebook Page" /></td>
+    <td><img src="assets/fb-messenger.jpg" alt="Ping on Facebook Messenger" /></td>
+  </tr>
+</table>
+
+#### AI Agent
+
+<table>
+  <tr>
+    <td><img src="assets/agent.jpg" alt="AI Agent running daily and work commands" /></td>
+  </tr>
+</table>
+
 ---
 
 ## Features
