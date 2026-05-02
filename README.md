@@ -62,8 +62,9 @@ The platform transport layer absorbs every SDK difference (discord.js gateway, T
 15. [Developer Reference](#developer-reference)
 16. [Database Adapters](#database-adapters)
 17. [Environment Variables](#environment-variables)
-18. [npm Scripts](#npm-scripts)
-19. [Authors](#authors)
+18. [Facebook Messenger — E2EE Trade-offs](#facebook-messenger--e2ee-trade-offs)
+19. [npm Scripts](#npm-scripts)
+20. [Authors](#authors)
 
 ---
 
@@ -1958,23 +1959,15 @@ VITE_EMAIL_SERVICES_ENABLE=false   # set to true in production when SMTP is conf
 ENCRYPTION_KEY=                    # openssl rand -hex 32
 ```
 
-> **⚠️ Facebook Messenger — E2EE Resource Trade-off**
->
-> When `FCA_ENABLE_E2EE=true` (the default), `listenMqtt` internally spins up **two concurrent
-> WebSocket connections per session**: the standard MQTT connection to Facebook's edge servers,
-> and a separate **meta-messenger.js** WebSocket that handles the E2EE channel. The session is
-> not considered fully ready until both connections are established (`_socketReady` AND
-> `_e2eeFullyReady`). The E2EE bridge also maintains cryptographic key state and device
-> registration data for each session.
->
-> **If you run many concurrent Facebook Messenger sessions on a server with limited memory or
-> connections, consider setting `FCA_ENABLE_E2EE=false` in your `.env`.** This reduces each
-> session to a single MQTT connection and drops the meta-messenger.js bridge entirely.
-> **However, disabling E2EE means the bot cannot respond to private messages (DMs) at all** —
-> private Messenger chats use the E2EE channel handled by the reverse-engineered
-> meta-messenger.js library (via whatsmeow), so without the bridge the bot receives no DM
-> events and cannot reply to them. The bot will only function in group chats.
-> Only set `FCA_ENABLE_E2EE=false` if your bot is exclusively group-chat-based.
+---
+
+## Facebook Messenger — E2EE Trade-offs
+
+When `FCA_ENABLE_E2EE=true` (the default), `listenMqtt` internally spins up **two concurrent WebSocket connections per session**: the standard MQTT connection to Facebook's edge servers, and a separate **meta-messenger.js** WebSocket that handles the E2EE channel. The session is not considered fully ready until both connections are established (`_socketReady` AND `_e2eeFullyReady`). The E2EE bridge also maintains cryptographic key state and device registration data for each session.
+
+If you run many concurrent Facebook Messenger sessions on a server with limited memory or connections, consider setting `FCA_ENABLE_E2EE=false` in your `.env`. This reduces each session to a single MQTT connection and drops the meta-messenger.js bridge entirely. **However, disabling E2EE means the bot cannot respond to private messages (DMs) at all** — private Messenger chats use the E2EE channel handled by the reverse-engineered meta-messenger.js library (via whatsmeow), so without the bridge the bot receives no DM events and cannot reply to them. The bot will only function in group chats.
+
+> **⚠️ Only set `FCA_ENABLE_E2EE=false` if your bot is exclusively group-chat-based.**
 
 ---
 
