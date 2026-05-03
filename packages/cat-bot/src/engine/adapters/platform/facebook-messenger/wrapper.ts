@@ -259,6 +259,16 @@ class FacebookApi extends UnifiedApi {
 
     return null;
   }
+
+  /**
+   * Ejects the bot from a Facebook Messenger thread using the fca-unofficial removeUserFromGroup API.
+   * The bot removes itself (getCurrentUserID) from the target thread — equivalent to leaving the group.
+   */
+  override async leaveThread(threadID: string): Promise<void> {
+    logger.debug('[facebook-messenger] leaveThread called', { threadID });
+    const botId = String(this.#api.getCurrentUserID());
+    return removeUserFromGroup(this.#api, threadID, botId);
+  }
 }
 
 // ── Factory ────────────────────────────────────────────────────────────────────
