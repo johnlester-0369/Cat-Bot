@@ -681,12 +681,21 @@ export function createChatContext(
  */
 export function createBotContext(
   api: UnifiedApi,
+  event?: Record<string, unknown>,
 ): import('./interfaces/index.js').BotContext {
   logger.debug('[context.model] createBotContext called');
   return {
     getID: () => {
       logger.debug('[context.model] BotContext.getID called');
       return api.getBotID();
+    },
+    leave: async (threadID?: string): Promise<void> => {
+      // Resolve threadID: explicit arg wins; fall back to the current event's thread so
+      // callers can omit the arg when they want to leave the conversation already in progress.
+      const targetThread =
+        (threadID ?? (event?.['threadID'] as string | undefined)) ?? '';
+      logger.debug('[context.model] BotContext.leave called', { targetThread });
+      return api.leaveThread(targetThread);
     },
   };
 }
