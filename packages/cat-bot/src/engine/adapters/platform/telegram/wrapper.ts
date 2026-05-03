@@ -271,7 +271,8 @@ class TelegramApi extends UnifiedApi {
   override async leaveThread(threadID: string): Promise<void> {
     logger.debug('[telegram] leaveThread called', { threadID });
     const chatId = Number(threadID) || this.#ctx.chat?.id;
-    if (!chatId) throw new Error('[telegram] Cannot determine chat ID to leave');
+    if (!chatId)
+      throw new Error('[telegram] Cannot determine chat ID to leave');
     await this.#ctx.telegram.leaveChat(chatId);
   }
 }

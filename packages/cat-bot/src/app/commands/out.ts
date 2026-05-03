@@ -48,7 +48,7 @@ export const onCommand = async ({
   chat,
   event,
   args,
-  prefix
+  prefix,
 }: AppCtx): Promise<void> => {
   const targetThreadID = args[0];
   const currentThreadID = event['threadID'] as string;

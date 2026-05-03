@@ -693,7 +693,7 @@ export function createBotContext(
       // Resolve threadID: explicit arg wins; fall back to the current event's thread so
       // callers can omit the arg when they want to leave the conversation already in progress.
       const targetThread =
-        (threadID ?? (event?.['threadID'] as string | undefined)) ?? '';
+        threadID ?? (event?.['threadID'] as string | undefined) ?? '';
       logger.debug('[context.model] BotContext.leave called', { targetThread });
       return api.leaveThread(targetThread);
     },

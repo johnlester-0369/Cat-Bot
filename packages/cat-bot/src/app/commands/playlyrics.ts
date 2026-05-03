@@ -123,7 +123,12 @@ export const onCommand = async ({
     // ── Step 1: Fire audio-info and lyrics requests in parallel ────────────
     // Both APIs accept the same raw user query, so there is no dependency
     // between them — running them concurrently halves the wait time.
-    const audioApiUrl = createUrl('cuki', '/api/search/playyt', { query }, 'apikey');
+    const audioApiUrl = createUrl(
+      'cuki',
+      '/api/search/playyt',
+      { query },
+      'apikey',
+    );
     if (!audioApiUrl) throw new Error('Failed to build Play API URL.');
 
     const lyricsBase = createUrl('popcat', '/v2/lyrics');
@@ -176,7 +181,8 @@ export const onCommand = async ({
     const audioRes = await fetch(audio.directLink || audio.url, {
       signal: AbortSignal.timeout(30000),
     });
-    if (!audioRes.ok) throw new Error(`Audio download failed (${audioRes.status})`);
+    if (!audioRes.ok)
+      throw new Error(`Audio download failed (${audioRes.status})`);
     const audioBuffer = Buffer.from(await audioRes.arrayBuffer());
 
     if (waitId) await chat.unsendMessage(waitId as string).catch(() => {});
@@ -206,8 +212,7 @@ export const onCommand = async ({
     const attachment = [
       {
         name:
-          audio.filename ||
-          `${video.title.replace(/[/\\?%*:|"<>]/g, '-')}.mp3`,
+          audio.filename || `${video.title.replace(/[/\\?%*:|"<>]/g, '-')}.mp3`,
         stream: audioBuffer,
       },
     ];

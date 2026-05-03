@@ -12,7 +12,8 @@ export const config: CommandConfig = {
   version: '1.0.2',
   role: Role.ANYONE,
   author: 'John Lester',
-  description: 'Unsend a message — bot-only on FB Messenger, any message on Discord/Telegram (if bot has delete permission)',
+  description:
+    'Unsend a message — bot-only on FB Messenger, any message on Discord/Telegram (if bot has delete permission)',
   category: 'system',
   usage: '<reply to message>',
   cooldown: 3,
@@ -114,9 +115,7 @@ export const onCommand = async ({
   // admin list (matching slash-command semantics). On Telegram it checks the group
   // admin roster. Either way — only a recognised admin may delete another member's message.
   const isThreadAdm =
-    senderID && threadID
-      ? await isThreadAdmin(threadID, senderID)
-      : false;
+    senderID && threadID ? await isThreadAdmin(threadID, senderID) : false;
 
   if (!isThreadAdm) {
     await chat.replyMessage({

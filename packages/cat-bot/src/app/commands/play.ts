@@ -156,7 +156,9 @@ export const onCommand = async ({
       message: caption,
       attachment: [
         {
-          name: audio.filename || `${video.title.replace(/[/\\?%*:|"<>]/g, '-')}.mp3`,
+          name:
+            audio.filename ||
+            `${video.title.replace(/[/\\?%*:|"<>]/g, '-')}.mp3`,
           stream: audioBuffer,
         },
       ],

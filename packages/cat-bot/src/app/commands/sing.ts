@@ -66,7 +66,8 @@ export const config: CommandConfig = {
   version: '1.0.0',
   role: Role.ANYONE,
   author: 'TheophilusX',
-  description: 'Search YouTube Music and send the top result as an MP3 audio file.',
+  description:
+    'Search YouTube Music and send the top result as an MP3 audio file.',
   category: 'Media',
   usage: '<song name>',
   cooldown: 25,
@@ -79,7 +80,8 @@ export const config: CommandConfig = {
 const parseDurationSeconds = (duration: string): number => {
   const parts = duration.split(':').map(Number);
   if (parts.length === 2) return (parts[0] ?? 0) * 60 + (parts[1] ?? 0);
-  if (parts.length === 3) return (parts[0] ?? 0) * 3600 + (parts[1] ?? 0) * 60 + (parts[2] ?? 0);
+  if (parts.length === 3)
+    return (parts[0] ?? 0) * 3600 + (parts[1] ?? 0) * 60 + (parts[2] ?? 0);
   return 0;
 };
 
@@ -131,7 +133,9 @@ export const onCommand = async ({
 
     // ── Step 2: Filter to tracks under 10 minutes ─────────────────────────
     const filtered = data.filter(
-      (item) => !item.duration || parseDurationSeconds(item.duration) <= MAX_DURATION_SECONDS,
+      (item) =>
+        !item.duration ||
+        parseDurationSeconds(item.duration) <= MAX_DURATION_SECONDS,
     );
 
     if (filtered.length === 0) {

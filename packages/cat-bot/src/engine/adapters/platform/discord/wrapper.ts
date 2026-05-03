@@ -440,13 +440,17 @@ class DiscordApi extends UnifiedApi {
   override async leaveThread(threadID: string): Promise<void> {
     logger.debug('[discord] leaveThread called', { threadID });
     // Discord operates at guild/server level — convert channel ID to server ID first
-    const serverId = await getDiscordServerIdByChannel(threadID).catch(() => null as string | null);
+    const serverId = await getDiscordServerIdByChannel(threadID).catch(
+      () => null as string | null,
+    );
     const guildId = serverId ?? threadID;
     // Cache-first: guilds.cache.get() always returns a full Guild with .leave().
     // guilds.fetch() can return an OAuth2Guild (no .leave()) when the resolved ID turns out
     // to be a channel snowflake — safe to avoid the REST call entirely because the bot must
     // already be a member of any guild it can leave, so it will be present in cache.
-    const target = this.#interaction.client.guilds.cache.get(guildId) ?? this.#interaction.guild;
+    const target =
+      this.#interaction.client.guilds.cache.get(guildId) ??
+      this.#interaction.guild;
     if (target) await target.leave();
   }
 }

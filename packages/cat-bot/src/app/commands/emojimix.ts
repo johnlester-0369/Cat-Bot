@@ -38,7 +38,8 @@ export const config: CommandConfig = {
   version: '1.0.0',
   role: Role.ANYONE,
   author: 'AjiroDesu',
-  description: 'Combine two emojis into a blended image using Google Emoji Kitchen.',
+  description:
+    'Combine two emojis into a blended image using Google Emoji Kitchen.',
   category: 'Maker',
   usage: '<emoji1> <emoji2>',
   cooldown: 5,

@@ -40,9 +40,9 @@ const APIs: Record<string, ApiEntry> = {
     baseURL: 'https://chocomilk.amira.us.kg',
   },
   cuki: {
-    baseURL: "https://api.cuki.biz.id",
-    APIKey: "cuki-x"
-    },
+    baseURL: 'https://api.cuki.biz.id',
+    APIKey: 'cuki-x',
+  },
   deline: {
     baseURL: 'https://api.deline.web.id',
   },

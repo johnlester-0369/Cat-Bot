@@ -189,11 +189,9 @@ export class BotSessionConfigController {
     if (!isAdmin) {
       const cfg = mod['config'] as Record<string, unknown> | undefined;
       if (cfg?.['role'] === Role.SYSTEM_ADMIN) {
-        res
-          .status(403)
-          .json({
-            error: 'Forbidden: system admin commands cannot be modified',
-          });
+        res.status(403).json({
+          error: 'Forbidden: system admin commands cannot be modified',
+        });
         return;
       }
     }
