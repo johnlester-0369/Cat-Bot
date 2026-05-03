@@ -480,7 +480,7 @@ Top-level fields:
 | `chat` | `ChatContext` | All hooks | Send, edit, react to messages |
 | `thread` | `ThreadContext` | All hooks | Group operations (rename, set image, add/remove users) |
 | `user` | `UserContext` | All hooks | Look up user info and avatars |
-| `bot` | `BotContext` | All hooks | Get the bot's own platform user ID |
+| `bot` | `BotContext` | All hooks | Get the bot's own platform user ID; make the bot leave a thread |
 | `state` | `StateContext['state']` | onCommand, onReply, onReact, onClick | Manage pending conversation states |
 | `button` | `ButtonContext['button']` | onCommand, onClick | Generate and manage interactive button IDs |
 | `session` | `{ id, context, command, state }` | onReply, onReact, onClick | Auto-resolved conversation context |
@@ -1241,7 +1241,17 @@ const avatar = await user.getAvatarUrl(userId) // URL or null
 
 ```ts
 const botId = await bot.getID()
+
+// Leave the current thread (uses event.threadID when no arg is passed)
+await bot.leave()
+
+// Leave a specific thread by ID — used by /out <threadID>
+await bot.leave(targetThreadID)
 ```
+
+`bot.leave(threadID?)` — Makes the bot exit a thread or group. Omitting `threadID` falls back to the current event's thread. Used by the `/out` command for administrative self-eject. The bot sends any farewell message **before** calling leave so delivery is attempted while it is still a member.
+
+> **Platform notes:** Discord — leaves the entire guild (channel ID is resolved to server ID first). Telegram — calls Bot API `leaveChat`. Facebook Messenger — removes itself via `removeUserFromGroup(botId, threadID)`. Facebook Page — not applicable (always 1:1 DM; no group membership to leave).
 
 #### native — Session Identity
 

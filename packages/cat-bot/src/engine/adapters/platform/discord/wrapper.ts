@@ -58,7 +58,10 @@ import {
 
 // Database fallbacks for cross-platform unified name resolution
 import { getUserName as dbGetUserName } from '@/engine/repos/users.repo.js';
-import { getThreadName as dbGetThreadName } from '@/engine/repos/threads.repo.js';
+import {
+  getThreadName as dbGetThreadName,
+  getDiscordServerIdByChannel,
+} from '@/engine/repos/threads.repo.js';
 
 // ── DiscordApi (slash-command / interaction path) ──────────────────────────────
 
@@ -428,6 +431,24 @@ class DiscordApi extends UnifiedApi {
       userID,
     );
   }
+
+  /**
+   * Leaves the Discord server (guild). Discord has no per-channel leave — the bot exits the
+   * whole server. When threadID is a channel ID, threads.repo converts it to a server ID first
+   * so the correct guild is targeted even when the invoker passes a channel ID.
+   */
+  override async leaveThread(threadID: string): Promise<void> {
+    logger.debug('[discord] leaveThread called', { threadID });
+    // Discord operates at guild/server level — convert channel ID to server ID first
+    const serverId = await getDiscordServerIdByChannel(threadID).catch(() => null as string | null);
+    const guildId = serverId ?? threadID;
+    // Cache-first: guilds.cache.get() always returns a full Guild with .leave().
+    // guilds.fetch() can return an OAuth2Guild (no .leave()) when the resolved ID turns out
+    // to be a channel snowflake — safe to avoid the REST call entirely because the bot must
+    // already be a member of any guild it can leave, so it will be present in cache.
+    const target = this.#interaction.client.guilds.cache.get(guildId) ?? this.#interaction.guild;
+    if (target) await target.leave();
+  }
 }
 
 // ── createDiscordApi (interaction factory) ─────────────────────────────────────
@@ -691,6 +712,20 @@ export function createDiscordChannelApi(
   api.getAvatarUrl = (uid) => {
     logger.debug('[discord] getAvatarUrl called', { userID: uid });
     return getAvatarUrlLib(client, guild, uid);
+  };
+  // Discord leave is server-scoped: convert channel ID → guild ID, then guild.leave().
+  // The channel path (non-interaction) still needs client to fetch guilds by ID when the
+  // target thread differs from the currently bound guild.
+  api.leaveThread = async (threadID: string): Promise<void> => {
+    logger.debug('[discord] leaveThread called', { threadID });
+    const serverId = await getDiscordServerIdByChannel(threadID).catch(
+      () => null as string | null,
+    );
+    // Resolve to server ID; fall back to the bound guild's ID when no mapping exists yet.
+    // Cache-first for the same reason as DiscordApi.leaveThread — avoids OAuth2Guild pitfall.
+    const guildId = serverId ?? guild?.id ?? threadID;
+    const target = client?.guilds.cache.get(guildId) ?? guild;
+    if (target) await target.leave();
   };
 
   return api;

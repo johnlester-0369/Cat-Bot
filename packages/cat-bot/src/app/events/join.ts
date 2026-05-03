@@ -10,7 +10,7 @@ export const config: EventConfig = {
   description: 'Sends a welcome message when members join the group',
 };
 
-export const onEvent = async ({ event, chat }: AppCtx) => {
+export const onEvent = async ({ event, chat, bot }: AppCtx) => {
   try {
     const logMessageData = event['logMessageData'] as
       | Record<string, unknown>
@@ -20,6 +20,11 @@ export const onEvent = async ({ event, chat }: AppCtx) => {
       [];
 
     if (!added.length) return;
+
+    // The bot joining its own group would trigger a self-welcome — useless noise.
+    // Check against bot.getID() so this guard works across all platforms without hardcoding IDs.
+    const botId = await bot.getID();
+    if (added.some((p) => String(p['userFbId'] ?? '') === botId)) return;
 
     // Prefer fullName (display name) over firstName (account handle) over ID fallback
     const getName = (p: Record<string, unknown>) =>

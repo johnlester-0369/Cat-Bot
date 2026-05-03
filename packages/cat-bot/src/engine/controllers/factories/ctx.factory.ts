@@ -61,7 +61,11 @@ export function buildBaseCtx(
   // Generic chat context — handlers that need a command-aware variant (button callbacks,
   // slash-command dispatch) override ctx.chat after calling this factory.
   const chat = createChatContext(api, event);
-  const bot = createBotContext(api);
+  // Forward `event` so createBotContext's bot.leave() fallback can resolve event.threadID
+  // when the caller omits an explicit threadID (e.g. /out with no args on FB Messenger).
+  // Without event, the fallback chain (threadID ?? event?.threadID ?? '') always returns ''
+  // and fca-unofficial's removeUserFromGroup receives an empty string, producing a 404.
+  const bot = createBotContext(api, event);
   const user = createUserContext(api, native);
   const logger = createLogger({
     userId: native.userId ?? '',

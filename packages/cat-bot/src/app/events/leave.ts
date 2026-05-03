@@ -10,7 +10,7 @@ export const config: EventConfig = {
   description: 'Sends a goodbye message when members leave the group',
 };
 
-export const onEvent = async ({ event, chat }: AppCtx) => {
+export const onEvent = async ({ event, chat, bot }: AppCtx) => {
   try {
     const logMessageData = event['logMessageData'] as
       | Record<string, unknown>
@@ -19,6 +19,11 @@ export const onEvent = async ({ event, chat }: AppCtx) => {
     const author = event['author'] as string | undefined;
 
     const leftId = String(logMessageData?.['leftParticipantFbId'] ?? '');
+
+    // The bot leaving or being removed from a group would send a departure message into
+    // a thread it can no longer reach — pointless and likely to cause a delivery error.
+    const botId = await bot.getID();
+    if (leftId === botId) return;
 
     // wasRemoved: the author is someone other than the person who left.
     // fca provides a real author ID; Discord/Telegram normalizers always emit '' so wasRemoved = false.

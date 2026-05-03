@@ -263,6 +263,17 @@ class TelegramApi extends UnifiedApi {
     logger.debug('[telegram] setGroupReaction called', { threadID, emoji });
     return setGroupReaction(threadID, emoji);
   }
+
+  /**
+   * Leaves a Telegram chat using the official Bot API leaveChat method.
+   * Falls back to the current ctx.chat.id when the provided threadID parses to 0 (e.g. empty string).
+   */
+  override async leaveThread(threadID: string): Promise<void> {
+    logger.debug('[telegram] leaveThread called', { threadID });
+    const chatId = Number(threadID) || this.#ctx.chat?.id;
+    if (!chatId) throw new Error('[telegram] Cannot determine chat ID to leave');
+    await this.#ctx.telegram.leaveChat(chatId);
+  }
 }
 
 // ── Factory ───────────────────────────────────────────────────────────────────

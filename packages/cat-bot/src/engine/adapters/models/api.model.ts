@@ -349,4 +349,23 @@ export class UnifiedApi {
       `getAvatarUrl not implemented on platform: ${this.platform}`,
     );
   }
+
+  /**
+   * Makes the bot leave the specified thread / group / server.
+   * Platform granularity varies:
+   *   Discord      → guild.leave() — the bot leaves the entire server (channel ID auto-resolved to guild)
+   *   Telegram     → leaveChat(chatId) — Telegram Bot API leaveChat method
+   *   FB Messenger → removeUserFromGroup(botId, threadID) — fca removes the bot from the thread
+   *
+   * Throws by default — every concrete platform wrapper must override.
+   */
+  async leaveThread(_threadID: string): Promise<void> {
+    logger.debug('[UnifiedApi] leaveThread called', {
+      platform: this.platform,
+      threadID: _threadID,
+    });
+    throw new Error(
+      `leaveThread is not supported on platform: ${this.platform}`,
+    );
+  }
 }

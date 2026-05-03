@@ -128,6 +128,8 @@ export interface ChatContext {
  */
 export interface BotContext {
   getID(): Promise<string>;
+  /** Makes the bot leave a thread/group. Defaults to the current event's thread when threadID is omitted. */
+  leave(threadID?: string): Promise<void>;
 }
 
 /**
