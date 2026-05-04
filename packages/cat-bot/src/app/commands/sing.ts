@@ -62,7 +62,6 @@ const STATE = {
 
 export const config: CommandConfig = {
   name: 'sing',
-  aliases: ['play'] as string[],
   version: '1.0.0',
   role: Role.ANYONE,
   author: 'TheophilusX',
