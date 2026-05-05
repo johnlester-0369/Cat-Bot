@@ -67,6 +67,10 @@ const APIs: Record<string, ApiEntry> = {
   vreden: {
     baseURL: 'https://api.vreden.my.id',
   },
+  wajiro: {
+    baseURL:
+'https://wajiro-apis.onrender.com'
+  },
   zenzxz: {
     baseURL: 'https://api.zenzxz.my.id',
   },
