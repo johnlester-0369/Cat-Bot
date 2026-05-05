@@ -48,7 +48,7 @@ export const config = {
   role: Role.ANYONE, // per-subcommand admin gate is inside onCommand
   author: 'NTKhang (Cat-Bot port)',
   description: 'Manage and enforce a bad-words filter for this group.',
-  category: 'Admin',
+  category: 'Thread',
   usage: [
     'add <word[,word|word]> — Add banned word(s) (admin only)',
     'delete <word[,word|word]> — Remove banned word(s) (admin only)',

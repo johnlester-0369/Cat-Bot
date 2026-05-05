@@ -29,7 +29,7 @@ export const config = {
   author: 'NTKhang (Cat-Bot port)',
   description:
     'Turn on/off the mode where only bot admins can use the bot (session-wide).',
-  category: 'Admin',
+  category: 'Bot Admin',
   usage: [
     '[on | off] — Enable/disable bot-admin-only mode for this session',
     'noti [on | off] — Enable/disable the blocked-user notification',

@@ -35,7 +35,7 @@ export const config: CommandConfig = {
   author: 'John Lester',
   description:
     'Broadcast a notification message to all group threads in this session',
-  category: 'Admin',
+  category: 'Bot Admin',
   usage: '<message>',
   cooldown: 10,
   hasPrefix: true,

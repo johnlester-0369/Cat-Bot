@@ -29,7 +29,7 @@ export const config: CommandConfig = {
   author: 'John Lester',
   description:
     'Manage user bans for this session: ban or unban by platform user ID',
-  category: 'Admin',
+  category: 'Bot Admin',
   usage: '<ban|unban> <uid> [reason]',
   cooldown: 5,
   hasPrefix: true,

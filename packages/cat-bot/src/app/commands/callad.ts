@@ -44,7 +44,7 @@ export const config: CommandConfig = {
   author: 'John Lester',
   description:
     'Send a message or report to the bot admins. Replies are relayed bidirectionally.',
-  category: 'Admin',
+  category: 'Bot Admin',
   usage: '<message>',
   cooldown: 5,
   hasPrefix: true,

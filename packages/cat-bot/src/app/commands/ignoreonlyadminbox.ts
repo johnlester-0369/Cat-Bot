@@ -27,7 +27,7 @@ export const config = {
   author: 'NTKhang (Cat-Bot port)',
   description:
     'Manage commands exempt from the per-thread admin-only restriction.',
-  category: 'Admin',
+  category: 'Thread Admin',
   usage: [
     'add <commandName> — Add a command to the thread ignore list',
     'del <commandName> — Remove a command from the thread ignore list',

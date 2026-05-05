@@ -14,7 +14,7 @@ export const config: CommandConfig = {
   author: 'System',
   description:
     'Remove a user from the current group. Provide a user ID, mention them, or reply to their message.',
-  category: 'Admin',
+  category: 'Thread Admin',
   usage: '[uid | @mention | reply]',
   cooldown: 5,
   hasPrefix: true,

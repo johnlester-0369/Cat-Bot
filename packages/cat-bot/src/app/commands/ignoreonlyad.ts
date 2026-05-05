@@ -27,7 +27,7 @@ export const config = {
   author: 'NTKhang (Cat-Bot port)',
   description:
     'Manage commands exempt from the session-wide admin-only restriction.',
-  category: 'Admin',
+  category: 'Bot Admin',
   usage: [
     'add <commandName> — Add a command to the session ignore list',
     'del <commandName> — Remove a command from the session ignore list',

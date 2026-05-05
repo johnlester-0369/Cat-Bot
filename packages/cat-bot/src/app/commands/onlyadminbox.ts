@@ -24,7 +24,7 @@ export const config = {
   author: 'NTKhang (Cat-Bot port)',
   description:
     'Turn on/off the mode where only group admins can use the bot in this thread.',
-  category: 'Admin',
+  category: 'Thread Admin',
   usage: [
     '[on | off] — Enable/disable admin-only mode for this thread',
     'noti [on | off] — Enable/disable the blocked-user notification',

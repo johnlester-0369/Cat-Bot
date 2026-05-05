@@ -29,7 +29,7 @@ export const config: CommandConfig = {
   author: 'John Lester',
   description:
     'Manage thread bans for this session: ban or unban by platform thread ID',
-  category: 'Admin',
+  category: 'Bot Admin',
   usage: '<ban|unban> <tid> [reason]',
   cooldown: 5,
   hasPrefix: true,

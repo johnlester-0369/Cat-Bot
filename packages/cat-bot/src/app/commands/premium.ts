@@ -20,7 +20,7 @@ export const config = {
   author: 'John Lester',
   description:
     'Manage premium users for this session: add, list, or remove by user ID',
-  category: 'Admin',
+  category: 'Bot Admin',
   usage: '<add|list|remove> [uid]',
   cooldown: 5,
   hasPrefix: true,

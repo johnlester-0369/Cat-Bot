@@ -35,7 +35,7 @@ export const config: CommandConfig = {
   author: 'System',
   description:
     'Set the coin balance of yourself, a @mentioned user, or a user by ID',
-  category: 'Admin',
+  category: 'Bot Admin',
   usage:
     'me <amount> | del me | del @mention | @mention <amount> | uid <id> <amount>',
   cooldown: 5,
