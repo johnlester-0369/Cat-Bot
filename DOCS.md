@@ -1225,6 +1225,8 @@ await thread.setReaction('🔥')               // set the group's default reacti
 await thread.setNickname({ user_id: userId, nickname: 'Cool Name' })
 const info = await thread.getInfo()          // returns UnifiedThreadInfo
 const name = await thread.getName()          // cache-first display name
+const count = await thread.getMemberCount()          // RETURNS: number; falls back to 0 if unsupported
+const otherCount = await thread.getMemberCount(threadID)  // optional threadID parameter
 ```
 
 #### user
