@@ -273,6 +273,18 @@ export function createThreadContext(
       });
       return api.getThreadName(target as string);
     },
+    // Follows the same optional-target pattern as getName — defaults to event.threadID so
+    // callers can omit the argument entirely when querying the current conversation's group size.
+    getMemberCount: (targetThreadID) => {
+      const target =
+        typeof targetThreadID === 'object' && targetThreadID !== null
+          ? getThreadID(targetThreadID)
+          : targetThreadID || defaultThreadID;
+      logger.debug('[context.model] ThreadContext.getMemberCount called', {
+        threadID: target,
+      });
+      return api.getMemberCount(target as string);
+    },
   };
 }
 
