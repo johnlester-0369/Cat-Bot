@@ -21,10 +21,8 @@ import type { UnifiedApi } from '@/engine/adapters/models/api.model.js';
 import { formatEvent } from '@/engine/adapters/models/event.model.js';
 import {
   normalizeMessageEvent,
-  normalizeE2eeMessageEvent,
 } from './utils/index.js';
 import { E2EEApiProxy } from './lib/e2ee.js';
-import type { FcaApi } from './types.js';
 
 interface NativePayload {
   platform: string;
@@ -81,56 +79,12 @@ export function routeRawEvent(
     }
 
     case 'e2ee_message': {
-      // E2EE private chats use chatJid format ("{threadID}@msgr") for all send APIs —
-      // extract from e2ee metadata (always present) or derive from the raw threadID.
-      const e2eePayload = rawEvent['e2ee'] as { chatJid?: string } | undefined;
-      const chatJid =
-        e2eePayload?.chatJid ?? `${rawEvent['threadID'] as string}@msgr`;
-      const normalizedEvent = normalizeE2eeMessageEvent(rawEvent);
-      // 'message' or 'message_reply' — determined by e2ee.replyTo !== null inside normalizer
-      const emitType = normalizedEvent['type'] as string;
-      // Wrap the session-level UnifiedApi with E2EE send overrides scoped to this chatJid.
-      // E2EEApiProxy is per-event and not held beyond this call — no shared mutable state.
-      const e2eeApi = new E2EEApiProxy(
-        apiWrapper,
-        native.api as FcaApi,
-        chatJid,
-      );
-      emitter.emit(emitType, {
-        api: e2eeApi,
-        event: normalizedEvent,
-        native,
-        prefix,
-      });
+      // Handled natively by FBClient.onEvent -> routeFbClientEvent
       break;
     }
 
     case 'e2ee_message_reaction': {
-      // threadID in E2EE reaction events arrives as chatJid format ("123456@msgr") —
-      // strip the @msgr suffix so it matches the plain threadID convention used by
-      // all other event types and by the DB layer.
-      const rawThreadID = (rawEvent['threadID'] as string) ?? '';
-      const threadID = rawThreadID.endsWith('@msgr')
-        ? rawThreadID.slice(0, -5)
-        : rawThreadID;
-      const event = {
-        type: 'message_reaction',
-        platform: Platforms.FacebookMessenger,
-        threadID,
-        messageID: (rawEvent['messageID'] as string) ?? '',
-        reaction: (rawEvent['reaction'] as string) ?? '',
-        senderID: (rawEvent['senderID'] as string) ?? '',
-        userID: (rawEvent['userID'] as string) ?? '',
-        timestamp: null,
-        offlineThreadingID: '',
-        isE2EE: true,
-      };
-      emitter.emit('message_reaction', {
-        api: apiWrapper,
-        event,
-        native,
-        prefix,
-      });
+      // Handled natively by FBClient.onEvent -> routeFbClientEvent
       break;
     }
 
@@ -140,4 +94,70 @@ export function routeRawEvent(
       emitter.emit(type, { api: apiWrapper, event: rawEvent, native, prefix });
       break;
   }
+}
+
+/**
+ * Routes native E2EE events coming directly from FBClient.
+ * Converts the client event into the normalized Unified Event structure.
+ */
+export function routeFbClientEvent(
+  eventWrapper: any,
+  apiWrapper: UnifiedApi,
+  native: any,
+  emitter: EventEmitter,
+  prefix: string
+): void {
+  if (eventWrapper.type !== 'e2ee_message') return;
+  
+  const data = eventWrapper.data;
+  if (!data) return;
+
+  const threadID = data.threadId || '';
+  const messageID = data.id || '';
+  const senderID = data.senderId || '';
+  const kind = data.kind || '';
+  const timestamp = data.timestampMs || Date.now();
+
+  const e2eeApi = new E2EEApiProxy(apiWrapper, native.fbClient, threadID);
+
+  let emitType = 'event';
+  const unifiedEvent: any = {
+    platform: Platforms.FacebookMessenger,
+    threadID,
+    messageID,
+    senderID,
+    timestamp,
+    isE2EE: true,
+    isGroup: !!data.isGroup
+  };
+
+  if (['text', 'image', 'video', 'audio', 'document', 'sticker'].includes(kind)) {
+    unifiedEvent.message = data.text || '';
+    unifiedEvent.args = unifiedEvent.message.trim().split(/\s+/).filter(Boolean);
+    unifiedEvent.attachments = [];
+    if (data.media) unifiedEvent.attachments.push({ type: kind, url: null, isE2EE: true });
+
+    if (data.replyTo) {
+      emitType = 'message_reply';
+      unifiedEvent.type = 'message_reply';
+      unifiedEvent.messageReply = { messageID: data.replyTo.messageId, senderID: data.replyTo.senderId, message: '', args: [], attachments: [], timestamp: 0 };
+    } else {
+      emitType = 'message';
+      unifiedEvent.type = 'message';
+    }
+  } else if (kind === 'reaction') {
+    emitType = 'message_reaction';
+    unifiedEvent.type = 'message_reaction';
+    unifiedEvent.reaction = data.reaction || '';
+    unifiedEvent.messageID = data.targetId || messageID;
+    unifiedEvent.userID = senderID;
+  } else if (kind === 'revoke') {
+    emitType = 'message_unsend';
+    unifiedEvent.type = 'message_unsend';
+    unifiedEvent.messageID = data.targetId || messageID;
+  } else {
+    return;
+  }
+
+  emitter.emit(emitType, { api: e2eeApi, event: unifiedEvent, native, prefix });
 }
