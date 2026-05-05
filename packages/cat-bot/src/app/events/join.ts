@@ -119,11 +119,14 @@ export const onEvent = async ({ event, chat, bot, user, thread }: AppCtx) => {
     // ── Greeting image ────────────────────────────────────────────────────────
     // Resolve thread metadata (name, member count) for the image card.
     // We always build an image for the first (or only) joiner.
-    const threadInfo = await thread.getInfo().catch(() => null);
+    // Run in parallel — getMemberCount hits the real-time platform API independently
+    // of getInfo so Discord/Telegram get the accurate gateway/Bot-API count.
+    const [threadInfo, memberCount] = await Promise.all([
+      thread.getInfo().catch(() => null),
+      thread.getMemberCount().catch(() => 0),
+    ]);
     const groupName =
       threadInfo?.name ?? (await thread.getName().catch(() => 'the group'));
-    const memberCount =
-      threadInfo?.memberCount ?? threadInfo?.participantIDs.length ?? 0;
 
     const firstJoiner = added[0]!;
     const firstId = String(firstJoiner['userFbId'] ?? '');

@@ -118,11 +118,14 @@ export const onEvent = async ({ event, chat, bot, user, thread }: AppCtx) => {
 
     // ── Goodbye image ─────────────────────────────────────────────────────────
     // Resolve thread metadata and the departing member's avatar for the image card.
-    const threadInfo = await thread.getInfo().catch(() => null);
+    // Run in parallel — getMemberCount hits the real-time platform API independently
+    // of getInfo so Discord/Telegram get the accurate gateway/Bot-API count.
+    const [threadInfo, memberCount] = await Promise.all([
+      thread.getInfo().catch(() => null),
+      thread.getMemberCount().catch(() => 0),
+    ]);
     const groupName =
       threadInfo?.name ?? (await thread.getName().catch(() => 'the group'));
-    const memberCount =
-      threadInfo?.memberCount ?? threadInfo?.participantIDs.length ?? 0;
 
     // Attempt to resolve the departing member's display name from the DB / platform
     const leftName = leftId
