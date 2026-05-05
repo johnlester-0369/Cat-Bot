@@ -78,6 +78,8 @@ export interface ThreadContext {
   getInfo(targetThreadID?: string | ThreadOptions): Promise<UnifiedThreadInfo>;
   /** Returns the display name of this thread/group using cached/in-flight data (Discord/Telegram) or the DB (FB). Falls back to "Thread {id}". */
   getName(targetThreadID?: string | ThreadOptions): Promise<string>;
+  /** Returns the real-time member count for this thread/group. Falls back to 0 on unsupported platforms or network error. */
+  getMemberCount(targetThreadID?: string | ThreadOptions): Promise<number>;
 }
 
 /**

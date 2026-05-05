@@ -61,12 +61,14 @@ class FacebookApi extends UnifiedApi {
   // Private field — fca api instance stays encapsulated; no external code should call fca directly
   readonly #api: FcaApi;
   readonly #sessionId: string;
+  readonly #userId: string;
 
-  constructor(fcaApi: FcaApi, sessionId: string) {
+  constructor(fcaApi: FcaApi, sessionId: string, userId: string) {
     super();
     this.platform = Platforms.FacebookMessenger;
     this.#api = fcaApi;
     this.#sessionId = sessionId;
+    this.#userId = userId;
   }
 
   override sendMessage(
@@ -261,6 +263,27 @@ class FacebookApi extends UnifiedApi {
   }
 
   /**
+   * fca-unofficial exposes no direct member count endpoint — getFullThreadInfo() is the closest
+   * available API; it returns participantIDs from the native thread info response.
+   * memberCount is preferred (set when fca populates it); participantIDs.length is the fallback.
+   * Reads from the SAME thread:fullInfo LRU key that context.model.ts ThreadContext.getInfo() writes,
+   * so a prior ctx.thread.getInfo() call in the same join/leave handler serves this at zero cost.
+   */
+  override async getMemberCount(threadID: string): Promise<number> {
+    logger.debug('[facebook-messenger] getMemberCount called', { threadID });
+    // Use the identical composite key that context.model.ts ThreadContext.getInfo() writes —
+    // if join.ts/leave.ts already resolved thread info, the count comes from cache for free.
+    const fullInfoKey = `${this.#userId}:${Platforms.FacebookMessenger}:${this.#sessionId}:thread:fullInfo:${threadID}`;
+    const cachedInfo = lruCache.get<UnifiedThreadInfo>(fullInfoKey);
+    if (cachedInfo !== undefined) {
+      return cachedInfo.memberCount ?? cachedInfo.participantIDs.length;
+    }
+    // No lruCache.set here — context.model.ts owns writing thread:fullInfo; we are read-only consumers.
+    const info = await getFullThreadInfo(this.#api, threadID);
+    return info.memberCount ?? info.participantIDs.length;
+  }
+
+  /**
    * Ejects the bot from a Facebook Messenger thread using the fca-unofficial removeUserFromGroup API.
    * The bot removes itself (getCurrentUserID) from the target thread — equivalent to leaving the group.
    */
@@ -276,6 +299,7 @@ class FacebookApi extends UnifiedApi {
 export function createFacebookApi(
   fcaApi: FcaApi,
   sessionId: string,
+  userId: string,
 ): UnifiedApi {
-  return new FacebookApi(fcaApi, sessionId);
+  return new FacebookApi(fcaApi, sessionId, userId);
 }
