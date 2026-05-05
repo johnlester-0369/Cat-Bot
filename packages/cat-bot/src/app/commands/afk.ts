@@ -147,6 +147,14 @@ export const onCommand = async ({
     return;
   }
 
+  if (!event['isGroup']) {
+    await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
+      message: '❌ This command can only be used in group chats.',
+    });
+    return;
+  }
+
   // ── Already AFK → remove and report duration ──────────────────────────────
   const existing = await getAfkStatus(db, senderID);
   if (existing) {

@@ -128,6 +128,14 @@ export const onCommand = async ({
   const senderID = event['senderID'] as string;
   const sub = args[0]?.toLowerCase();
 
+  if (!event['isGroup']) {
+    await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
+      message: '❌ This command can only be used in group chats.',
+    });
+    return;
+  }
+
   // Lazy-init the collection so every sub-command is guaranteed a valid handle
   const handle = await getBadwordsHandle(db, threadID);
 

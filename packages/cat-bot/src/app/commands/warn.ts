@@ -157,6 +157,14 @@ export const onCommand = async ({
     | null
     | undefined;
 
+  if (!event['isGroup']) {
+    await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
+      message: '❌ This command can only be used in group chats.',
+    });
+    return;
+  }
+
   // ── No subcommand — show usage ───────────────────────────────────────────
   if (!args[0]) {
     await usage();

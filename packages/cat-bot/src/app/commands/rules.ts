@@ -208,6 +208,14 @@ export const onCommand = async ({
   const total = rulesList.length;
   const type = args[0];
 
+  if (!event['isGroup']) {
+    await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
+      message: '❌ This command can only be used in group chats.',
+    });
+    return;
+  }
+
   // ── No subcommand: view all rules ──────────────────────────────────────────
   if (!type) {
     const body =

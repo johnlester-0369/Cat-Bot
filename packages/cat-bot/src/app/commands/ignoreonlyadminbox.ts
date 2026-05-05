@@ -70,6 +70,14 @@ export const onCommand = async ({
   const sub = args[0]?.toLowerCase();
   const handle = await getHandle(db, threadID);
 
+  if (!event['isGroup']) {
+    await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
+      message: '❌ This command can only be used in group chats.',
+    });
+    return;
+  }
+
   // ── add ───────────────────────────────────────────────────────────────────
   if (sub === 'add') {
     if (!args[1]) {

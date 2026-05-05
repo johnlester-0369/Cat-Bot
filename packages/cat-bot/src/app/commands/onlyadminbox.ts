@@ -72,6 +72,14 @@ export const onCommand = async ({
     argIndex = 1;
   }
 
+  if (!event['isGroup']) {
+    await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
+      message: '❌ This command can only be used in group chats.',
+    });
+    return;
+  }
+
   const toggle = args[argIndex]?.toLowerCase();
   if (toggle !== 'on' && toggle !== 'off') return usage();
 
