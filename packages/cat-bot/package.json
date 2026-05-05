@@ -36,7 +36,6 @@
     "vitest": "^4.1.1"
   },
   "dependencies": {
-    "@johnlester-0369/fca-unofficial-e2ee": "^1.4.19",
     "axios": "^1.13.6",
     "better-auth": "^1.5.6",
     "chalk": "^5.6.2",
@@ -45,6 +44,7 @@
     "discord.js": "^14.26.3",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
+    "fca-cat-bot": "^1.0.5",
     "groq-sdk": "^1.1.2",
     "lru-cache": "^11.3.5",
     "moment-timezone": "^0.6.1",
