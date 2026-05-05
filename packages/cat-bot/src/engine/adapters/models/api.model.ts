@@ -351,6 +351,22 @@ export class UnifiedApi {
   }
 
   /**
+   * Returns the real-time member count for a thread / group / server.
+   *   Discord      — guild.memberCount from gateway cache (GUILD_MEMBER_ADD/REMOVE events), zero REST.
+   *   Telegram     — getChatMemberCount Bot API call (requires bot to be a member of the chat).
+   *   FB Messenger — participantIDs.length derived from getFullThreadInfo (no native count endpoint).
+   */
+  async getMemberCount(_threadID: string): Promise<number> {
+    logger.debug('[UnifiedApi] getMemberCount called', {
+      platform: this.platform,
+      threadID: _threadID,
+    });
+    throw new Error(
+      `getMemberCount is not supported on platform: ${this.platform}`,
+    );
+  }
+
+  /**
    * Makes the bot leave the specified thread / group / server.
    * Platform granularity varies:
    *   Discord      → guild.leave() — the bot leaves the entire server (channel ID auto-resolved to guild)
