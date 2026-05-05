@@ -2,15 +2,11 @@
  * Facebook Messenger — E2EE (End-to-End Encrypted) Send Helpers
  *
  * Meta enabled E2EE by default for Messenger private chats, introducing a
- * parallel set of fca-unofficial API methods that require chatJid format
- * ("{numericThreadID}@msgr") instead of the plain numeric threadID, and
- * that accept Buffer data instead of streaming uploads.
+ * parallel layer via FBClient that natively handles E2EE sessions.
  *
  * E2EEApiProxy wraps an existing UnifiedApi (the session-level FacebookApi)
- * for all non-send operations (getUserInfo, getFullThreadInfo, etc.) and
- * overrides only the send surface to route through E2EE-specific methods.
- * It is created per-event in event-router.ts and discarded after emission —
- * no shared mutable state.
+ * for all non-send operations, while delegating the send surface directly to
+ * the `FBClient` instance attached to the connection.
  */
 
 import type { Readable } from 'stream';
@@ -18,18 +14,18 @@ import { UnifiedApi } from '@/engine/adapters/models/api.model.js';
 import type {
   SendPayload,
   ReplyMessageOptions,
+  EditMessageOptions,
 } from '@/engine/adapters/models/api.model.js';
 import { Platforms } from '@/engine/modules/platform/platform.constants.js';
-import type { FcaApi } from '../types.js';
 import { urlToStream } from '../utils/index.js';
 import { mdToText } from '@/engine/utils/md-to-text.util.js';
 import { MessageStyle } from '@/engine/constants/message-style.constants.js';
+type FBClient = any;
 // ── Stream → Buffer conversion ─────────────────────────────────────────────────
 
 /**
  * Drains a Readable stream into a single contiguous Buffer.
- * Required because sendMediaE2EE accepts only Buffer data — unlike the regular
- * fca sendMessage path which pipes streams directly to the Graph API.
+ * Required because FBClient E2EE media uploads accept only Buffer data.
  */
 async function streamToBuffer(stream: Readable): Promise<Buffer> {
   const chunks: Buffer[] = [];
@@ -44,90 +40,79 @@ async function streamToBuffer(stream: Readable): Promise<Buffer> {
   });
 }
 
-// ── Media type detection ───────────────────────────────────────────────────────
-
-type E2EEMediaType = 'image' | 'video' | 'audio' | 'document' | 'sticker';
-
 /**
- * Derives the sendMediaE2EE mediaType string from a filename extension.
- * Falls back to 'document' for any unrecognised extension so uploads never
- * fail silently with an unsupported type string from the fca layer.
+ * Derives the FBClient E2EE media method name from a filename extension.
+ * Falls back to 'sendFile' for unrecognised formats.
  */
-function detectMediaType(name: string): E2EEMediaType {
+function detectMediaMethod(name: string): 'sendImage' | 'sendVideo' | 'sendAudio' | 'sendFile' {
   const ext = name.split('.').pop()?.toLowerCase() ?? '';
-  if (['jpg', 'jpeg', 'png', 'gif', 'bmp'].includes(ext)) return 'image';
-  // WebP is the WhatsApp-compatible animated sticker format used by Messenger
-  if (ext === 'webp') return 'sticker';
-  if (['mp4', 'mov', 'avi', 'webm', 'mkv', '3gp'].includes(ext)) return 'video';
+  if (['jpg', 'jpeg', 'png', 'gif', 'bmp'].includes(ext)) return 'sendImage';
+  if (['mp4', 'mov', 'avi', 'webm', 'mkv', '3gp'].includes(ext)) return 'sendVideo';
   if (['mp3', 'ogg', 'wav', 'm4a', 'aac', 'opus', 'flac'].includes(ext))
-    return 'audio';
-  return 'document';
+    return 'sendAudio';
+  return 'sendFile';
 }
 
 // ── E2EE send primitives ───────────────────────────────────────────────────────
 
 async function e2eeSendText(
-  api: FcaApi,
-  chatJid: string,
+  fbClient: FBClient,
+  threadId: string,
   message: string,
   replyToId?: string,
 ): Promise<string | undefined> {
-  return new Promise<string | undefined>((resolve, reject) => {
-    api.sendMessageE2EE(
-      chatJid,
-      { body: message, ...(replyToId !== undefined ? { replyToId } : {}) },
-      (err, info) => (err ? reject(err) : resolve(info?.messageID)),
-    );
+  const res = await fbClient.sendMessage({
+    threadId,
+    text: message,
+    replyToMessageId: replyToId,
   });
+  return res?.messageId as string | undefined;
 }
 
 async function e2eeSendMedia(
-  api: FcaApi,
-  chatJid: string,
+  fbClient: FBClient,
+  threadId: string,
   buffer: Buffer,
   name: string,
   caption?: string,
   replyToId?: string,
 ): Promise<string | undefined> {
-  const mediaType = detectMediaType(name);
-  return new Promise<string | undefined>((resolve, reject) => {
-    api.sendMediaE2EE(
-      chatJid,
-      mediaType,
-      buffer,
-      {
-        ...(caption !== undefined ? { caption } : {}),
-        ...(replyToId !== undefined ? { replyToId } : {}),
-      },
-      (err, info) => (err ? reject(err) : resolve(info?.messageID)),
-    );
+  const method = detectMediaMethod(name);
+
+  const res = await fbClient[method]({
+    threadId,
+    data: buffer,
+    fileName: name,
+    caption,
+    replyToMessageId: replyToId,
   });
+  return res?.messageId as string | undefined;
 }
 
 // ── E2EEApiProxy ────────────────────────────────────────────────────────────────
 
 /**
  * Per-event proxy that overrides the send surface of the regular FacebookApi
- * to use E2EE fca methods. All other operations delegate to the wrapped base.
+ * to use native FBClient E2EE methods. All other operations delegate to the wrapped base.
  */
 export class E2EEApiProxy extends UnifiedApi {
   readonly #base: UnifiedApi;
-  readonly #api: FcaApi;
-  readonly #chatJid: string;
+  readonly #fbClient: FBClient;
+  readonly #threadId: string;
 
-  constructor(base: UnifiedApi, api: FcaApi, chatJid: string) {
+  constructor(base: UnifiedApi, fbClient: FBClient, threadId: string) {
     super();
     this.platform = Platforms.FacebookMessenger;
     this.#base = base;
-    this.#api = api;
-    this.#chatJid = chatJid;
+    this.#fbClient = fbClient;
+    this.#threadId = threadId;
   }
 
   // ── E2EE send overrides ────────────────────────────────────────────────────────
 
   /**
-   * Routes to sendMessageE2EE (text) or sendMediaE2EE (first attachment wins).
-   * Streams are converted to Buffer because sendMediaE2EE requires Buffer input.
+   * Routes to fbClient.sendMessage (text) or media methods (first attachment wins).
+   * Streams are converted to Buffer because E2EE native media requires Buffer input.
    * E2EE does not support multi-file sends — only the first attachment is transmitted.
    */
   override async replyMessage(
@@ -150,14 +135,14 @@ export class E2EEApiProxy extends UnifiedApi {
     if (attachment.length > 0) {
       const first = attachment[0];
       if (first === undefined) {
-        return e2eeSendText(this.#api, this.#chatJid, message, replyToId);
+        return e2eeSendText(this.#fbClient, this.#threadId, message, replyToId);
       }
       const buf = Buffer.isBuffer(first.stream)
         ? first.stream
         : await streamToBuffer(first.stream as Readable);
       return e2eeSendMedia(
-        this.#api,
-        this.#chatJid,
+        this.#fbClient,
+        this.#threadId,
         buf,
         first.name,
         message || undefined,
@@ -168,14 +153,14 @@ export class E2EEApiProxy extends UnifiedApi {
     if (attachment_url.length > 0) {
       const first = attachment_url[0];
       if (first === undefined) {
-        return e2eeSendText(this.#api, this.#chatJid, message, replyToId);
+        return e2eeSendText(this.#fbClient, this.#threadId, message, replyToId);
       }
-      // Download URL attachment then convert to Buffer — E2EE API requires Buffer, not a stream
+      // Download URL attachment then convert to Buffer
       const readable = await urlToStream(first.url, first.name);
       const buf = await streamToBuffer(readable as Readable);
       return e2eeSendMedia(
-        this.#api,
-        this.#chatJid,
+        this.#fbClient,
+        this.#threadId,
         buf,
         first.name,
         message || undefined,
@@ -183,17 +168,13 @@ export class E2EEApiProxy extends UnifiedApi {
       );
     }
 
-    return e2eeSendText(this.#api, this.#chatJid, message, replyToId);
+    return e2eeSendText(this.#fbClient, this.#threadId, message, replyToId);
   }
 
   override async sendMessage(
     msg: string | SendPayload,
     _threadID: string,
   ): Promise<string | undefined> {
-    if (typeof msg === 'string') {
-      return e2eeSendText(this.#api, this.#chatJid, msg);
-    }
-
     // Cast appropriately: styles may be implicitly bound on incoming unflattened payloads
     const payload = msg as SendPayload & { style?: string };
     const rawText = payload.message ?? payload.body ?? '';
@@ -207,14 +188,14 @@ export class E2EEApiProxy extends UnifiedApi {
     if (attachment.length > 0) {
       const first = attachment[0];
       if (first === undefined) {
-        return e2eeSendText(this.#api, this.#chatJid, text);
+        return e2eeSendText(this.#fbClient, this.#threadId, text);
       }
       const buf = Buffer.isBuffer(first.stream)
         ? first.stream
         : await streamToBuffer(first.stream as Readable);
       return e2eeSendMedia(
-        this.#api,
-        this.#chatJid,
+        this.#fbClient,
+        this.#threadId,
         buf,
         first.name,
         text || undefined,
@@ -224,29 +205,33 @@ export class E2EEApiProxy extends UnifiedApi {
     if (attachment_url.length > 0) {
       const first = attachment_url[0];
       if (first === undefined) {
-        return e2eeSendText(this.#api, this.#chatJid, text);
+        return e2eeSendText(this.#fbClient, this.#threadId, text);
       }
       const readable = await urlToStream(first.url, first.name);
       const buf = await streamToBuffer(readable as Readable);
       return e2eeSendMedia(
-        this.#api,
-        this.#chatJid,
+        this.#fbClient,
+        this.#threadId,
         buf,
         first.name,
         text || undefined,
       );
     }
 
-    return e2eeSendText(this.#api, this.#chatJid, text);
+    return e2eeSendText(this.#fbClient, this.#threadId, text);
   }
 
-  override unsendMessage(messageID: string): Promise<void> {
-    // unsendMessageE2EE requires chatJid, not plain threadID
-    return new Promise<void>((resolve, reject) => {
-      this.#api.unsendMessageE2EE(this.#chatJid, messageID, (err) =>
-        err ? reject(err) : resolve(),
-      );
-    });
+  override async editMessage(messageID: string, options: string | EditMessageOptions): Promise<void> {
+    // FBClient native E2EE does not support message editing; safely fallback to standard message send
+    await this.sendMessage(options as any, this.#threadId);
+  }
+
+  override async unsendMessage(messageID: string): Promise<void> {
+    await this.#fbClient.unsendMessage(messageID, this.#threadId);
+  }
+
+  override async reactToMessage(threadID: string, messageID: string, emoji: string): Promise<void> {
+    await this.#fbClient.sendReaction({ threadId: this.#threadId, messageId: messageID, reaction: emoji } as any);
   }
 
   // ── Delegated operations — non-send methods ────────────────────────────────────
@@ -271,9 +256,6 @@ export class E2EEApiProxy extends UnifiedApi {
   }
   override getAvatarUrl(userID: string) {
     return this.#base.getAvatarUrl(userID);
-  }
-  override reactToMessage(threadID: string, messageID: string, emoji: string) {
-    return this.#base.reactToMessage(threadID, messageID, emoji);
   }
   override setGroupName(threadID: string, name: string) {
     return this.#base.setGroupName(threadID, name);
