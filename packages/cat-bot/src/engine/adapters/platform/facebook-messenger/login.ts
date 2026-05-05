@@ -13,14 +13,8 @@
  * signature as a simple string — no filesystem access required.
  */
 
-import type { FcaApi, StartBotConfig, StartBotResult } from './types.js';
+import type { StartBotConfig, StartBotResult } from './types.js';
 import type { SessionLogger } from '@/engine/modules/logger/logger.lib.js'; // Relocated module
-
-// fca-unofficial's default export is the CJS module.exports object — the login function with
-// fcaInstance attached as a property. Import as default to access the full surface.
-// @ts-expect-error - no published @types package
-import fca from '@johnlester-0369/fca-unofficial-e2ee';
-import { env } from '@/engine/config/env.config.js';
 
 /**
  * Logs in via fca-unofficial using the appstate string loaded from the database.
@@ -49,42 +43,31 @@ export async function startBot(
     );
   }
 
+  // Dynamic obscure import prevents tsc from compiling fca-cat-bot's broken .ts files
+  const pkg = 'fca-cat-bot';
+  const { fcaInstance } = (await import(pkg)) as any;
+
   // Obtain the login fn and EventEmitter logger from fcaInstance. emitLogger:true routes all
   // fca internal output through fcaLogger events instead of raw stderr — keeps process output
   // clean and ensures fca login/MQTT messages flow to the dashboard console via SessionLogger.
-  const { login, fcaLogger } = (
-    fca as {
-      fcaInstance: (opts: { emitLogger?: boolean }) => {
-        login: (
-          opts: { appState: unknown },
-          cb: (err: unknown, api: FcaApi) => void,
-        ) => void;
-        fcaLogger: {
-          on: (
-            event: string,
-            cb: (log: Record<string, unknown>) => void,
-          ) => void;
-        };
-      };
-    }
-  ).fcaInstance({ emitLogger: true });
+  const { login, fcaLogger } = fcaInstance({ emitLogger: true });
   // Bridge fca structured log entries ({level, message}) to the session-scoped logger so the
   // dashboard console receives the full fca login sequence and MQTT lifecycle output.
-  fcaLogger.on('info', (l) =>
+  fcaLogger.on('info', (l: { message: string }) =>
     sessionLogger.info(`[facebook-messenger] ${l.message}`),
   );
-  fcaLogger.on('warn', (l) =>
+  fcaLogger.on('warn', (l: { message: string }) =>
     sessionLogger.warn(`[facebook-messenger] ${l.message}`),
   );
-  fcaLogger.on('error', (l) =>
+  fcaLogger.on('error', (l: { message: string }) =>
     sessionLogger.error(`[facebook-messenger] ${l.message}`),
   );
-  fcaLogger.on('log', (l) =>
+  fcaLogger.on('log', (l: { message: string }) =>
     sessionLogger.info(`[facebook-messenger] ${l.message}`),
   );
 
   return new Promise((resolve, reject) => {
-    login({ appState }, async (err, api) => {
+    login({ appState }, async (err: any, api: any) => {
       if (err) {
         sessionLogger.error('[facebook-messenger] Login failed', {
           error: err,
@@ -95,9 +78,7 @@ export async function startBot(
       api.setOptions({
         listenEvents: true,
         selfListen: false,
-        forceLogin: true,
-        logLevel: 'silent',
-        enableE2EE: env.FCA_ENABLE_E2EE,
+        forceLogin: true
       });
 
       // extra layer of login validation to ensure the appstate is valid
