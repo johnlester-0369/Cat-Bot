@@ -2,6 +2,7 @@
   "name": "database",
   "version": "1.0.0",
   "description": "",
+  "private": true,
   "main": "./dist/database/src/index.js",
   "types": "./dist/database/src/index.d.ts",
   "scripts": {

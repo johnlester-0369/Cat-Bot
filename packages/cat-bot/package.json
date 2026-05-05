@@ -3,6 +3,7 @@
   "version": "1.0.1",
   "description": "",
   "main": "index.js",
+  "private": true,
   "scripts": {
     "dev": "tsx watch --conditions source src/engine/app.ts",
     "build": "npm run build --prefix ../database && tsc && tsc-alias",
