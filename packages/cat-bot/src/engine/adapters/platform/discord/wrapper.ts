@@ -433,6 +433,15 @@ class DiscordApi extends UnifiedApi {
   }
 
   /**
+   * guild.memberCount is populated by the gateway (GUILD_MEMBER_ADD / GUILD_MEMBER_REMOVE events).
+   * GatewayIntentBits.GuildMembers declared in client.ts keeps this value current without REST.
+   */
+  override getMemberCount(_threadID: string): Promise<number> {
+    logger.debug('[discord] getMemberCount called', { threadID: _threadID });
+    return Promise.resolve(this.#interaction.guild?.memberCount ?? 0);
+  }
+
+  /**
    * Leaves the Discord server (guild). Discord has no per-channel leave — the bot exits the
    * whole server. When threadID is a channel ID, threads.repo converts it to a server ID first
    * so the correct guild is targeted even when the invoker passes a channel ID.
@@ -716,6 +725,12 @@ export function createDiscordChannelApi(
   api.getAvatarUrl = (uid) => {
     logger.debug('[discord] getAvatarUrl called', { userID: uid });
     return getAvatarUrlLib(client, guild, uid);
+  };
+  // guild.memberCount is updated in real-time by GUILD_MEMBER_ADD/REMOVE gateway events —
+  // same zero-REST approach as getUserName and getThreadName in this factory.
+  api.getMemberCount = (_tid) => {
+    logger.debug('[discord] getMemberCount called', { threadID: _tid });
+    return Promise.resolve(guild?.memberCount ?? 0);
   };
   // Discord leave is server-scoped: convert channel ID → guild ID, then guild.leave().
   // The channel path (non-interaction) still needs client to fetch guilds by ID when the

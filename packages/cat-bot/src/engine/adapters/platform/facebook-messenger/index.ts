@@ -282,7 +282,7 @@ export function createFacebookMessengerListener(
               return;
             }
 
-            const apiWrapper = createFacebookApi(fcaApi, config.sessionId);
+            const apiWrapper = createFacebookApi(fcaApi, config.sessionId, config.userId);
             const native = {
               userId: config.userId,
               sessionId: config.sessionId,

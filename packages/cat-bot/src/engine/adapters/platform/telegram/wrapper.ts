@@ -254,6 +254,18 @@ class TelegramApi extends UnifiedApi {
     return dbGetThreadName(_threadID);
   }
 
+  /**
+   * getChatMemberCount is the official Telegram Bot API method — returns the exact real-time count.
+   * The bot must be a member of the target chat for this call to succeed.
+   * Falls back to 0 when the chat ID cannot be resolved from the current Telegraf context.
+   */
+  override getMemberCount(threadID: string): Promise<number> {
+    logger.debug('[telegram] getMemberCount called', { threadID });
+    const chatId = Number(threadID) || this.#ctx.chat?.id;
+    if (!chatId) return Promise.resolve(0);
+    return this.#ctx.telegram.getChatMembersCount(chatId);
+  }
+
   override addUserToGroup(threadID: string, userID: string): Promise<void> {
     logger.debug('[telegram] addUserToGroup called', { threadID, userID });
     return addUserToGroup(threadID, userID);
