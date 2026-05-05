@@ -41,7 +41,7 @@ export type { StartBotConfig, StartBotResult } from './types.js';
 
 import { createLogger } from '@/engine/modules/logger/logger.lib.js';
 import { startBot } from './login.js';
-import { routeRawEvent } from './event-router.js';
+import { routeRawEvent, routeFbClientEvent } from './event-router.js';
 // isAuthError: still needed here to classify MQTT callback errors as permanent vs recoverable.
 // withRetry: removed — runner (platform-runner.lib.ts) now owns all retry loops.
 import { isAuthError } from '@/engine/lib/retry.lib.js';
@@ -55,6 +55,8 @@ import {
   Platforms,
 } from '@/engine/modules/platform/platform.constants.js';
 import { botRepo } from '@/server/repos/bot.repo.js';
+import { env } from '@/engine/config/env.config.js';
+type FBClient = any;
 
 // Re-export startBot so integration tests can construct FacebookApi directly.
 export { startBot };
@@ -87,6 +89,11 @@ interface FbMessengerSessionState {
 
 const sessionStateRegistry = new Map<string, FbMessengerSessionState>();
 
+// ── E2EE Device Store Memory Cache ─────────────────────────────────────────────
+// Protects long-lived Signal identity/keys across temporary connectivity losses.
+// Maps sessionId -> JSON device payload.
+const e2eeDeviceStoreMap = new Map<string, string>();
+
 // ── Platform Listener ──────────────────────────────────────────────────────────
 
 /**
@@ -117,6 +124,9 @@ export function createFacebookMessengerListener(
   let activeFcaApi: FcaApi | null = existingState?.activeFcaApi ?? null;
   let activeAppstate: string | null = existingState?.activeAppstate ?? null;
   let isInvalidSession: boolean = existingState?.isInvalidSession ?? false;
+  // Hoisted to factory scope so emitter.stop() can call fbClient.disconnect() — declaring
+  // inside boot() would make it inaccessible from the stop closure (different stack frame).
+  let fbClient: any = null;
 
   /** Writes current closure state back to the registry so future closures inherit it. */
   function persistState(): void {
@@ -282,7 +292,11 @@ export function createFacebookMessengerListener(
               return;
             }
 
-            const apiWrapper = createFacebookApi(fcaApi, config.sessionId, config.userId);
+            const apiWrapper = createFacebookApi(
+              fcaApi,
+              config.sessionId,
+              config.userId,
+            );
             const native = {
               userId: config.userId,
               sessionId: config.sessionId,
@@ -309,9 +323,75 @@ export function createFacebookMessengerListener(
       // call listenMqtt so there is exactly one listener on the connection at all times.
       await listen(activeFcaApi!);
 
-      sessionLogger.info('[facebook-messenger] Listener active');
-      // markActive NOT called here — runManagedSession calls it after boot() returns.
+      // Native FBClient E2EE Session Configuration — runs concurrently with plaintext MQTT
+      // to support both transport protocols. fbClient writes to factory-scope let so stop() can disconnect.
+      if (env.FCA_ENABLE_E2EE) {
+        // Dynamic obscure import prevents tsc from traversing fca-cat-bot and evaluating its broken .ts files
+        const pkg = 'fca-cat-bot';
+        const { FBClient: FBC, fmeInstance } = (await import(pkg)) as any;
+        // Mirror the fcaLogger bridge in login.ts: wire FME (FB-Messenger-E2EE) structured log
+        // output to the session logger BEFORE FBClient instantiation so no early output is missed.
+        const { fmeLogger } = fmeInstance({ emitLogger: true });
+        fmeLogger.on('info', (l: { message: string }) =>
+          sessionLogger.info(`[facebook-messenger] [fme] ${l.message}`),
+        );
+        fmeLogger.on('warn', (l: { message: string }) =>
+          sessionLogger.warn(`[facebook-messenger] [fme] ${l.message}`),
+        );
+        fmeLogger.on('error', (l: { message: string }) =>
+          sessionLogger.error(`[facebook-messenger] [fme] ${l.message}`),
+        );
+        fbClient = new FBC({ platform: 'messenger', api: activeFcaApi });
+      }
+
+      if (fbClient) {
+        fbClient.onEvent((event: any) => {
+          try {
+            const apiWrapper = createFacebookApi(
+              activeFcaApi!,
+              config.sessionId,
+              config.userId,
+            );
+            const native = {
+              userId: config.userId,
+              sessionId: config.sessionId,
+              platform: Platforms.FacebookMessenger,
+              api: activeFcaApi,
+              fbClient,
+              event,
+            };
+            routeFbClientEvent(event, apiWrapper, native, emitter, prefix);
+          } catch (routeErr) {
+            sessionLogger.error(
+              '[facebook-messenger] E2EE routeFbClientEvent failed',
+              { error: routeErr },
+            );
+          }
+        });
+
+        try {
+          const { userId: clientUserId } = await fbClient.connect();
+          const deviceData = e2eeDeviceStoreMap.get(config.sessionId);
+          await fbClient.connectE2EE({
+            userId: clientUserId,
+            deviceData,
+            onUpdateDevice: (data: string) =>
+              e2eeDeviceStoreMap.set(config.sessionId, data),
+          });
+          sessionLogger.info(
+            '[facebook-messenger] Native E2EE connection established',
+          );
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          sessionLogger.error(
+            `[facebook-messenger] Native E2EE connection failed: ${message}`,
+          );
+        }
+      }
     };
+
+    sessionLogger.info('[facebook-messenger] Listener active');
+    // markActive NOT called here — runManagedSession calls it after boot() returns.
 
     await runManagedSession({
       smKey,
@@ -327,6 +407,13 @@ export function createFacebookMessengerListener(
     sessionManager.markLocked(smKey);
     try {
       sessionLogger.info('[facebook-messenger] Stopping Listener...');
+      // Disconnect the E2EE (Signal/Noise) transport before tearing down MQTT — ensures the
+      // FBClient WebSocket handshake state is flushed cleanly before the underlying FCA
+      // connection disappears, preventing orphaned Signal sessions on the server side.
+      if (fbClient) {
+        await fbClient.disconnect();
+        fbClient = null;
+      }
       // Only tear down the MQTT listener — activeFcaApi is intentionally preserved in the
       // registry so a subsequent start() (dashboard Restart, process restart) can reattach
       // without re-login when the session cookie is still valid.
