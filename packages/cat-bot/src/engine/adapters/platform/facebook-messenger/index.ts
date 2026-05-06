@@ -127,6 +127,9 @@ export function createFacebookMessengerListener(
   // Hoisted to factory scope so emitter.stop() can call fbClient.disconnect() — declaring
   // inside boot() would make it inaccessible from the stop closure (different stack frame).
   let fbClient: any = null;
+  // Guards the E2EE onEvent reconnect handler: set to true during emitter.stop() so that
+  // the disconnect callbacks fired by fbClient.disconnect() never trigger a reconnect loop.
+  let isStopping = false;
 
   /** Writes current closure state back to the registry so future closures inherit it. */
   function persistState(): void {
@@ -156,6 +159,8 @@ export function createFacebookMessengerListener(
      * markActive is NOT called here — runManagedSession calls it after boot() resolves.
      */
     const boot = async (): Promise<void> => {
+      // A fresh start() always supersedes any prior stop() — reset so onEvent reconnect logic works normally.
+      isStopping = false;
       // Dynamic import: wrapper.js pulls in all lib/* files which may fail at
       // evaluation time — deferring keeps module load safe.
       const { createFacebookApi } = await import('./wrapper.js');
@@ -358,6 +363,9 @@ export function createFacebookMessengerListener(
             event.type === 'error' ||
             (event.type === 'disconnected' && (event.data as any)?.isE2EE)
           ) {
+            // Intentional stop in progress — fbClient.disconnect() in emitter.stop() triggers these callbacks.
+            // Returning here prevents a reconnect loop from racing against the teardown sequence.
+            if (isStopping) return;
             // Burst guard: only one reconnect attempt in flight at a time.
             if (e2eeReconnecting) return;
             e2eeReconnecting = true;
@@ -468,6 +476,9 @@ export function createFacebookMessengerListener(
     sessionManager.markLocked(smKey);
     try {
       sessionLogger.info('[facebook-messenger] Stopping Listener...');
+      // Set before fbClient.disconnect() — the disconnect call synchronously fires onEvent callbacks
+      // ('error', 'disconnected') which must not attempt reconnection during deliberate teardown.
+      isStopping = true;
       // Disconnect the E2EE (Signal/Noise) transport before tearing down MQTT — ensures the
       // FBClient WebSocket handshake state is flushed cleanly before the underlying FCA
       // connection disappears, preventing orphaned Signal sessions on the server side.
