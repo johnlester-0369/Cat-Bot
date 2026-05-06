@@ -78,7 +78,7 @@ export async function startBot(
       api.setOptions({
         listenEvents: true,
         selfListen: false,
-        forceLogin: true
+        forceLogin: true,
       });
 
       // extra layer of login validation to ensure the appstate is valid

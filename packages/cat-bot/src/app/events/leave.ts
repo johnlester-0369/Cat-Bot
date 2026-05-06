@@ -135,9 +135,8 @@ export const onEvent = async ({ event, chat, bot, user, thread }: AppCtx) => {
     // Fallback avatar: UI Avatars generates a simple letter-based placeholder
     const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(leftName)}&background=random&size=256`;
     const avatarUrl =
-      (leftId
-        ? await user.getAvatarUrl(leftId).catch(() => null)
-        : null) ?? fallbackAvatar;
+      (leftId ? await user.getAvatarUrl(leftId).catch(() => null) : null) ??
+      fallbackAvatar;
 
     const imageUrl = buildGoodbyeImageUrl({
       username: leftName,

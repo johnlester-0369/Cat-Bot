@@ -19,9 +19,7 @@ import { Platforms } from '@/engine/modules/platform/platform.constants.js';
 import type { EventEmitter } from 'events';
 import type { UnifiedApi } from '@/engine/adapters/models/api.model.js';
 import { formatEvent } from '@/engine/adapters/models/event.model.js';
-import {
-  normalizeMessageEvent,
-} from './utils/index.js';
+import { normalizeMessageEvent } from './utils/index.js';
 import { E2EEApiProxy } from './lib/e2ee.js';
 
 interface NativePayload {
@@ -105,10 +103,10 @@ export function routeFbClientEvent(
   apiWrapper: UnifiedApi,
   native: any,
   emitter: EventEmitter,
-  prefix: string
+  prefix: string,
 ): void {
   if (eventWrapper.type !== 'e2ee_message') return;
-  
+
   const data = eventWrapper.data;
   if (!data) return;
 
@@ -128,19 +126,32 @@ export function routeFbClientEvent(
     senderID,
     timestamp,
     isE2EE: true,
-    isGroup: !!data.isGroup
+    isGroup: !!data.isGroup,
   };
 
-  if (['text', 'image', 'video', 'audio', 'document', 'sticker'].includes(kind)) {
+  if (
+    ['text', 'image', 'video', 'audio', 'document', 'sticker'].includes(kind)
+  ) {
     unifiedEvent.message = data.text || '';
-    unifiedEvent.args = unifiedEvent.message.trim().split(/\s+/).filter(Boolean);
+    unifiedEvent.args = unifiedEvent.message
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
     unifiedEvent.attachments = [];
-    if (data.media) unifiedEvent.attachments.push({ type: kind, url: null, isE2EE: true });
+    if (data.media)
+      unifiedEvent.attachments.push({ type: kind, url: null, isE2EE: true });
 
     if (data.replyTo) {
       emitType = 'message_reply';
       unifiedEvent.type = 'message_reply';
-      unifiedEvent.messageReply = { messageID: data.replyTo.messageId, senderID: data.replyTo.senderId, message: '', args: [], attachments: [], timestamp: 0 };
+      unifiedEvent.messageReply = {
+        messageID: data.replyTo.messageId,
+        senderID: data.replyTo.senderId,
+        message: '',
+        args: [],
+        attachments: [],
+        timestamp: 0,
+      };
     } else {
       emitType = 'message';
       unifiedEvent.type = 'message';

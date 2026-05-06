@@ -388,7 +388,9 @@ export function createFacebookMessengerListener(
                   onUpdateDevice: (data: string) =>
                     e2eeDeviceStoreMap.set(config.sessionId, data),
                 });
-                sessionLogger.info('[facebook-messenger] E2EE reconnection successful');
+                sessionLogger.info(
+                  '[facebook-messenger] E2EE reconnection successful',
+                );
               } catch (reconnectErr) {
                 const msg =
                   reconnectErr instanceof Error
@@ -440,7 +442,8 @@ export function createFacebookMessengerListener(
             '[facebook-messenger] Native E2EE connection established',
           );
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
+          const message =
+            error instanceof Error ? error.message : String(error);
           sessionLogger.error(
             `[facebook-messenger] Native E2EE connection failed: ${message}`,
           );

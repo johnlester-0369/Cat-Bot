@@ -44,10 +44,13 @@ async function streamToBuffer(stream: Readable): Promise<Buffer> {
  * Derives the FBClient E2EE media method name from a filename extension.
  * Falls back to 'sendFile' for unrecognised formats.
  */
-function detectMediaMethod(name: string): 'sendImage' | 'sendVideo' | 'sendAudio' | 'sendFile' {
+function detectMediaMethod(
+  name: string,
+): 'sendImage' | 'sendVideo' | 'sendAudio' | 'sendFile' {
   const ext = name.split('.').pop()?.toLowerCase() ?? '';
   if (['jpg', 'jpeg', 'png', 'gif', 'bmp'].includes(ext)) return 'sendImage';
-  if (['mp4', 'mov', 'avi', 'webm', 'mkv', '3gp'].includes(ext)) return 'sendVideo';
+  if (['mp4', 'mov', 'avi', 'webm', 'mkv', '3gp'].includes(ext))
+    return 'sendVideo';
   if (['mp3', 'ogg', 'wav', 'm4a', 'aac', 'opus', 'flac'].includes(ext))
     return 'sendAudio';
   return 'sendFile';
@@ -221,7 +224,10 @@ export class E2EEApiProxy extends UnifiedApi {
     return e2eeSendText(this.#fbClient, this.#threadId, text);
   }
 
-  override async editMessage(messageID: string, options: string | EditMessageOptions): Promise<void> {
+  override async editMessage(
+    messageID: string,
+    options: string | EditMessageOptions,
+  ): Promise<void> {
     // FBClient native E2EE does not support message editing; safely fallback to standard message send
     await this.sendMessage(options as any, this.#threadId);
   }
@@ -230,8 +236,16 @@ export class E2EEApiProxy extends UnifiedApi {
     await this.#fbClient.unsendMessage(messageID, this.#threadId);
   }
 
-  override async reactToMessage(threadID: string, messageID: string, emoji: string): Promise<void> {
-    await this.#fbClient.sendReaction({ threadId: this.#threadId, messageId: messageID, reaction: emoji } as any);
+  override async reactToMessage(
+    threadID: string,
+    messageID: string,
+    emoji: string,
+  ): Promise<void> {
+    await this.#fbClient.sendReaction({
+      threadId: this.#threadId,
+      messageId: messageID,
+      reaction: emoji,
+    } as any);
   }
 
   // ── Delegated operations — non-send methods ────────────────────────────────────
