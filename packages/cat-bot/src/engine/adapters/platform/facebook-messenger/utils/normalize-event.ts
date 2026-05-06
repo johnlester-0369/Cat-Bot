@@ -29,6 +29,7 @@ interface FcaMessageEvent {
   attachments?: FcaAttachment[];
   isGroup?: boolean;
   mentions?: Record<string, string>;
+  participantIDs?: string[];
   timestamp?: string | number | null;
   messageReply?: {
     threadID?: string;
@@ -69,6 +70,10 @@ export function normalizeMessageEvent(
     })),
     isGroup: !!event.isGroup,
     mentions: event.mentions ?? {},
+    // Pass through participantIDs from the raw fca listenMqtt event — fca injects the current
+    // thread roster on every message/event payload, giving getMemberCount a zero-cost real-time
+    // count without the expensive getFullThreadInfo GraphQL round-trip.
+    participantIDs: event.participantIDs ?? [],
     // PROTO_REPLIED_MESSAGE requires number; PROTO_EVENT_MESSAGE allows string|number|null
     timestamp: isReply
       ? Number(event.timestamp) || 0
