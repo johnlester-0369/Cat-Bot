@@ -344,8 +344,65 @@ export function createFacebookMessengerListener(
         fbClient = new FBC({ platform: 'messenger', api: activeFcaApi });
       }
 
+      // Hoisted so the onEvent reconnect handler can reference them after fbClient.connect() resolves.
+      let e2eeClientUserId: string | undefined;
+      // Prevents concurrent E2EE reconnect attempts — mirrors the MQTT reconnecting flag pattern.
+      // Declared here (boot-closure scope) so fbClient.onEvent and the finally block share one instance.
+      let e2eeReconnecting = false;
+
       if (fbClient) {
         fbClient.onEvent((event: any) => {
+          // FBClient lifecycle events (error, disconnected) are not routable messages —
+          // they signal transport failure and require a clean disconnect + reconnectE2EE.
+          if (
+            event.type === 'error' ||
+            (event.type === 'disconnected' && (event.data as any)?.isE2EE)
+          ) {
+            // Burst guard: only one reconnect attempt in flight at a time.
+            if (e2eeReconnecting) return;
+            e2eeReconnecting = true;
+            sessionLogger.warn(
+              `[facebook-messenger] E2EE ${event.type as string} — disconnecting and reconnecting...`,
+              { data: event.data as Record<string, unknown> },
+            );
+            void (async () => {
+              try {
+                // Flush any pending Signal/Noise state before the underlying transport is torn down.
+                if (fbClient) await fbClient.disconnect();
+              } catch {
+                /* non-fatal — proceed to reconnect regardless */
+              }
+              try {
+                // Guard: clientUserId is only available after the initial fbClient.connect() resolves.
+                // If the E2EE error fires before connect() returns (race on first boot), skip silently.
+                if (!e2eeClientUserId || !fbClient) {
+                  sessionLogger.error(
+                    '[facebook-messenger] E2EE reconnect skipped — no active session',
+                  );
+                  return;
+                }
+                const deviceData = e2eeDeviceStoreMap.get(config.sessionId);
+                await fbClient.connectE2EE({
+                  userId: e2eeClientUserId,
+                  deviceData,
+                  onUpdateDevice: (data: string) =>
+                    e2eeDeviceStoreMap.set(config.sessionId, data),
+                });
+                sessionLogger.info('[facebook-messenger] E2EE reconnection successful');
+              } catch (reconnectErr) {
+                const msg =
+                  reconnectErr instanceof Error
+                    ? reconnectErr.message
+                    : String(reconnectErr);
+                sessionLogger.error(
+                  `[facebook-messenger] E2EE reconnection failed: ${msg}`,
+                );
+              } finally {
+                e2eeReconnecting = false;
+              }
+            })();
+            return;
+          }
           try {
             const apiWrapper = createFacebookApi(
               activeFcaApi!,
@@ -371,6 +428,7 @@ export function createFacebookMessengerListener(
 
         try {
           const { userId: clientUserId } = await fbClient.connect();
+          e2eeClientUserId = clientUserId;
           const deviceData = e2eeDeviceStoreMap.get(config.sessionId);
           await fbClient.connectE2EE({
             userId: clientUserId,
