@@ -233,7 +233,8 @@ const nodeEnv = getNodeEnv();
 export const env: EnvConfig = {
   // Core environment
   NODE_ENV: nodeEnv,
-  PORT: getRequiredEnv('PORT'),
+  // Default to 3000 so operators can omit PORT entirely in development without failing startup.
+  PORT: getOptionalEnv('PORT') ?? '3000',
 
   // Logging configuration
   LOG_LEVEL: getLogLevel(),
