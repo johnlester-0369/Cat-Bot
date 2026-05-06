@@ -283,6 +283,18 @@ export function createThreadContext(
       logger.debug('[context.model] ThreadContext.getMemberCount called', {
         threadID: target,
       });
+      // Short-circuit for current-thread queries on FB Messenger: fca injects participantIDs on every
+      // raw event payload, giving us a real-time roster length at zero API cost. getFullThreadInfo
+      // (the getMemberCount fallback on FB Messenger) triggers a GraphQL round-trip per call — using
+      // the event roster avoids that on the hot path (join/leave handlers always query their own thread).
+      // For cross-thread queries (target !== defaultThreadID), there is no event context, so we fall
+      // back to the platform API as before.
+      if (target === defaultThreadID) {
+        const participantIDs = event['participantIDs'] as string[] | undefined;
+        if (Array.isArray(participantIDs) && participantIDs.length > 0) {
+          return Promise.resolve(participantIDs.length);
+        }
+      }
       return api.getMemberCount(target as string);
     },
   };
