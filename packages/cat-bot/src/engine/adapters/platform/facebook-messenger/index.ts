@@ -293,6 +293,44 @@ export function createFacebookMessengerListener(
               if (state.type === 'connect') {
                 mqttConnected = true;
                 resolve();
+                return;
+              }
+              // 'close' and 'disconnect' state types signal the MQTT transport has dropped
+              // without an error object — fca-unofficial fires these when the server closes
+              // the connection cleanly (e.g. idle timeout, server-side restart, network cut).
+              // Without this branch the session silently dies because the error path never
+              // fires: fca delivers state transitions as the third callback argument, not err.
+              if (state.type === 'close' || state.type === 'disconnect') {
+                // isStopping is set by emitter.stop() before calling stopListeningAsync() —
+                // stopListeningAsync() triggers a 'close' callback as part of teardown, so
+                // this guard prevents a reconnect loop from racing the deliberate stop sequence.
+                if (isStopping) return;
+                // Burst guard — only one reconnect in flight at a time; mirrors the error path.
+                if (reconnecting) return;
+                reconnecting = true;
+                sessionLogger.info(
+                  `[facebook-messenger] MQTT ${state.type} — triggering managed restart...`,
+                );
+                const prev = listenerInstances;
+                listenerInstances = null;
+                void (async () => {
+                  try {
+                    if (prev) await prev.stopListeningAsync();
+                  } catch {
+                    /* non-fatal — proceed to restart regardless */
+                  }
+                  reconnecting = false;
+                  // Pre-connect close/disconnect: boot() Promise is still pending — reject so
+                  // the runner's retry loop picks it up with exponential backoff rather than
+                  // hanging indefinitely on an unresolved Promise.
+                  // Post-connect close/disconnect: MQTT dropped after a live session — re-enter
+                  // the centralized runner for normal managed reconnection with backoff.
+                  if (!mqttConnected) {
+                    reject(new Error(`MQTT ${state.type} before connection established`));
+                  } else {
+                    void emitter.start();
+                  }
+                })();
               }
               return;
             }
