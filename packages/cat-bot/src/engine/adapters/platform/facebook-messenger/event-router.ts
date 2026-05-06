@@ -59,6 +59,8 @@ export function routeRawEvent(
       const event = {
         ...formatEvent(rawEvent),
         platform: Platforms.FacebookMessenger,
+        // formatEvent only maps declared fields — participantIDs is stripped without this re-attachment.
+        participantIDs: (rawEvent['participantIDs'] as string[] | undefined) ?? [],
       };
       emitter.emit(type, { api: apiWrapper, event, native, prefix });
       break;
@@ -71,6 +73,9 @@ export function routeRawEvent(
       const event = {
         ...formatEvent(rawEvent),
         platform: Platforms.FacebookMessenger,
+        // Same reason as message_reaction/unsend — preserve the raw participantIDs so join/leave
+        // handlers can derive real-time member count from the event without an extra API call.
+        participantIDs: (rawEvent['participantIDs'] as string[] | undefined) ?? [],
       };
       emitter.emit('event', { api: apiWrapper, event, native, prefix });
       break;
