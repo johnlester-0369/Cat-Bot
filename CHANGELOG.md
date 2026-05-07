@@ -6,13 +6,23 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.0.5] — 2026-05-07
+
+### cat-bot
+
+#### Dependencies
+
+- **Updated `fca-cat-bot` from `1.0.7` to `1.0.8`**: Bumped the Facebook Messenger E2EE transport library to its latest patch release. The `^1.0.8` range in `package.json` tracks future non-breaking patch fixes automatically.
+
+---
+
 ## [1.0.4] — 2026-05-07
 
 ### cat-bot
 
 #### Dependencies
 
-- **Updated `fca-cat-bot` from `1.0.5` to `1.0.6`**: Bumped the Facebook Messenger E2EE transport library to its latest patch release. The `^1.0.6` range in `package.json` tracks future non-breaking patch fixes automatically.
+- **Updated `fca-cat-bot` from `1.0.6` to `1.0.7`**: Bumped the Facebook Messenger E2EE transport library to its latest patch release. The `^1.0.7` range in `package.json` tracks future non-breaking patch fixes automatically.
 
 ---
 
