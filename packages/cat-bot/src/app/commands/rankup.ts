@@ -6,6 +6,8 @@
  *   onChat  — fires on EVERY message (passive XP accumulation)
  *             +1 EXP per message; notifies the thread when a user levels up,
  *             if rankup notifications are enabled for that thread.
+ *             On level-up, sends a rank card image via the Wajiro
+ *             /api/v1/rankup-card2 endpoint (avatar uploaded as multipart).
  *
  *   onCommand — /rankup on | off
  *             Toggles level-up notifications for the current thread.
@@ -28,6 +30,8 @@ import { OptionType } from '@/engine/modules/command/command-option.constants.js
 import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 import { ButtonStyle } from '@/engine/constants/button-style.constants.js';
 import { hasNativeButtons } from '@/engine/utils/ui-capabilities.util.js';
+import { createUrl } from '@/engine/utils/api.util.js';
+import { Platforms } from '@/engine/modules/platform/platform.constants.js';
 import type { CommandConfig } from '@/engine/types/module-config.types.js';
 
 /** Must match the constant in rank.ts — controls EXP-to-level curve. */
@@ -40,6 +44,12 @@ const SETTINGS_COLLECTION = 'rankup_settings';
 function expToLevel(exp: number): number {
   if (exp <= 0) return 0;
   return Math.floor((1 + Math.sqrt(1 + (8 * exp) / DELTA_NEXT)) / 2);
+}
+
+/** Minimum EXP required to reach a specific level. Mirrors rank.ts implementation. */
+function levelToExp(level: number): number {
+  if (level <= 0) return 0;
+  return Math.floor(((level * level - level) * DELTA_NEXT) / 2);
 }
 
 export const config: CommandConfig = {
@@ -65,14 +75,80 @@ export const config: CommandConfig = {
 };
 
 /**
+ * Builds and sends a rank-up card image via the Wajiro /api/v1/rankup-card2
+ * multipart endpoint. The user's avatar is downloaded and uploaded as the
+ * `file` field so the card generator can render it on the card.
+ *
+ * Fields sent:
+ *   file         — avatar image buffer (PNG/JPEG, uploaded as multipart)
+ *   username     — display name of the user who levelled up
+ *   currentLevel — the level the user just reached
+ *   nextLevel    — currentLevel + 1
+ *   currentXp    — EXP accumulated within the current level (resets each level)
+ *   requiredXp   — total EXP needed to complete the current level
+ *   themeIndex   — visual theme; rotates with level so cards feel fresh (0-5)
+ *
+ * Returns the image buffer on success, or null when any step fails.
+ * Errors are intentionally surfaced to the caller so the text fallback
+ * in onChat can be chosen instead of silently swallowing failures.
+ */
+async function buildRankupCard(
+  avatarUrl: string,
+  username: string,
+  currentLevel: number,
+  newExp: number,
+): Promise<Buffer | null> {
+  // Download the avatar as a raw buffer — the API requires a file upload,
+  // not a remote URL reference, so we cannot pass the URL directly.
+  const avatarRes = await fetch(avatarUrl);
+  if (!avatarRes.ok) return null;
+  const avatarBuffer = Buffer.from(await avatarRes.arrayBuffer());
+
+  // EXP values relative to the current level span, matching rank.ts semantics:
+  //   currentXp  = EXP earned since the start of the current level
+  //   requiredXp = total EXP needed to complete the current level
+  const currentBase = levelToExp(currentLevel);
+  const nextBase = levelToExp(currentLevel + 1);
+  const currentXp = newExp - currentBase;
+  const requiredXp = nextBase - currentBase;
+
+  // Pick a random theme from the 6 available (0–5) on every level-up so
+  // the card never looks identical twice in a row.
+  const themeIndex = Math.floor(Math.random() * 6);
+
+  // Build the base URL — query params are not used for this endpoint since
+  // all data is sent as multipart form fields.
+  const apiUrl = createUrl('wajiro', '/api/v1/rankup-card2');
+  if (!apiUrl) return null;
+
+  const form = new FormData();
+  // Attach the avatar buffer as a file field — Blob wrapping is required
+  // because FormData.append does not accept raw Buffer values on the web
+  // API; Node's native fetch accepts Blob with an explicit filename.
+  form.append('file', new Blob([avatarBuffer], { type: 'image/png' }), 'avatar.png');
+  form.append('username', username);
+  form.append('currentLevel', String(currentLevel));
+  form.append('nextLevel', String(currentLevel + 1));
+  form.append('currentXp', String(currentXp));
+  form.append('requiredXp', String(requiredXp));
+  form.append('themeIndex', String(themeIndex));
+
+  const cardRes = await fetch(apiUrl, { method: 'POST', body: form });
+  if (!cardRes.ok) return null;
+
+  return Buffer.from(await cardRes.arrayBuffer());
+}
+
+/**
  * Passive EXP accumulator — runs for every message before command dispatch.
  *
  * Reads current EXP, increments by 1, writes back. If the new EXP crosses a
  * level boundary AND rankup notifications are enabled for this thread, sends a
- * congratulation message. Errors are swallowed — a failing EXP write must never
- * block the message pipeline.
+ * rank-up card image from the Wajiro API. Falls back to a plain congratulation
+ * text message when the avatar fetch or API call fails. Errors are swallowed —
+ * a failing EXP write must never block the message pipeline.
  */
-export const onChat = async ({ event, db, chat }: AppCtx): Promise<void> => {
+export const onChat = async ({ event, db, chat, user, native }: AppCtx): Promise<void> => {
   const senderID = event['senderID'] as string | undefined;
   const threadID = event['threadID'] as string | undefined;
   if (!senderID || !threadID) return;
@@ -110,6 +186,39 @@ export const onChat = async ({ event, db, chat }: AppCtx): Promise<void> => {
     if (!rankupEnabled) return;
 
     const name = await db.users.getName(senderID);
+
+    // ── Rank-up card via Wajiro API ──────────────────────────────────────────
+    // Attachment delivery is not supported on Facebook Page — skip card
+    // generation entirely and fall through directly to the text fallback.
+    // All other platforms attempt the card first, then fall back on error.
+    const isFacebookPage = native.platform === Platforms.FacebookPage;
+
+    if (!isFacebookPage) {
+    // Attempt to build and send a visual rank card. If any step fails (avatar
+    // unavailable, API down, network error), fall through to the plain text
+    // congratulation message so the user always gets notified.
+    try {
+      const avatarUrl = await user.getAvatarUrl(senderID);
+
+      if (avatarUrl) {
+        const cardBuffer = await buildRankupCard(avatarUrl, name, newLevel, newExp);
+
+        if (cardBuffer) {
+          await chat.replyMessage({
+            style: MessageStyle.MARKDOWN,
+            message: `🎉 Congratulations **${name}**! You reached **level ${newLevel}**!`,
+            attachment: [{ name: 'rankup.png', stream: cardBuffer }],
+          });
+          return;
+        }
+      }
+    } catch {
+      // Card generation failed — fall through to text fallback below
+    }
+    } // end !isFacebookPage
+
+    // ── Text fallback ────────────────────────────────────────────────────────
+    // Shown when the Wajiro API is unreachable or the avatar cannot be resolved.
     await chat.replyMessage({
       style: MessageStyle.MARKDOWN,
       message: `🎉 Congratulations **${name}**! You reached **level ${newLevel}**!`,
