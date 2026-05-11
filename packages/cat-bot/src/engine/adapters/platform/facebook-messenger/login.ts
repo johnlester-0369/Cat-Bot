@@ -51,20 +51,30 @@ export async function startBot(
   // fca internal output through fcaLogger events instead of raw stderr — keeps process output
   // clean and ensures fca login/MQTT messages flow to the dashboard console via SessionLogger.
   const { login, fcaLogger } = fcaInstance({ emitLogger: true });
-  // Bridge fca structured log entries ({level, message}) to the session-scoped logger so the
-  // dashboard console receives the full fca login sequence and MQTT lifecycle output.
-  fcaLogger.on('info', (l: { message: string }) =>
-    sessionLogger.info(`[facebook-messenger] ${l.message}`),
-  );
-  fcaLogger.on('warn', (l: { message: string }) =>
-    sessionLogger.warn(`[facebook-messenger] ${l.message}`),
-  );
-  fcaLogger.on('error', (l: { message: string }) =>
-    sessionLogger.error(`[facebook-messenger] ${l.message}`),
-  );
-  fcaLogger.on('log', (l: { message: string }) =>
-    sessionLogger.info(`[facebook-messenger] ${l.message}`),
-  );
+
+  // Named handlers are mandatory — anonymous arrow functions cannot be removed with .off().
+  // fca-cat-bot is an ESM module so `fcaInstance` is module-cache-singleton: `fcaLogger` is
+  // the SAME EventEmitter object on every call (validation + real session boots). Without
+  // removal, each startBot() call permanently accumulates 4 more listeners, causing both a
+  // memory leak and cross-session log routing (all session loggers fire for every fca event).
+  const onInfo  = (l: { message: string }) => sessionLogger.info(`[facebook-messenger] ${l.message}`);
+  const onWarn  = (l: { message: string }) => sessionLogger.warn(`[facebook-messenger] ${l.message}`);
+  const onError = (l: { message: string }) => sessionLogger.error(`[facebook-messenger] ${l.message}`);
+  const onLog   = (l: { message: string }) => sessionLogger.info(`[facebook-messenger] ${l.message}`);
+  fcaLogger.on('info',  onInfo);
+  fcaLogger.on('warn',  onWarn);
+  fcaLogger.on('error', onError);
+  fcaLogger.on('log',   onLog);
+
+  // Removes all 4 handlers from the (potentially singleton) fcaLogger. Called on every exit
+  // path — success, auth error, and dtsg failure — so this session's log routing stops the
+  // moment login resolves, regardless of outcome.
+  const removeLogHandlers = (): void => {
+    fcaLogger.off('info',  onInfo);
+    fcaLogger.off('warn',  onWarn);
+    fcaLogger.off('error', onError);
+    fcaLogger.off('log',   onLog);
+  };
 
   return new Promise((resolve, reject) => {
     login({ appState }, async (err: any, api: any) => {
@@ -72,6 +82,7 @@ export async function startBot(
         sessionLogger.error('[facebook-messenger] Login failed', {
           error: err,
         });
+        removeLogHandlers();
         reject(err);
         return;
       }
@@ -85,15 +96,18 @@ export async function startBot(
       await new Promise<void>((r) => {
         api.refreshFb_dtsg?.(
           (_err: unknown, info: { data?: { fb_dtsg?: string } }) => {
-            if (!info?.data?.fb_dtsg)
+            if (!info?.data?.fb_dtsg) {
+              removeLogHandlers();
               reject({
                 message:
                   'Could not find fb_dtsg in HTML after requesting Facebook.',
               });
+            }
             r(undefined);
           },
         );
       });
+      removeLogHandlers();
       sessionLogger.info('[facebook-messenger] Bot initialised successfully!');
       resolve({ api, listener: null });
     });
