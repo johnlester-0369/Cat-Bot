@@ -106,14 +106,7 @@ export const onCommand = async ({
   const imageUrl = resolveImageUrl(event);
 
   if (!imageUrl) {
-    await chat.replyMessage({
-      style: MessageStyle.MARKDOWN,
-      message:
-        '📎 **No image found.**\n\n' +
-        'Please **send an image** with this command as the caption, ' +
-        'or **reply to an image message** and then use the command.',
-    });
-    void usage(); // Also show usage hint
+    await usage(); // Also show usage hint
     return;
   }
 
