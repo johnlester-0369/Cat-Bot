@@ -1,7 +1,7 @@
+import React, { useState } from 'react'
 import { Helmet } from '@dr.pogodin/react-helmet'
-import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2, Check } from 'lucide-react'
 import Card from '@/components/ui/data-display/Card'
 import Button from '@/components/ui/buttons/Button'
 import { Field } from '@/components/ui/forms/Field'
@@ -9,9 +9,6 @@ import Input from '@/components/ui/forms/Input'
 import Select from '@/components/ui/forms/Select'
 import type { SelectOption } from '@/components/ui/forms/Select'
 import Alert from '@/components/ui/feedback/Alert'
-import DataList from '@/components/ui/data-display/DataList'
-import Steps from '@/components/ui/navigation/Steps'
-import Divider from '@/components/ui/layout/Divider'
 import { ROUTES } from '@/constants/routes.constants'
 import { useBotCreate } from '@/features/users/hooks/useBotCreate'
 import { useBotValidation } from '@/features/users/hooks/useBotValidation'
@@ -26,6 +23,7 @@ import {
   type PlatformFields,
 } from '@/features/users/components/PlatformFieldInputs'
 import { VerificationStatusDisplay } from '@/features/users/components/VerificationStatusDisplay'
+import { cn } from '@/utils/cn.util'
 
 const INITIAL_PLATFORM_FIELDS: PlatformFields = {
   discordToken: '',
@@ -59,21 +57,16 @@ const INITIAL_FORM: FormState = {
   platformFields: INITIAL_PLATFORM_FIELDS,
 }
 
-/**
- * New Bot creation wizard — three-step flow.
- *
- * Step 1 collects bot identity (nickname, prefix, admins).
- * Step 2 collects + VALIDATES platform credentials via modular subcomponents.
- * Step 3 shows a read-only review summary before the final create action.
- *
- * Each step is fully self-contained inside a Card — header, content, and
- * action buttons all live inside the card using Card.Footer so there are no
- * floating button rows detached from their step context.
- */
+const STEPS = [
+  { index: 0, label: 'Identity' },
+  { index: 1, label: 'Platform' },
+  { index: 2, label: 'Review' },
+]
+
 export default function NewBotPage() {
   const navigate = useNavigate()
   const [form, setForm] = useState<FormState>(INITIAL_FORM)
-  const [currentStep, setCurrentStep] = useState(0)
+  const [currentStep, setStep] = useState(0)
   const { isLoading, error: botError, createBot } = useBotCreate()
   const {
     status: verificationStatus,
@@ -81,98 +74,81 @@ export default function NewBotPage() {
     reset: resetVerification,
   } = useBotValidation()
 
-  // ── Validation ──────────────────────────────────────────────────────────
-
   const isStep1Valid =
     form.botNickname.trim() !== '' && form.botPrefix.trim() !== ''
 
-  // Step 2 requires an explicit successful verification — the user cannot skip by
-  // typing credentials and clicking Next; they must click Verify first.
   const isStep2Valid =
     form.platform !== '' &&
     verificationStatus.phase === 'success' &&
     (form.platform === Platforms.FacebookPage ||
       form.botAdmins.some((a) => a.trim() !== ''))
 
-  const handleStepChange = (step: number) => {
+  const goTo = (step: number) => {
     if (step <= currentStep) {
-      setCurrentStep(step)
+      setStep(step)
       return
     }
+
     if (step !== currentStep + 1) return
     if (currentStep === 0 && !isStep1Valid) return
     if (currentStep === 1 && !isStep2Valid) return
-    setCurrentStep(step)
+
+    setStep(step)
   }
 
-  // ── Field handlers ──────────────────────────────────────────────────────
-
-  const handleTopField = (
+  const setTopField = (
     key: keyof Omit<FormState, 'botAdmins' | 'platform' | 'platformFields'>,
-    value: string,
-  ) => {
-    setForm((prev) => ({ ...prev, [key]: value }))
-  }
+    val: string,
+  ) => setForm((p) => ({ ...p, [key]: val }))
 
-  // Switching platforms resets credential fields AND verification state
-  const handlePlatformChange = (value: string) => {
+  const setPlatform = (val: string) => {
     resetVerification()
-    setForm((prev) => ({
-      ...prev,
-      platform: value as Platform,
+    setForm((p) => ({
+      ...p,
+      platform: val as Platform,
       platformFields: INITIAL_PLATFORM_FIELDS,
     }))
   }
 
-  // Changing any credential field invalidates the previous verification result
-  const handlePlatformField = (key: keyof PlatformFields, value: string) => {
+  const setPlatformField = (key: keyof PlatformFields, val: string) => {
     resetVerification()
-    setForm((prev) => ({
-      ...prev,
-      platformFields: { ...prev.platformFields, [key]: value },
+    setForm((p) => ({
+      ...p,
+      platformFields: { ...p.platformFields, [key]: val },
     }))
   }
 
-  // ── Admin array handlers ─────────────────────────────────────────────────
-
-  const handleAdminChange = (index: number, value: string) => {
-    setForm((prev) => {
-      const admins = [...prev.botAdmins]
-      admins[index] = value
-      return { ...prev, botAdmins: admins }
+  const setAdmin = (i: number, val: string) =>
+    setForm((p) => {
+      const admins = [...p.botAdmins]
+      admins[i] = val
+      return { ...p, botAdmins: admins }
     })
-  }
 
-  const handleAddAdmin = () => {
-    setForm((prev) => ({ ...prev, botAdmins: [...prev.botAdmins, ''] }))
-  }
+  const addAdmin = () =>
+    setForm((p) => ({ ...p, botAdmins: [...p.botAdmins, ''] }))
 
-  const handleRemoveAdmin = (index: number) => {
-    setForm((prev) => ({
-      ...prev,
-      // Keep at least one row so the field is never completely absent
+  const removeAdmin = (i: number) =>
+    setForm((p) => ({
+      ...p,
       botAdmins:
-        prev.botAdmins.length > 1
-          ? prev.botAdmins.filter((_, i) => i !== index)
-          : prev.botAdmins,
+        p.botAdmins.length > 1
+          ? p.botAdmins.filter((_, idx) => idx !== i)
+          : p.botAdmins,
     }))
-  }
-
-  // ── Verify ───────────────────────────────────────────────────────────────
 
   const canVerify = (() => {
+    const f = form.platformFields
+
     switch (form.platform) {
       case Platforms.Discord:
-        return !!form.platformFields.discordToken
+        return !!f.discordToken
       case Platforms.Telegram:
-        return !!form.platformFields.telegramToken
+        return !!f.telegramToken
       case Platforms.FacebookPage:
-        return (
-          !!form.platformFields.fbPageAccessToken &&
-          !!form.platformFields.fbPageId
-        )
+        return !!f.fbPageAccessToken && !!f.fbPageId
       case Platforms.FacebookMessenger:
-        return !!form.platformFields.appstate.trim()
+        return !!f.appstate.trim()
       default:
         return false
     }
@@ -180,69 +156,73 @@ export default function NewBotPage() {
 
   const handleVerify = () => {
     if (!form.platform || !canVerify) return
-    let credentials: PlatformCredentials
+
+    let creds: PlatformCredentials
+
     switch (form.platform) {
       case Platforms.Discord:
-        credentials = {
+        creds = {
           platform: Platforms.Discord,
           discordToken: form.platformFields.discordToken,
         }
         break
       case Platforms.Telegram:
-        credentials = {
+        creds = {
           platform: Platforms.Telegram,
           telegramToken: form.platformFields.telegramToken,
         }
         break
       case Platforms.FacebookPage:
-        credentials = {
+        creds = {
           platform: Platforms.FacebookPage,
           fbAccessToken: form.platformFields.fbPageAccessToken,
           fbPageId: form.platformFields.fbPageId,
         }
         break
       case Platforms.FacebookMessenger:
-        credentials = {
+        creds = {
           platform: Platforms.FacebookMessenger,
           appstate: form.platformFields.appstate,
         }
         break
     }
-    validate(credentials)
-  }
 
-  // ── Submit ───────────────────────────────────────────────────────────────
+    validate(creds)
+  }
 
   const handleSubmit = () => {
     if (!form.platform) return
-    let credentials: PlatformCredentials
+
+    let creds: PlatformCredentials
+
     switch (form.platform) {
       case Platforms.Discord:
-        credentials = {
+        creds = {
           platform: Platforms.Discord,
           discordToken: form.platformFields.discordToken,
         }
         break
       case Platforms.Telegram:
-        credentials = {
+        creds = {
           platform: Platforms.Telegram,
           telegramToken: form.platformFields.telegramToken,
         }
         break
       case Platforms.FacebookPage:
-        credentials = {
+        creds = {
           platform: Platforms.FacebookPage,
           fbAccessToken: form.platformFields.fbPageAccessToken,
           fbPageId: form.platformFields.fbPageId,
         }
         break
       case Platforms.FacebookMessenger:
-        credentials = {
+        creds = {
           platform: Platforms.FacebookMessenger,
           appstate: form.platformFields.appstate,
         }
         break
     }
+
     void createBot({
       botNickname: form.botNickname,
       botPrefix: form.botPrefix,
@@ -250,23 +230,17 @@ export default function NewBotPage() {
         form.platform === Platforms.FacebookPage
           ? []
           : form.botAdmins.filter((a) => a.trim() !== ''),
-      credentials,
+      credentials: creds,
     })
   }
 
-  // ── Derived state ────────────────────────────────────────────────────────
-
   const isFbPage = form.platform === Platforms.FacebookPage
-  const platformLabelName = form.platform
-    ? getPlatformLabel(form.platform)
-    : form.platform
+  const platformLabel = form.platform ? getPlatformLabel(form.platform) : ''
 
   const credentialSummary: { label: string; value: string }[] = (() => {
     switch (form.platform) {
       case Platforms.Discord:
-        return [
-          { label: 'Discord Token', value: form.platformFields.discordToken },
-        ]
+        return [{ label: 'Discord Token', value: form.platformFields.discordToken }]
       case Platforms.Telegram:
         return [
           { label: 'Telegram Token', value: form.platformFields.telegramToken },
@@ -274,10 +248,10 @@ export default function NewBotPage() {
       case Platforms.FacebookPage:
         return [
           {
-            label: 'FB Page Access Token',
+            label: 'Page Access Token',
             value: form.platformFields.fbPageAccessToken,
           },
-          { label: 'FB Page ID', value: form.platformFields.fbPageId },
+          { label: 'Page ID', value: form.platformFields.fbPageId },
         ]
       case Platforms.FacebookMessenger:
         return [{ label: 'Appstate', value: form.platformFields.appstate }]
@@ -288,363 +262,233 @@ export default function NewBotPage() {
 
   const filledAdmins = form.botAdmins.filter((a) => a.trim())
 
-  // While the FB Page OTP flow is in progress the user is waiting for async events;
-  // the Verify/Next button must not be shown during this window.
   const isFbPageWaiting =
     verificationStatus.phase === 'fbpage-webhook-pending' ||
     verificationStatus.phase === 'fbpage-otp-pending'
 
-  // ── Render ───────────────────────────────────────────────────────────────
-
   return (
-    <div className="flex flex-col gap-6 max-w-2xl mx-auto">
-      {/* Sets the browser tab title for the new-bot creation wizard */}
+    <div className="w-full max-w-[520px] mx-auto min-w-0">
       <Helmet>
         <title>Create New Bot · Cat-Bot</title>
       </Helmet>
-      {/* Page header */}
-      <div>
-        <h1 className="text-headline-md font-semibold text-on-surface">
+
+      <div className="mb-8">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.10em] text-on-surface-variant/60 mb-2 select-none">
+          Cat-Bot Dashboard
+        </p>
+        <h1 className="text-[1.5rem] font-bold tracking-tight text-on-surface leading-tight">
           Create New Bot
         </h1>
-        <p className="mt-1 text-body-md text-on-surface-variant">
-          Configure your bot's identity and platform credentials.
+        <p className="mt-2 text-sm text-on-surface-variant leading-relaxed max-w-sm">
+          Set up your bot in three steps. Each field is verified before you proceed.
         </p>
       </div>
 
-      <Steps.Root count={3} step={currentStep} onStepChange={handleStepChange}>
-        {/* Step progress indicator */}
-        <Steps.List>
-          <Steps.Item index={0}>
-            <Steps.Trigger index={0}>
-              <Steps.Indicator index={0} />
-              <div className="flex flex-col">
-                <Steps.Title>Identity</Steps.Title>
-                <Steps.Description>Nickname & prefix</Steps.Description>
-              </div>
-            </Steps.Trigger>
-          </Steps.Item>
+      <WizardStepper steps={STEPS} current={currentStep} onGoTo={goTo} />
 
-          <Steps.Separator index={0} />
-
-          <Steps.Item index={1}>
-            <Steps.Trigger index={1}>
-              <Steps.Indicator index={1} />
-              <div className="flex flex-col">
-                <Steps.Title>Platform</Steps.Title>
-                <Steps.Description>Credentials</Steps.Description>
-              </div>
-            </Steps.Trigger>
-          </Steps.Item>
-
-          <Steps.Separator index={1} />
-
-          <Steps.Item index={2}>
-            <Steps.Trigger index={2}>
-              <Steps.Indicator index={2} />
-              <div className="flex flex-col">
-                <Steps.Title>Review</Steps.Title>
-                <Steps.Description>Confirm & create</Steps.Description>
-              </div>
-            </Steps.Trigger>
-          </Steps.Item>
-        </Steps.List>
-
-        {/* ── Step 1: Bot Identity ──────────────────────────────────────────── */}
-        <Steps.Content index={0}>
-          <Card.Root variant="elevated" shadowElevation={1} padding="md">
-            <Card.Header>
-              <div>
-                <Card.Title as="h2">Bot Identity</Card.Title>
-                <Card.Description>
-                  Basic information about your bot.
-                </Card.Description>
-              </div>
-            </Card.Header>
-
-            <div className="flex flex-col gap-5">
+      <div className="mt-5">
+        {currentStep === 0 && (
+          <WizardCard
+            title="Bot Identity"
+            description="Give your bot a name and choose a command trigger prefix."
+          >
+            <FormBody>
               <Field.Root required>
-                <Field.Label>Bot Nickname</Field.Label>
+                <Field.Label>Nickname</Field.Label>
                 <Input
                   placeholder="e.g. Cat Bot"
                   value={form.botNickname}
-                  onChange={(e) =>
-                    handleTopField('botNickname', e.target.value)
-                  }
+                  onChange={(e) => setTopField('botNickname', e.target.value)}
+                  autoFocus
                 />
+                <Field.HelperText>
+                  Displayed as the bot's identity in your dashboard.
+                </Field.HelperText>
               </Field.Root>
 
               <Field.Root required>
-                <Field.Label>Bot Prefix</Field.Label>
+                <Field.Label>Command Prefix</Field.Label>
                 <Input
                   placeholder="e.g. /"
                   value={form.botPrefix}
-                  onChange={(e) => handleTopField('botPrefix', e.target.value)}
+                  onChange={(e) => setTopField('botPrefix', e.target.value)}
                 />
+                <Field.HelperText>
+                  The character users type before a command, e.g.{' '}
+                  <code className="font-mono text-on-surface bg-surface-container-high rounded px-1 py-px text-xs">
+                    /help
+                  </code>
+                  .
+                </Field.HelperText>
               </Field.Root>
-            </div>
+            </FormBody>
 
-            {/* Card.Footer keeps action buttons inside the card boundary */}
-            <Card.Footer align="between">
-              <Button
-                variant="text"
-                color="neutral"
-                size="md"
-                onClick={() => navigate(ROUTES.DASHBOARD.ROOT)}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="filled"
-                color="primary"
-                size="md"
-                onClick={() => handleStepChange(1)}
-                disabled={!isStep1Valid}
-              >
-                Next
-              </Button>
-            </Card.Footer>
-          </Card.Root>
-        </Steps.Content>
+            <WizardFooter
+              onBack={() => navigate(ROUTES.DASHBOARD.ROOT)}
+              backLabel="Cancel"
+              onNext={() => goTo(1)}
+              nextLabel="Continue"
+              nextDisabled={!isStep1Valid}
+            />
+          </WizardCard>
+        )}
 
-        {/* ── Step 2: Platform + Credential Verification ───────────────────── */}
-        <Steps.Content index={1}>
-          <Card.Root variant="elevated" shadowElevation={1} padding="md">
-            <Card.Header>
-              <div>
-                <Card.Title as="h2">Platform</Card.Title>
-                <Card.Description>
-                  Select the messaging platform, provide credentials, then click{' '}
-                  <strong>Verify</strong> to validate before proceeding.
-                </Card.Description>
-              </div>
-            </Card.Header>
-
-            <div className="flex flex-col gap-5">
+        {currentStep === 1 && (
+          <WizardCard
+            title="Platform & Credentials"
+            description="Choose a messaging platform and provide the required credentials. Tap Verify before continuing."
+          >
+            <FormBody>
               <Field.Root required>
                 <Field.Label>Platform</Field.Label>
                 <Select
                   options={PLATFORM_OPTIONS}
                   placeholder="Select a platform"
                   value={form.platform}
-                  onChange={handlePlatformChange}
+                  onChange={setPlatform}
                 />
               </Field.Root>
 
-              {/* Credential inputs appear once a platform is selected */}
               {form.platform && (
                 <div
                   className="flex flex-col gap-5"
                   style={{
                     animation:
-                      'fade-in-down 150ms var(--easing-standard-decelerate) both',
+                      'fade-in-blur 220ms cubic-bezier(0.2,0,0,1) both',
                   }}
                 >
-                  <Divider spacing="none" />
-                  <PlatformFieldInputs
-                    platform={form.platform}
-                    fields={form.platformFields}
-                    onChange={handlePlatformField}
-                  />
+                  <FieldGroup label="Credentials">
+                    <PlatformFieldInputs
+                      platform={form.platform}
+                      fields={form.platformFields}
+                      onChange={setPlatformField}
+                    />
+                  </FieldGroup>
 
                   {!isFbPage ? (
-                    <>
-                      <Divider spacing="none" />
-                      <div className="flex flex-col gap-3">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-label-md font-medium text-on-surface">
-                              Bot Admins
-                            </p>
-                            <p className="text-label-sm text-on-surface-variant mt-0.5">
-                              User IDs with admin privileges
-                            </p>
-                          </div>
-                          <Button
-                            variant="text"
-                            color="primary"
-                            size="sm"
-                            leftIcon={<Plus className="h-3.5 w-3.5" />}
-                            onClick={handleAddAdmin}
-                            aria-label="Add another admin user ID"
-                          >
-                            Add
-                          </Button>
-                        </div>
-
-                        <div className="flex flex-col gap-2 rounded-lg">
-                          {form.botAdmins.map((adminId, index) => (
-                            <div
-                              key={index}
-                              className="flex items-center gap-2"
-                            >
-                              <div className="flex-1">
-                                <Input
-                                  placeholder={`Admin user ID ${index + 1}`}
-                                  value={adminId}
-                                  onChange={(e) =>
-                                    handleAdminChange(index, e.target.value)
-                                  }
-                                  aria-label={`Admin user ID ${index + 1}`}
-                                />
-                              </div>
-                              {form.botAdmins.length > 1 && (
-                                <Button
-                                  variant="text"
-                                  color="error"
-                                  iconOnly
-                                  onClick={() => handleRemoveAdmin(index)}
-                                  aria-label={`Remove admin user ID ${index + 1}`}
-                                  leftIcon={<Trash2 className="h-4 w-4" />}
-                                />
-                              )}
+                    <FieldGroup
+                      label="Bot Admins"
+                      hint="User IDs that have admin control over this bot."
+                      action={
+                        <button
+                          type="button"
+                          onClick={addAdmin}
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:opacity-70 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 rounded"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          Add
+                        </button>
+                      }
+                    >
+                      <div className="flex flex-col gap-2.5">
+                        {form.botAdmins.map((id, i) => (
+                          <div key={i} className="flex items-center gap-2 min-w-0">
+                            <div className="flex-1 min-w-0">
+                              <Input
+                                placeholder={`User ID ${i + 1}`}
+                                value={id}
+                                onChange={(e) => setAdmin(i, e.target.value)}
+                                aria-label={`Admin user ID ${i + 1}`}
+                              />
                             </div>
-                          ))}
-                        </div>
+
+                            {form.botAdmins.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => removeAdmin(i)}
+                                aria-label={`Remove admin ${i + 1}`}
+                                className={cn(
+                                  'shrink-0 h-9 w-9 flex items-center justify-center rounded-lg',
+                                  'text-on-surface-variant hover:text-error hover:bg-error/10',
+                                  'transition-all duration-150',
+                                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/30',
+                                )}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
+                        ))}
                       </div>
-                    </>
+                    </FieldGroup>
                   ) : (
-                    <>
-                      <Divider spacing="none" />
-                      <Alert
-                        variant="tonal"
-                        color="info"
-                        title="Admin Roles"
-                        message="Admin IDs are not needed for Facebook Pages. Access is automatically and securely managed through your Meta Page roles using PSIDs."
-                      />
-                    </>
+                    <Alert
+                      variant="tonal"
+                      color="info"
+                      title="Admin access via Meta roles"
+                      message="Admin IDs are not required for Facebook Pages. Access is managed through your Meta Page roles using PSIDs."
+                    />
+                  )}
+
+                  {verificationStatus.phase !== 'idle' && (
+                    <VerificationStatusDisplay status={verificationStatus} />
                   )}
                 </div>
               )}
+            </FormBody>
 
-              {/* Verification feedback appears once the user initiates verification */}
-              {verificationStatus.phase !== 'idle' && form.platform && (
-                <div className="flex flex-col gap-3">
-                  <Divider spacing="none" />
-                  <VerificationStatusDisplay status={verificationStatus} />
-                </div>
-              )}
-            </div>
-
-            <Card.Footer align="between">
-              <Button
-                variant="text"
-                color="neutral"
-                size="md"
-                onClick={() => handleStepChange(0)}
-              >
-                Back
-              </Button>
-
-              {verificationStatus.phase === 'success' ? (
-                <Button
-                  variant="filled"
-                  color="primary"
-                  size="md"
-                  onClick={() => handleStepChange(2)}
-                >
-                  Next
-                </Button>
-              ) : isFbPageWaiting ? null : (
-                <Button
-                  variant="filled"
-                  color="primary"
-                  size="md"
-                  onClick={handleVerify}
-                  disabled={
-                    !canVerify || verificationStatus.phase === 'validating'
-                  }
-                >
-                  {verificationStatus.phase === 'validating'
+            <WizardFooter
+              onBack={() => goTo(0)}
+              backLabel="Back"
+              onNext={
+                verificationStatus.phase === 'success'
+                  ? () => goTo(2)
+                  : isFbPageWaiting
+                    ? undefined
+                    : handleVerify
+              }
+              nextLabel={
+                verificationStatus.phase === 'success'
+                  ? 'Continue'
+                  : verificationStatus.phase === 'validating'
                     ? 'Verifying…'
-                    : 'Verify'}
-                </Button>
-              )}
-            </Card.Footer>
-          </Card.Root>
-        </Steps.Content>
+                    : 'Verify'
+              }
+              nextDisabled={
+                verificationStatus.phase === 'success'
+                  ? false
+                  : !canVerify || verificationStatus.phase === 'validating'
+              }
+              nextLoading={verificationStatus.phase === 'validating'}
+            />
+          </WizardCard>
+        )}
 
-        {/* ── Step 3: Review & Create ──────────────────────────────────────── */}
-        <Steps.Content index={2}>
-          <Card.Root variant="elevated" shadowElevation={1} padding="md">
-            <Card.Header>
-              <div>
-                <Card.Title as="h2">Review</Card.Title>
-                <Card.Description>
-                  Verify your configuration before creating the bot.
-                </Card.Description>
-              </div>
-            </Card.Header>
+        {currentStep === 2 && (
+          <WizardCard
+            title="Review & Confirm"
+            description="Check your configuration carefully. Go back to edit before creating."
+          >
+            <FormBody>
+              <ReviewGroup title="Identity">
+                <ReviewRow label="Nickname" value={form.botNickname} />
+                <ReviewRow label="Prefix" value={form.botPrefix} mono />
+                <ReviewRow label="Platform" value={platformLabel} />
 
-            <div className="flex flex-col gap-4">
-              {/* Identity group */}
-              <div>
-                <p className="text-label-sm font-medium text-on-surface-variant uppercase tracking-wider mb-2">
-                  Identity
-                </p>
-                <DataList.Root orientation="horizontal" size="md" divideY>
-                  <DataList.Item>
-                    <DataList.ItemLabel width="140px">
-                      Nickname
-                    </DataList.ItemLabel>
-                    <DataList.ItemValue>{form.botNickname}</DataList.ItemValue>
-                  </DataList.Item>
-                  <DataList.Item>
-                    <DataList.ItemLabel width="140px">
-                      Prefix
-                    </DataList.ItemLabel>
-                    <DataList.ItemValue className="font-mono">
-                      {form.botPrefix}
-                    </DataList.ItemValue>
-                  </DataList.Item>
-                  {!isFbPage && (
-                    <DataList.Item>
-                      <DataList.ItemLabel width="140px">
-                        Admins ({filledAdmins.length})
-                      </DataList.ItemLabel>
-                      <DataList.ItemValue>
-                        <div className="flex flex-wrap gap-1.5">
-                          {filledAdmins.map((id, i) => (
-                            <span
-                              key={i}
-                              className="inline-block rounded-md bg-surface-container-high px-2 py-0.5 text-body-sm text-on-surface font-mono"
-                            >
-                              {id}
-                            </span>
-                          ))}
-                        </div>
-                      </DataList.ItemValue>
-                    </DataList.Item>
-                  )}
-                  <DataList.Item>
-                    <DataList.ItemLabel width="140px">
-                      Platform
-                    </DataList.ItemLabel>
-                    <DataList.ItemValue>{platformLabelName}</DataList.ItemValue>
-                  </DataList.Item>
-                </DataList.Root>
-              </div>
+                {!isFbPage && filledAdmins.length > 0 && (
+                  <ReviewRow label={`Admins (${filledAdmins.length})`} value="">
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                      {filledAdmins.map((id, i) => (
+                        <AdminBadge key={i}>{id}</AdminBadge>
+                      ))}
+                    </div>
+                  </ReviewRow>
+                )}
+              </ReviewGroup>
 
-              {/* Credentials group — separated with a labeled divider */}
               {credentialSummary.length > 0 && (
-                <>
-                  <Divider label="Credentials" spacing="none" />
-                  <DataList.Root orientation="horizontal" size="md" divideY>
-                    {credentialSummary.map((cred) => (
-                      <DataList.Item key={cred.label}>
-                        <DataList.ItemLabel width="140px">
-                          {cred.label}
-                        </DataList.ItemLabel>
-                        <DataList.ItemValue className="font-mono break-all">
-                          {maskCredential(cred.value)}
-                        </DataList.ItemValue>
-                      </DataList.Item>
-                    ))}
-                  </DataList.Root>
-                </>
+                <ReviewGroup title="Credentials">
+                  {credentialSummary.map((c) => (
+                    <ReviewRow
+                      key={c.label}
+                      label={c.label}
+                      value={maskCredential(c.value)}
+                      mono
+                    />
+                  ))}
+                </ReviewGroup>
               )}
 
-              {/* Creation error — shown inline above the submit button */}
               {botError !== null && (
                 <Alert
                   variant="tonal"
@@ -653,33 +497,313 @@ export default function NewBotPage() {
                   message={botError}
                 />
               )}
-            </div>
+            </FormBody>
 
-            <Card.Footer align="between">
-              <Button
-                variant="text"
-                color="neutral"
-                size="md"
-                onClick={() => handleStepChange(1)}
-              >
-                Back
-              </Button>
-              {/* isLoading shows the built-in spinner and disables the button;
-                  no need for a separate loading text string */}
-              <Button
-                variant="filled"
-                color="primary"
-                size="md"
-                onClick={handleSubmit}
-                isLoading={isLoading}
-                disabled={isLoading}
-              >
-                Create Bot
-              </Button>
-            </Card.Footer>
-          </Card.Root>
-        </Steps.Content>
-      </Steps.Root>
+            <WizardFooter
+              onBack={() => goTo(1)}
+              backLabel="Back"
+              onNext={handleSubmit}
+              nextLabel="Create Bot"
+              nextLoading={isLoading}
+              nextDisabled={isLoading}
+            />
+          </WizardCard>
+        )}
+      </div>
     </div>
+  )
+}
+
+function WizardStepper({
+  steps,
+  current,
+  onGoTo,
+}: {
+  steps: { index: number; label: string }[]
+  current: number
+  onGoTo: (i: number) => void
+}) {
+  return (
+    <Card.Root variant="elevated" shadowElevation={1} padding="md">
+      <div className="flex items-center w-full">
+        {steps.map((step, idx) => {
+          const isDone = current > step.index
+          const isActive = current === step.index
+          const isLocked = step.index > current
+
+          return (
+            <React.Fragment key={step.index}>
+              <button
+                type="button"
+                onClick={() => onGoTo(step.index)}
+                disabled={isLocked}
+                aria-label={`Step ${step.index + 1}: ${step.label}`}
+                aria-current={isActive ? 'step' : undefined}
+                className={cn(
+                  'flex items-center gap-2.5 shrink-0 rounded-lg',
+                  'transition-all duration-150',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30',
+                  isLocked
+                    ? 'opacity-35 cursor-not-allowed'
+                    : 'cursor-pointer hover:opacity-75',
+                )}
+              >
+                <span
+                  className={cn(
+                    'relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full',
+                    'text-[11px] font-bold tracking-tight transition-all duration-300',
+                    isDone || isActive
+                      ? 'bg-primary text-on-primary'
+                      : 'text-on-surface-variant',
+                  )}
+                  style={
+                    isDone || isActive
+                      ? {
+                          boxShadow:
+                            '0 0 0 3px rgba(138,180,255,0.18), 0 0 12px rgba(138,180,255,0.12)',
+                        }
+                      : { border: '1.5px solid rgba(255,255,255,0.16)' }
+                  }
+                >
+                  {isDone ? (
+                    <Check className="h-3.5 w-3.5 stroke-[2.5]" />
+                  ) : (
+                    step.index + 1
+                  )}
+                </span>
+
+                <span
+                  className={cn(
+                    'hidden sm:block text-sm whitespace-nowrap transition-colors duration-200',
+                    isActive
+                      ? 'font-semibold text-on-surface'
+                      : isDone
+                        ? 'font-medium text-primary'
+                        : 'font-medium text-on-surface-variant',
+                  )}
+                >
+                  {step.label}
+                </span>
+              </button>
+
+              {idx < steps.length - 1 && (
+                <ProgressConnector filled={current > idx} />
+              )}
+            </React.Fragment>
+          )
+        })}
+      </div>
+
+      <div className="sm:hidden mt-3.5 flex items-center justify-center gap-2">
+        <span className="text-[11px] text-on-surface-variant/60 leading-none">
+          Step {current + 1} of {steps.length}
+        </span>
+        <span className="h-3 w-px rounded-full bg-on-surface-variant/20" />
+        <span className="text-[11px] font-semibold text-on-surface leading-none">
+          {steps[current].label}
+        </span>
+      </div>
+    </Card.Root>
+  )
+}
+
+function ProgressConnector({ filled }: { filled: boolean }) {
+  return (
+    <div className="flex-1 mx-3 sm:mx-4 relative h-[2px] rounded-full overflow-hidden">
+      <div
+        className="absolute inset-0 rounded-full"
+        style={{ background: 'rgba(255,255,255,0.08)' }}
+      />
+      <div
+        className="absolute inset-y-0 left-0 rounded-full transition-all duration-500 ease-out"
+        style={{
+          width: filled ? '100%' : '0%',
+          background:
+            'linear-gradient(90deg, rgba(138,180,255,0.55) 0%, rgba(138,180,255,0.85) 100%)',
+          boxShadow: filled ? '0 0 6px rgba(138,180,255,0.4)' : 'none',
+        }}
+      />
+    </div>
+  )
+}
+
+function WizardCard({
+  title,
+  description,
+  children,
+}: {
+  title: string
+  description: string
+  children: React.ReactNode
+}) {
+  return (
+    <Card.Root variant="elevated" shadowElevation={1} padding="md">
+      <Card.Header>
+        <div>
+          <Card.Title as="h2">{title}</Card.Title>
+          <Card.Description>{description}</Card.Description>
+        </div>
+      </Card.Header>
+
+      <div className="flex flex-col gap-6">{children}</div>
+    </Card.Root>
+  )
+}
+
+function FormBody({ children }: { children: React.ReactNode }) {
+  return <div className="flex flex-col gap-5">{children}</div>
+}
+
+function WizardFooter({
+  onBack,
+  backLabel = 'Back',
+  onNext,
+  nextLabel = 'Next',
+  nextDisabled = false,
+  nextLoading = false,
+}: {
+  onBack?: () => void
+  backLabel?: string
+  onNext?: () => void
+  nextLabel?: string
+  nextDisabled?: boolean
+  nextLoading?: boolean
+}) {
+  return (
+    <Card.Footer align="between">
+      <Button
+        variant="text"
+        color="neutral"
+        size="md"
+        onClick={onBack}
+        className="min-w-[72px]"
+      >
+        {backLabel}
+      </Button>
+
+      {onNext && (
+        <Button
+          variant="filled"
+          color="primary"
+          size="md"
+          onClick={onNext}
+          disabled={nextDisabled}
+          isLoading={nextLoading}
+          className="min-w-[108px]"
+        >
+          {nextLabel}
+        </Button>
+      )}
+    </Card.Footer>
+  )
+}
+
+function FieldGroup({
+  label,
+  hint,
+  action,
+  children,
+}: {
+  label: string
+  hint?: string
+  action?: React.ReactNode
+  children: React.ReactNode
+}) {
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-col gap-0.5 min-w-0">
+          <span className="text-sm font-semibold text-on-surface leading-snug">
+            {label}
+          </span>
+          {hint && (
+            <span className="text-xs text-on-surface-variant leading-relaxed">
+              {hint}
+            </span>
+          )}
+        </div>
+        {action && <div className="shrink-0 pt-0.5">{action}</div>}
+      </div>
+
+      <div className="flex flex-col gap-2.5">{children}</div>
+    </div>
+  )
+}
+
+function ReviewGroup({
+  title,
+  children,
+}: {
+  title: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="px-1 text-[10px] font-semibold uppercase tracking-[0.09em] text-on-surface-variant/55 select-none">
+        {title}
+      </p>
+
+      <div
+        className="rounded-xl overflow-hidden flex flex-col"
+        style={{
+          background: 'rgba(255,255,255,0.02)',
+          border: '1px solid rgba(255,255,255,0.07)',
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  )
+}
+
+function ReviewRow({
+  label,
+  value,
+  mono = false,
+  children,
+}: {
+  label: string
+  value: string
+  mono?: boolean
+  children?: React.ReactNode
+}) {
+  return (
+    <div
+      className="flex flex-col gap-1 px-4 py-3.5 [&+&]:border-t"
+      style={{ borderColor: 'rgba(255,255,255,0.055)' }}
+    >
+      <span className="text-[11px] font-medium text-on-surface-variant leading-none tracking-wide uppercase">
+        {label}
+      </span>
+
+      {children ?? (
+        <span
+          className={cn(
+            'text-sm text-on-surface break-all leading-snug',
+            mono ? 'font-mono' : 'font-medium',
+          )}
+        >
+          {value || (
+            <span className="text-on-surface-variant/50 italic text-xs font-normal">
+              —
+            </span>
+          )}
+        </span>
+      )}
+    </div>
+  )
+}
+
+function AdminBadge({ children }: { children: React.ReactNode }) {
+  return (
+    <span
+      className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-mono text-on-surface break-all leading-none"
+      style={{
+        background: 'rgba(255,255,255,0.05)',
+        border: '1px solid rgba(255,255,255,0.09)',
+      }}
+    >
+      {children}
+    </span>
   )
 }
