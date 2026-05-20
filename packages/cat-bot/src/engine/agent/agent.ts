@@ -126,15 +126,35 @@ export async function runAgent(
     }
   }
 
-  // Gather available canonical command names for this platform
-  const canonicalNames = new Set<string>();
+  // Group commands by category so the system prompt exposes domain structure to the LLM.
+  // A flat alphabetical list gives no signal about which commands belong together;
+  // category grouping lets the model pick the right command family before calling help().
+  const commandsByCategory = new Map<string, string[]>();
+  const seenCmdNames = new Set<string>();
   for (const mod of ctx.commands.values()) {
-    const cfg = mod['config'] as { name?: string } | undefined;
+    const cfg = mod['config'] as {
+      name?: string;
+      category?: string;
+    } | undefined;
     if (cfg?.name && isPlatformAllowed(mod, platform)) {
-      canonicalNames.add(cfg.name.toLowerCase());
+      const cmdName = cfg.name.toLowerCase();
+      // Deduplicate aliases — CommandMap stores one entry per name AND per alias key;
+      // seenCmdNames ensures each canonical command name appears exactly once per category,
+      // mirroring the getCanonicalMods() deduplication pattern used in help.ts.
+      if (seenCmdNames.has(cmdName)) continue;
+      seenCmdNames.add(cmdName);
+      const category = cfg.category ?? 'Uncategorized';
+      if (!commandsByCategory.has(category)) commandsByCategory.set(category, []);
+      commandsByCategory.get(category)!.push(cmdName);
     }
   }
-  const availableCommandsList = Array.from(canonicalNames).sort().join(', ');
+  // Sort categories and their commands alphabetically — deterministic ordering prevents
+  // the LLM from seeing a shuffled list on each turn, which would cause inconsistent
+  // tool selection across otherwise identical conversational prompts.
+  const availableCommandsList = Array.from(commandsByCategory.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([cat, cmds]) => `${cat}: ${cmds.sort().join(', ')}`)
+    .join('\n');
 
   const systemContent = SYSTEM_PROMPT_TEMPLATE.replace(
     '{{BOT_NAME}}',
