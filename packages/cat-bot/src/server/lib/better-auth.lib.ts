@@ -58,6 +58,14 @@ export const auth = betterAuth({
       enabled: isEmailServicesEnabled,
     },
   },
+  // 30-day rolling sessions for regular users.
+  // IMPORTANT: the full expiresIn window only activates when the client passes
+  // rememberMe: true in signIn.email(). Without it, better-auth caps the session
+  // at ~1 day regardless of this value — so the Login page checkbox is essential.
+  session: {
+    expiresIn: 60 * 60 * 24 * 30, // 30 days when rememberMe: true
+    updateAge: 60 * 60 * 24,       // roll the expiry window daily on active sessions
+  },
   emailAndPassword: {
     // Enables POST /api/auth/sign-up/email and POST /api/auth/sign-in/email out of the box
     enabled: true,
@@ -202,6 +210,12 @@ export const adminAuth = betterAuth({
     changeEmail: {
       enabled: isEmailServicesEnabled,
     },
+  },
+  // 7-day sessions for the admin portal — shorter than user sessions because admin
+  // accounts are high-value targets; a smaller window limits stolen-cookie exposure.
+  session: {
+    expiresIn: 60 * 60 * 24 * 7, // 7 days for admin sessions
+    updateAge: 60 * 60 * 24,     // roll the expiry window daily on active sessions
   },
   emailVerification: {
     ...(isEmailServicesEnabled && {
