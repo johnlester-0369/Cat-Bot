@@ -8,6 +8,7 @@ import PasswordInput from '@/components/ui/forms/PasswordInput'
 import Alert from '@/components/ui/feedback/Alert'
 import { ROUTES } from '@/constants/routes.constants'
 import { useUserAuth } from '@/contexts/UserAuthContext'
+import Checkbox from '@/components/ui/forms/Checkbox'
 
 interface LoginForm {
   email: string
@@ -36,6 +37,8 @@ export default function LoginPage() {
   const [errors, setErrors] = useState<LoginErrors>({})
   const [apiError, setApiError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  // Default false so users explicitly opt in — avoids accidental persistent sessions on shared devices
+  const [rememberMe, setRememberMe] = useState(false)
 
   const validate = (): LoginErrors => {
     const e: LoginErrors = {}
@@ -65,7 +68,7 @@ export default function LoginPage() {
     try {
       // UserAuthContext.login() calls better-auth's signIn.email endpoint and refreshes
       // the session — throws with a descriptive message on wrong credentials or server error.
-      await login(form.email, form.password)
+      await login(form.email, form.password, rememberMe)
       navigate(ROUTES.DASHBOARD.ROOT)
     } catch (err) {
       const msg =
@@ -144,6 +147,14 @@ export default function LoginPage() {
               />
               <Field.ErrorText>{errors.password}</Field.ErrorText>
             </Field.Root>
+
+            {/* Remember me — passes rememberMe: true to signIn.email so better-auth issues a
+                30-day persistent cookie instead of a session-only cookie cleared on browser close */}
+            <Checkbox
+              label="Remember me"
+              checked={rememberMe}
+              onChange={setRememberMe}
+            />
 
             {/* API-level error — shown separately from field validation so users can
                 distinguish "field is empty" from "credentials are wrong" */}
