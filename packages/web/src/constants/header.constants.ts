@@ -29,12 +29,8 @@
 export const H_HEIGHT =
   'h-16 3xl:h-[4.5rem] 4xl:h-20' as const
 
-/**
- * Horizontal padding on all nav / header containers.
- * Progressively wider on larger desktop screens; mobile stays at px-6.
- */
-export const H_PX =
-  'px-6 xl:px-8 2xl:px-10 3xl:px-14 4xl:px-20' as const
+/** Horizontal padding on all nav / header containers. */
+export const H_PX = 'px-6' as const
 
 /**
  * Desktop sidebar width (admin).
@@ -45,11 +41,11 @@ export const H_SIDEBAR_WIDTH = 'w-[var(--layout-sidebar-w)]' as const
 
 // ─── Logo & Brand ──────────────────────────────────────────────────────────
 
-/** Cat logo icon dimensions. Scales up at ultra-wide viewports. */
-export const H_LOGO_ICON = 'h-5 w-5 3xl:h-6 3xl:w-6 4xl:h-7 4xl:w-7' as const
+/** Cat logo icon dimensions — em-relative so the icon scales with the brand text. */
+export const H_LOGO_ICON = 'h-[1.3em] w-[1.3em]' as const
 
 /** Brand / page-title typography. */
-export const H_BRAND_TEXT = 'text-label-lg font-semibold' as const
+export const H_BRAND_TEXT = 'text-title-lg font-semibold' as const
 
 // ─── Desktop Navigation Items ──────────────────────────────────────────────
 

@@ -359,7 +359,7 @@ export default function AdminSidebarLayout() {
       {/* Main content column */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Content header — H_HEIGHT mirrors the sidebar header exactly */}
-        <header
+        <div
           className={cn(
             'sticky top-0 z-sticky bg-surface border-b border-outline-variant flex items-center',
             H_HEIGHT,
@@ -392,9 +392,9 @@ export default function AdminSidebarLayout() {
           <div className="ml-auto">
             <AdminAvatarMenu user={user} onLogout={handleLogout} />
           </div>
-        </header>
+          </div>
 
-        <main className="flex-1 p-[var(--layout-main-p)] max-w-[var(--layout-content-max)] w-full mx-auto">
+        <main className="flex-1 p-6 max-w-7xl w-full mx-auto">
           <Outlet />
         </main>
       </div>

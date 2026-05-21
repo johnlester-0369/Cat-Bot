@@ -155,8 +155,8 @@ export default function HomePage() {
         <div className="pointer-events-none absolute -top-40 -left-40 h-[600px] w-[600px] rounded-full bg-primary/5 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-20 -right-20 h-[400px] w-[400px] rounded-full bg-tertiary/5 blur-3xl" />
 
-        <div className="relative z-10 w-full max-w-[var(--layout-content-max)] mx-auto px-[var(--layout-section-px)] pb-12">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 xl:gap-20 2xl:gap-28 3xl:gap-36 items-center">
+        <div className="relative z-10 w-full max-w-6xl mx-auto px-6 pb-12">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             {/* ── Left: copy column ─────────────────────────────────────── */}
             <div className="flex flex-col gap-8">
               {/* Lozenge badge — frames the value prop before the headline lands */}
@@ -332,8 +332,9 @@ export default function HomePage() {
       </section>
 
       {/* ── Features ──────────────────────────────────────────────────────── */}
-      <section className="py-[var(--layout-section-py-lg)] px-[var(--layout-section-px)] bg-surface-container-low border-y border-outline-variant">
-        <div className="max-w-[var(--layout-content-max)] mx-auto flex flex-col gap-14">
+ <section className="py-24 px-6 bg-surface-container-low border-y border-outline-variant">
+        <div className="max-w-6xl mx-auto flex flex-col gap-14">
+
           <div className="flex flex-col gap-3 text-center">
             <h2 className="font-brand text-headline-md font-semibold text-on-surface">
               Everything you need to run bots at scale
@@ -344,7 +345,8 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 xl:gap-6 2xl:gap-8 3xl:gap-10">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+
             {FEATURES.map((f) => (
               <div
                 key={f.title}
@@ -368,7 +370,7 @@ export default function HomePage() {
       </section>
 
       {/* ── Bottom CTA ────────────────────────────────────────────────────── */}
-      <section className="py-[var(--layout-section-py-lg)] px-[var(--layout-section-px)]">
+      <section className="py-24 px-6">
         <div className="max-w-2xl mx-auto flex flex-col items-center gap-6 text-center">
           <h2 className="font-brand text-headline-md font-semibold text-on-surface">
             Ready to deploy your first bot?

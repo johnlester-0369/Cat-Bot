@@ -56,7 +56,7 @@ export default function Layout() {
       <header className="sticky top-0 z-fixed bg-surface/80 backdrop-blur border-b border-outline-variant">
         <nav
           className={cn(
-            'relative max-w-[var(--layout-nav-max)] mx-auto flex items-center',
+            'relative max-w-6xl mx-auto flex items-center',
             H_HEIGHT,
             H_PX,
           )}
@@ -68,7 +68,7 @@ export default function Layout() {
             to="/"
             variant="unstyled"
             aria-label="Cat-Bot home"
-            className="flex items-center text-primary hover:opacity-80 transition-opacity duration-fast outline-none focus-visible:ring-2 focus-visible:ring-primary/20 rounded-sm shrink-0"
+            className="flex items-center gap-2 text-title-lg font-semibold text-primary hover:opacity-80 transition-opacity duration-fast outline-none focus-visible:ring-2 focus-visible:ring-primary/20 rounded-sm"
           >
             <Cat className={H_LOGO_ICON} />
           </UILink>
@@ -116,7 +116,7 @@ export default function Layout() {
                   to="/login"
                   variant={isLogin ? 'tonal' : 'outline'}
                   color="primary"
-                  size="md"
+                  size="sm"
                 >
                   Log in
                 </Button>
@@ -125,7 +125,7 @@ export default function Layout() {
                   to="/signup"
                   variant={isSignup ? 'tonal' : 'filled'}
                   color="primary"
-                  size="md"
+                  size="sm"
                 >
                   Sign up
                 </Button>
@@ -168,7 +168,7 @@ export default function Layout() {
               '[animation:fade-in-down_150ms_var(--easing-standard-decelerate)_both]',
             )}
           >
-            <div className="max-w-[var(--layout-nav-max)] mx-auto px-6 py-4 flex flex-col gap-2">
+            <div className="max-w-6xl mx-auto px-6 py-4 flex flex-col gap-2">
               {isAuthenticated ? (
                 <Button
                   as={Link}

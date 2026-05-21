@@ -56,7 +56,9 @@ function NavLink({ item }: { item: NavItem }) {
   const location = useLocation()
 
   const isRootRoute = item.href === ROUTES.DASHBOARD.ROOT
-  const isSettingsRoute = location.pathname.startsWith(ROUTES.DASHBOARD.SETTINGS)
+  const isSettingsRoute = location.pathname.startsWith(
+    ROUTES.DASHBOARD.SETTINGS,
+  )
 
   const isActive = isRootRoute
     ? location.pathname === item.href ||
@@ -86,11 +88,19 @@ function NavLink({ item }: { item: NavItem }) {
 // MobileNavLink
 // ============================================================================
 
-function MobileNavLink({ item, onClick }: { item: NavItem; onClick: () => void }) {
+function MobileNavLink({
+  item,
+  onClick,
+}: {
+  item: NavItem
+  onClick: () => void
+}) {
   const location = useLocation()
 
   const isRootRoute = item.href === ROUTES.DASHBOARD.ROOT
-  const isSettingsRoute = location.pathname.startsWith(ROUTES.DASHBOARD.SETTINGS)
+  const isSettingsRoute = location.pathname.startsWith(
+    ROUTES.DASHBOARD.SETTINGS,
+  )
 
   const isActive = isRootRoute
     ? location.pathname === item.href ||
@@ -207,7 +217,9 @@ function UserMenu() {
           <button
             type="button"
             role="menuitem"
-            onClick={() => { void handleLogout() }}
+            onClick={() => {
+              void handleLogout()
+            }}
             className={cn(
               H_DROPDOWN_ITEM,
               'text-error hover:bg-error/[var(--state-hover-opacity)]',
@@ -313,7 +325,7 @@ export default function DashboardLayout() {
       <header className="sticky top-0 z-sticky bg-surface border-b border-outline-variant backdrop-blur">
         <nav
           className={cn(
-            'relative max-w-[var(--layout-nav-max)] mx-auto flex items-center',
+            'relative max-w-7xl mx-auto flex items-center',
             H_HEIGHT,
             H_PX,
           )}
@@ -326,7 +338,7 @@ export default function DashboardLayout() {
               to={ROUTES.DASHBOARD.ROOT}
               variant="unstyled"
               aria-label="Cat-Bot dashboard"
-              className="flex items-center text-primary hover:opacity-80 transition-opacity duration-fast outline-none focus-visible:ring-2 focus-visible:ring-primary/20 rounded-sm"
+              className="flex items-center gap-2 text-title-lg font-semibold text-primary hover:opacity-80 transition-opacity duration-fast shrink-0"
             >
               <Cat className={H_LOGO_ICON} />
             </UILink>
@@ -367,7 +379,9 @@ export default function DashboardLayout() {
             <IconButton
               icon={theme === 'dark' ? <Sun /> : <Moon />}
               aria-label={
-                theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'
+                theme === 'dark'
+                  ? 'Switch to light mode'
+                  : 'Switch to dark mode'
               }
               variant="text"
               size="md"
@@ -401,7 +415,7 @@ export default function DashboardLayout() {
               '[animation:fade-in-down_150ms_var(--easing-standard-decelerate)_both]',
             )}
           >
-            <div className="max-w-[var(--layout-nav-max)] mx-auto px-4 py-3 flex flex-col">
+            <div className="max-w-7xl mx-auto px-4 py-3 flex flex-col">
               {navItems.map((item) => (
                 <MobileNavLink
                   key={item.href}
@@ -425,7 +439,9 @@ export default function DashboardLayout() {
               {/* Logout */}
               <button
                 type="button"
-                onClick={() => { void handleMobileLogout() }}
+                onClick={() => {
+                  void handleMobileLogout()
+                }}
                 className={cn(
                   H_NAV_ITEM_MOBILE,
                   'text-error hover:bg-error/[var(--state-hover-opacity)] mb-0.5',
@@ -454,14 +470,15 @@ export default function DashboardLayout() {
                 ) : (
                   <Moon className="h-4 w-4 shrink-0 text-on-surface-variant" />
                 )}
-                {theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                {theme === 'dark'
+                  ? 'Switch to light mode'
+                  : 'Switch to dark mode'}
               </button>
             </div>
           </div>
         )}
       </header>
-
-      <main className="flex-1 p-[var(--layout-main-p)] max-w-[var(--layout-content-max)] w-full mx-auto">
+      <main className="flex-1 p-6 max-w-7xl w-full mx-auto">
         <Outlet />
       </main>
     </div>
