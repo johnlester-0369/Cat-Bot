@@ -1,10 +1,11 @@
 /**
  * /play — YouTube Audio Search and Streamer
  *
- * Searches YouTube for the given query, downloads the top result as an MP3
- * audio file, and sends it as a playable attachment in the current chat.
+ * Accepts either a YouTube URL or a plain search query. When a URL is given,
+ * it is passed directly to the API for extraction. When a search query is
+ * given, the API resolves the top YouTube result automatically.
  *
- * API: https://yt-dlp-stream.onrender.com/api/v2/q?=<query>
+ * API: https://yt-dlp-stream.onrender.com/api/v2/q?=<url|query>
  *
  * Response shape:
  *   {
@@ -20,7 +21,7 @@
  *
  * Aliases: /song, /music
  * Access:  ANYONE
- * Cooldown: 15s (audio downloads are bandwidth-heavy)
+ * Cooldown: 15s
  */
 
 import type { AppCtx } from '@/engine/types/controller.types.js';
@@ -32,35 +33,58 @@ import type { CommandConfig } from '@/engine/types/module-config.types.js';
 
 const API_BASE = 'https://yt-dlp-stream.onrender.com/api/v2/q';
 
-/** Maximum wait for the metadata fetch step (ms). */
+/** Maximum wait for the metadata + resolve step (ms). */
 const SEARCH_TIMEOUT_MS = 30_000;
 
-/** Maximum wait for the audio binary download step (ms). */
-const DOWNLOAD_TIMEOUT_MS = 60_000;
+/**
+ * Maximum wait for the audio binary download step (ms).
+ * URL-based requests take longer (~17s observed) than search queries (~1ms),
+ * so this must be generous enough to cover both cases.
+ */
+const DOWNLOAD_TIMEOUT_MS = 90_000;
+
+// ── YouTube URL patterns ───────────────────────────────────────────────────────
+
+/**
+ * Matches all common YouTube URL formats and captures the video ID:
+ *   - https://www.youtube.com/watch?v=VIDEO_ID
+ *   - https://youtu.be/VIDEO_ID
+ *   - https://www.youtube.com/shorts/VIDEO_ID
+ *   - https://m.youtube.com/watch?v=VIDEO_ID
+ */
+const YT_URL_RE =
+  /(?:https?:\/\/)?(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/;
 
 // ── API response type ──────────────────────────────────────────────────────────
-// Matches the exact shape returned by the API (verified against live response)
 
 interface YtDlpApiResponse {
-  credit: string;    // e.g. "MJL"
-  version: string;   // e.g. "1.2.2"
+  credit: string;   // "MJL"
+  version: string;  // "1.2.2"
   media: {
-    mp4: string;     // Direct MP4 video download URL
-    mp3: string;     // Direct MP3 audio download URL
+    mp4: string;    // Direct MP4 download URL
+    mp3: string;    // Direct MP3 download URL
   };
-  ApiCount: number;  // Total requests served by this API instance
-  ms: number;        // Server-side processing time in milliseconds
+  ApiCount: number; // Lifetime request count for this API instance
+  ms: number;       // Server-side processing time in milliseconds
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /**
- * Strips characters that are unsafe in filenames across all major OSes.
+ * Returns the YouTube video ID if the input is a recognisable YouTube URL,
+ * otherwise returns null.
+ */
+function extractYouTubeId(input: string): string | null {
+  return YT_URL_RE.exec(input)?.[1] ?? null;
+}
+
+/**
+ * Strips characters unsafe in filenames across all major OSes.
  * Truncates to 80 characters to avoid path-length limits.
  */
-function safeFilename(query: string): string {
+function safeFilename(label: string): string {
   return (
-    query
+    label
       .replace(/[/\\?%*:|"<>]/g, '-')
       .replace(/\s+/g, '_')
       .trim()
@@ -68,19 +92,13 @@ function safeFilename(query: string): string {
   );
 }
 
-/**
- * Formats a duration in milliseconds to a human-readable string.
- * e.g. 10535 → "10.5s" | 800 → "800ms"
- */
+/** 10535 → "10.5s" | 800 → "800ms" */
 function formatMs(ms: number): string {
   if (ms < 1000) return `${ms}ms`;
   return `${(ms / 1000).toFixed(1)}s`;
 }
 
-/**
- * Formats a byte count into a human-readable file size label.
- * e.g. 2_097_152 → "2.0 MB" | 512_000 → "500 KB"
- */
+/** 2_097_152 → "2.0 MB" | 512_000 → "500 KB" */
 function formatBytes(bytes: number): string {
   const kb = Math.round(bytes / 1024);
   if (kb >= 1024) return `${(kb / 1024).toFixed(1)} MB`;
@@ -92,13 +110,13 @@ function formatBytes(bytes: number): string {
 export const config: CommandConfig = {
   name: 'play',
   aliases: ['song', 'music'] as string[],
-  version: '2.0.0',
+  version: '3.0.0',
   role: Role.ANYONE,
   author: 'AjiroDesu',
   description:
-    'Search YouTube and receive the top result as a playable MP3 audio file.',
+    'Play audio from a YouTube URL or search query. Sends the top result as a playable MP3.',
   category: 'Media',
-  usage: '<search query>',
+  usage: '<YouTube URL | search query>',
   cooldown: 15,
   hasPrefix: true,
 };
@@ -117,21 +135,50 @@ export const onCommand = async ({
     return;
   }
 
-  const query = args.join(' ').trim();
+  const input = args.join(' ').trim();
+
+  // ── Resolve input type ─────────────────────────────────────────────────────
+  // If the input is a YouTube URL, extract its ID and pass the full URL to
+  // the API. Otherwise treat the input as a plain search query.
+
+  const videoId = extractYouTubeId(input);
+  const isUrl = videoId !== null;
+
+  /**
+   * What gets sent to the API:
+   *   - URL input  → the original URL  (API extracts by video ID directly)
+   *   - Search     → the query string  (API resolves top YouTube result)
+   */
+  const apiInput = isUrl ? input : input;
+
+  /**
+   * Human-readable label used in messages and the output filename.
+   *   - URL input  → short ID form so the caption stays clean
+   *   - Search     → the query as typed
+   */
+  const displayLabel = isUrl ? `youtu.be/${videoId}` : input;
 
   // ── Loading indicator ──────────────────────────────────────────────────────
 
   const loadingId = (await chat.replyMessage({
     style: MessageStyle.MARKDOWN,
-    message: `🔍  Searching for **${query}**...`,
+    message: isUrl
+      ? `🔗  Fetching audio from **${displayLabel}**...`
+      : `🔍  Searching for **${displayLabel}**...`,
   })) as string | undefined;
 
-  try {
-    // ── Step 1: Fetch audio URLs from the search API ───────────────────────
-    // NOTE: The endpoint uses a valueless key — the literal format is `?=<query>`.
-    // Example: /api/v2/q?=never+gonna+give+you+up
+  // Cleans up the loading message; never throws.
+  const dismissLoading = (): Promise<void> =>
+    loadingId
+      ? chat.unsendMessage(loadingId).catch(() => {})
+      : Promise.resolve();
 
-    const apiUrl = `${API_BASE}?=${encodeURIComponent(query)}`;
+  try {
+    // ── Step 1: Resolve media URLs ─────────────────────────────────────────
+    // The API uses a valueless query key: /api/v2/q?=<input>
+    // Both plain search strings and full YouTube URLs are accepted as-is.
+
+    const apiUrl = `${API_BASE}?=${encodeURIComponent(apiInput)}`;
 
     const searchRes = await fetch(apiUrl, {
       signal: AbortSignal.timeout(SEARCH_TIMEOUT_MS),
@@ -145,27 +192,21 @@ export const onCommand = async ({
 
     const apiData = (await searchRes.json()) as YtDlpApiResponse;
 
-    // Guard: both URLs must be present
     if (!apiData.media?.mp3 || !apiData.media?.mp4) {
       throw new Error(
-        'No media URLs were returned for this query. Try a different search term.',
+        'No media URLs were returned. ' +
+        (isUrl
+          ? 'Ensure the video is public and not age-restricted.'
+          : 'Try a different search term.'),
       );
     }
 
     const { mp3: mp3Url, mp4: mp4Url } = apiData.media;
     const serverMs = apiData.ms ?? 0;
 
-    // ── Step 2: Update loading message while downloading the audio ─────────
-
-    if (loadingId) {
-      await chat.editMessage({
-        style: MessageStyle.MARKDOWN,
-        message_id_to_edit: loadingId,
-        message: `⬇️  Downloading audio for **${query}**...`,
-      });
-    }
-
-    // ── Step 3: Stream audio binary into a buffer ──────────────────────────
+    // ── Step 2: Download audio binary ─────────────────────────────────────
+    // URL-based requests observed at ~17s server-side; search queries at ~1ms.
+    // Both share the same download step — DOWNLOAD_TIMEOUT_MS covers both.
 
     const audioRes = await fetch(mp3Url, {
       signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS),
@@ -185,16 +226,12 @@ export const onCommand = async ({
       );
     }
 
-    // ── Step 4: Dismiss loading message and send the audio attachment ──────
+    // ── Step 3: Send result ────────────────────────────────────────────────
 
-    if (loadingId) {
-      await chat.unsendMessage(loadingId).catch(() => {
-        // Ignore — message may already be deleted or unsend is unsupported
-      });
-    }
+    await dismissLoading();
 
     const caption = [
-      `🎵  **${query}**`,
+      `🎵  **${displayLabel}**`,
       '',
       `📦  **File Size**     ${formatBytes(audioBuffer.length)}`,
       `⚡  **API Response**  ${formatMs(serverMs)}`,
@@ -206,7 +243,7 @@ export const onCommand = async ({
       message: caption,
       attachment: [
         {
-          name: safeFilename(query),
+          name: safeFilename(displayLabel),
           stream: audioBuffer,
         },
       ],
@@ -214,15 +251,12 @@ export const onCommand = async ({
   } catch (err) {
     const error = err as { message?: string };
 
-    // Always clean up the loading indicator on failure
-    if (loadingId) {
-      await chat.unsendMessage(loadingId).catch(() => {});
-    }
+    await dismissLoading();
 
     await chat.replyMessage({
       style: MessageStyle.MARKDOWN,
       message: [
-        `❌  **Could not retrieve audio for** \`${query}\``,
+        `❌  **Could not retrieve audio for** \`${displayLabel}\``,
         `\`${error.message ?? 'An unexpected error occurred.'}\``,
       ].join('\n'),
     });
