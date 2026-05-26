@@ -1,14 +1,14 @@
-/**
- * /download — Universal Social Media Downloader (Stabilized + Optimized v3)
- *
- * Changes from previous version:
- *   • onChat now skips ANY prefixed message (not just !download) so commands
- *     that include a URL (e.g. !youtubesummary https://...) are never intercepted.
- *   • All previous optimizations (direct attachment_url, try/finally, efficiency)
- *     are preserved.
- *   • Facebook downloader uses the chocomilk API (ZTRdiamond - Zanixon Group).
- *   • YouTube downloader uses the chocomilk API (ZTRdiamond - Zanixon Group).
- */
+// /download — Universal Social Media Downloader (Stabilized + Optimized v4)
+//
+// Changes from v3:
+//   YouTube: replaced chocomilk API with yt-dlp-stream.onrender.com API v2.
+//            Detection is now strict — only actual video links accepted
+//            (watch?v=ID, youtu.be/ID, shorts/ID). Channels and playlists ignored.
+//   Facebook: detection is now strict — only actual video URLs matched
+//             (videos/ID, watch?v=ID, video.php?v=ID, reel/ID, fb.watch).
+//             Profiles, pages, groups, posts and photos are ignored.
+//   onChat: existing guard (skip prefixed messages) is preserved.
+//   All previous optimizations (direct attachment_url, try/finally) preserved.
 
 import axios from 'axios';
 import type { AppCtx } from '@/engine/types/controller.types.js';
@@ -67,22 +67,18 @@ interface PinterestDlResponse {
   result: PinterestResult;
 }
 
-interface YtDownloadData {
-  title: string;
-  filename: string;
-  thumbnail?: string;
-  author?: string;
-  duration?: number;
-  quality?: number;
-  description?: string;
-  download: string;
+// Response shape returned by yt-dlp-stream.onrender.com /api/v2/q
+interface YtDlpStreamMedia {
+  mp4: string;
+  mp3: string;
 }
-interface YtDownloadResponse {
-  info?: string;
-  code: number;
-  success: boolean;
-  data: YtDownloadData;
-  error: string | null;
+interface YtDlpStreamResponse {
+  credit?: string;
+  version?: string;
+  media: YtDlpStreamMedia;
+  ApiCount?: number;
+  ms?: number;
+  error?: string;
 }
 
 // ── Platform detection ────────────────────────────────────────────────────────
@@ -98,45 +94,100 @@ function isValidUrl(value: string): boolean {
   }
 }
 
+// Returns true only for actual YouTube video links.
+// Accepts: watch?v=ID, youtu.be/ID, shorts/ID.
+// Rejects: channels, playlists, music pages, feeds, etc.
+function isYouTubeVideoUrl(url: URL): boolean {
+  const { hostname, pathname, searchParams } = url;
+  const isYTHost =
+    hostname === 'youtube.com' ||
+    hostname === 'www.youtube.com' ||
+    hostname === 'm.youtube.com';
+
+  if (isYTHost) {
+    // Standard watch URL with v= param
+    if (pathname === '/watch' && searchParams.has('v')) return true;
+    // YouTube Shorts
+    if (/^\/shorts\/[^/]+/.test(pathname)) return true;
+    // Anything else on youtube.com is NOT a video (channel, playlist, search)
+    return false;
+  }
+
+  // youtu.be short-links always point to a video
+  if (hostname === 'youtu.be' && pathname.length > 1) return true;
+
+  return false;
+}
+
+// Returns true only for actual Facebook video links.
+// Accepts: /videos/ID, /watch?v=ID, /video.php?v=ID, /reel/ID, fb.watch/slug.
+// Rejects: profiles, pages, groups, posts, photos, etc.
+function isFacebookVideoUrl(url: URL): boolean {
+  const { hostname, pathname, searchParams } = url;
+
+  // fb.watch short-links always point to a video
+  if (hostname === 'fb.watch') return true;
+
+  const isFBHost =
+    hostname === 'facebook.com' ||
+    hostname === 'www.facebook.com' ||
+    hostname === 'm.facebook.com';
+
+  if (!isFBHost) return false;
+
+  // /watch or /watch/ with v= param
+  if (
+    (pathname === '/watch' || pathname === '/watch/') &&
+    searchParams.has('v')
+  )
+    return true;
+
+  // /video.php with v= param
+  if (pathname === '/video.php' && searchParams.has('v')) return true;
+
+  // Any path containing /videos/NUMERIC_ID
+  if (/\/videos\/\d+/.test(pathname)) return true;
+
+  // /reel/ID
+  if (/^\/reel\/[^/]+/.test(pathname)) return true;
+
+  return false;
+}
+
 function detectPlatform(value: string): SupportedPlatform | null {
+  let url: URL;
   try {
-    const { hostname } = new URL(value);
-    if (
-      hostname === 'tiktok.com' ||
-      hostname.endsWith('.tiktok.com') ||
-      hostname === 'vm.tiktok.com' ||
-      hostname === 'vt.tiktok.com'
-    )
-      return 'tiktok';
-
-    if (
-      hostname === 'facebook.com' ||
-      hostname === 'www.facebook.com' ||
-      hostname === 'm.facebook.com' ||
-      hostname === 'fb.watch'
-    )
-      return 'facebook';
-
-    if (
-      hostname === 'pinterest.com' ||
-      hostname.endsWith('.pinterest.com') ||
-      hostname === 'pin.it'
-    )
-      return 'pinterest';
-
-    if (
-      hostname === 'youtube.com' ||
-      hostname === 'www.youtube.com' ||
-      hostname === 'm.youtube.com' ||
-      hostname === 'youtu.be' ||
-      hostname === 'music.youtube.com'
-    )
-      return 'youtube';
-
-    return null;
+    url = new URL(value);
   } catch {
     return null;
   }
+
+  const { hostname } = url;
+
+  // ── TikTok ────────────────────────────────────────────────────────────────
+  if (
+    hostname === 'tiktok.com' ||
+    hostname.endsWith('.tiktok.com') ||
+    hostname === 'vm.tiktok.com' ||
+    hostname === 'vt.tiktok.com'
+  )
+    return 'tiktok';
+
+  // ── Facebook — only actual video links ───────────────────────────────────
+  if (isFacebookVideoUrl(url)) return 'facebook';
+
+  // ── Pinterest ─────────────────────────────────────────────────────────────
+  if (
+    hostname === 'pinterest.com' ||
+    hostname.endsWith('.pinterest.com') ||
+    hostname === 'pin.it'
+  )
+    return 'pinterest';
+
+  // ── YouTube — only actual video links ────────────────────────────────────
+  if (isYouTubeVideoUrl(url)) return 'youtube';
+
+  return null;
 }
 
 function extractUrl(message: string): string | null {
@@ -159,8 +210,8 @@ export const config: CommandConfig = {
   role: Role.ANYONE,
   author: 'AjiroDesu',
   description:
-    'Download media from TikTok, Facebook, Pinterest, or YouTube by URL. ' +
-    'Also triggers automatically when a supported link is sent in chat.',
+    'Download media from TikTok, Facebook (videos only), Pinterest, or YouTube (videos only). ' +
+    'Also triggers automatically when a supported video link is sent in chat.',
   category: 'Downloader',
   usage: '<url>',
   cooldown: 15,
@@ -317,6 +368,10 @@ async function downloadPinterest(rawUrl: string, ctx: AppCtx): Promise<void> {
   }
 }
 
+// Downloads a YouTube video using the yt-dlp-stream API.
+// Endpoint: GET https://yt-dlp-stream.onrender.com/api/v2/q?=YOUTUBE_URL
+// Response contains media.mp4 and media.mp3 download URLs.
+// The full YouTube URL is passed as the query value so yt-dlp can resolve it.
 async function downloadYouTube(rawUrl: string, ctx: AppCtx): Promise<void> {
   const { chat } = ctx;
 
@@ -326,38 +381,38 @@ async function downloadYouTube(rawUrl: string, ctx: AppCtx): Promise<void> {
   })) as string | undefined;
 
   try {
-    const apiUrl = createUrl('chocomilk', '/v1/youtube/download', {
-      url: rawUrl,
-      quality: '1080',
-      mode: 'video',
-    });
-    if (!apiUrl) throw new Error('Failed to build API URL.');
+    // Build the API URL manually — the query key is an empty string, e.g. "?=VALUE"
+    // which axios's params serialiser would omit, so we append it directly.
+    const apiBase = 'https://yt-dlp-stream.onrender.com/api/v2/q';
+    const apiUrl = `${apiBase}?=${encodeURIComponent(rawUrl)}`;
 
-    const { data } = await axios.get<YtDownloadResponse>(apiUrl, {
-      timeout: 120000,
+    const { data } = await axios.get<YtDlpStreamResponse>(apiUrl, {
+      timeout: 120_000,
       headers: { Accept: 'application/json' },
     });
 
-    if (!data?.success || !data?.data?.download)
-      throw new Error('No video URL returned from API.');
+    if (data?.error) throw new Error(data.error);
 
-    const result = data.data;
-    const fileName =
-      result.filename || safeFilename(result.title ?? 'video', 'mp4');
+    const mp4Url = data?.media?.mp4;
+    if (!mp4Url) throw new Error('No video URL returned from API.');
+
+    // Derive a clean filename from the last URL path segment (the video ID),
+    // falling back to a generic name when the segment is absent or unparsable.
+    let fileName = 'youtube-video.mp4';
+    try {
+      const urlObj = new URL(rawUrl);
+      const videoId =
+        urlObj.searchParams.get('v') ??
+        urlObj.pathname.split('/').filter(Boolean).pop();
+      if (videoId) fileName = safeFilename(videoId, 'mp4');
+    } catch {
+      // Keep the fallback name
+    }
 
     await chat.replyMessage({
       style: MessageStyle.MARKDOWN,
-      message:
-        `🎬 **${result.title ?? 'YouTube Video'}**\n` +
-        (result.author ? `👤 Author: ${result.author}\n` : '') +
-        (typeof result.duration === 'number'
-          ? `⏱ Duration: ${result.duration}s\n`
-          : '') +
-        (typeof result.quality === 'number'
-          ? `🎞 Quality: ${result.quality}p\n`
-          : '') +
-        `🔗 ${rawUrl}`,
-      attachment_url: [{ name: fileName, url: result.download }],
+      message: `🎬 **YouTube Video**\n🔗 ${rawUrl}`,
+      attachment_url: [{ name: fileName, url: mp4Url }],
     });
   } catch (err) {
     const error = err as { message?: string };
@@ -417,12 +472,12 @@ export const onCommand = async (ctx: AppCtx): Promise<void> => {
     await chat.replyMessage({
       style: MessageStyle.MARKDOWN,
       message:
-        '❌ **Unsupported platform.**\n\n' +
+        '❌ **Unsupported or unrecognised link.**\n\n' +
         'Supported links:\n' +
         '• `tiktok.com` / `vm.tiktok.com`\n' +
-        '• `facebook.com` / `fb.watch`\n' +
+        '• facebook.com/videos/ID  |  facebook.com/watch?v=ID  |  facebook.com/reel/ID  |  fb.watch\n' +
         '• `pinterest.com` / `pin.it`\n' +
-        '• `youtube.com` / `youtu.be`',
+        '• youtube.com/watch?v=ID  |  youtu.be/ID  |  youtube.com/shorts/ID',
     });
   }
 };
@@ -436,14 +491,15 @@ export const onChat = async (ctx: AppCtx): Promise<void> => {
   const trimmed = message.trim();
   const { prefix = '!' } = ctx;
 
-  // ✅ FIX: Skip ANY prefixed message — not just !download — so commands
-  // that include a URL (e.g. !youtubesummary https://..., !whatmusic https://...)
-  // are never intercepted by the auto-downloader.
+  // Skip ANY prefixed message — commands that include a URL
+  // (e.g. !youtubesummary https://...) are never intercepted.
   if (trimmed.startsWith(prefix)) return;
 
   const rawUrl = extractUrl(message);
   if (!rawUrl || !isValidUrl(rawUrl)) return;
 
+  // detectPlatform now returns null for non-video Facebook / YouTube links,
+  // so those are silently ignored in passive mode.
   const platform = detectPlatform(rawUrl);
   if (!platform) return;
 
