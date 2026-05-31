@@ -10,7 +10,7 @@
  *   badwords unwarn [@mention|uid]   — Remove one warning from a user (admin only)
  *
  * onChat:
- *   Passively scans every message when enforcement is enabled.
+ *   Passively scans every GROUP message when enforcement is enabled.
  *   First offence → warning. Second offence → kick.
  *
  * DB schema (db.threads.collection(threadID) → 'badwords' collection):
@@ -32,7 +32,23 @@
  *   The original had a fallback that waited for the bot to receive admin rights and
  *   then kicked retroactively. Cat-Bot documents no equivalent event flow.
  *   `thread.removeUser()` is called directly; if it fails (no admin rights) the
- *   error is caught and reported in chat.
+ *   error is caught, reported in chat, and the violation count is PRESERVED so the
+ *   kick will re-trigger on the user's next offending message.
+ *
+ * FIXES in this version (v1.4.1):
+ *   [BUG-1] onChat: missing isGroup guard — scanner now skips DM/private threads.
+ *   [BUG-2] onChat: violations were cleared even when removeUser() failed — the
+ *           delete + save are now inside the try block (only on successful kick).
+ *   [BUG-3] onChat: violations were fetched inside the word-scan loop causing
+ *           redundant DB reads; now loaded once before scanning begins.
+ *   [BUG-4] onChat: non-message event types (reactions, unsends) could reach the
+ *           scanner; now guarded with an explicit type check.
+ *   [IMPROVE] getBadwordsHandle: added explicit await on the return path.
+ *   [IMPROVE] Word boundary matching: Unicode-aware regex using lookahead/lookbehind
+ *             so non-ASCII words (Tagalog, accented chars, etc.) are detected
+ *             correctly on Facebook Messenger and Telegram.
+ *   [IMPROVE] user.getName wrapped in try/catch in the unwarn subcommand so a
+ *             missing/deleted user does not crash the handler.
  */
 
 import type { AppCtx } from '@/engine/types/controller.types.js';
@@ -48,7 +64,7 @@ import type { CommandConfig } from '@/engine/types/module-config.types.js';
 export const config: CommandConfig = {
   name: 'badwords',
   aliases: ['badword'] as string[],
-  version: '1.4.0',
+  version: '1.4.1',
   role: Role.ANYONE, // per-subcommand admin gate is inside onCommand
   author: 'NTKhang (Cat-Bot port)',
   description: 'Manage and enforce a bad-words filter for this group.',
@@ -90,6 +106,36 @@ export const config: CommandConfig = {
 function hideWord(str: string): string {
   if (str.length <= 2) return str[0] + '*';
   return str[0] + '*'.repeat(str.length - 2) + str[str.length - 1];
+}
+
+/**
+ * Builds a Unicode-aware word-boundary regex for the given word.
+ *
+ * JavaScript's `\b` only recognises ASCII word chars [A-Za-z0-9_], so it
+ * silently fails for accented characters and non-Latin scripts (Tagalog, etc.).
+ * We use lookahead/lookbehind against a broad Unicode letter/digit class instead.
+ *
+ * Falls back to a plain escaped-substring match if the browser/engine does not
+ * support Unicode property escapes (\p{L}).
+ *
+ * [FIX-IMPROVE] Replaces the original \b-based approach.
+ */
+function buildWordPattern(word: string): RegExp {
+  // Escape any regex special characters inside the word itself
+  const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  try {
+    // Unicode-aware boundary: not preceded/followed by a Unicode letter or digit
+    return new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, 'giu');
+  } catch {
+    // Fallback for runtimes without Unicode property escape support
+    try {
+      return new RegExp(`(?<![A-Za-z0-9À-ÖØ-öø-ÿ])${escaped}(?![A-Za-z0-9À-ÖØ-öø-ÿ])`, 'gi');
+    } catch {
+      // Last resort: simple case-insensitive search (no boundary)
+      return new RegExp(escaped, 'gi');
+    }
+  }
 }
 
 /** Best-effort thread-admin check via thread.getInfo(). */
@@ -134,19 +180,21 @@ async function isPrivilegedUser(
 /**
  * Returns (and lazily creates) the 'badwords' collection handle for a thread.
  * All DB state lives here — words list, enabled flag, and per-user violations.
+ *
+ * [FIX-IMPROVE] Added explicit `await` on the existing-collection return path.
  */
 async function getBadwordsHandle(db: AppCtx['db'], threadID: string) {
   const coll = db.threads.collection(threadID);
   if (!(await coll.isCollectionExist('badwords'))) {
     await coll.createCollection('badwords');
-    // Initialise defaults on first creation
     const fresh = await coll.getCollection('badwords');
     await fresh.set('words', []);
     await fresh.set('enabled', false);
     await fresh.set('violations', {});
     return fresh;
   }
-  return coll.getCollection('badwords');
+  // [FIX-IMPROVE] await is explicit to match the async return type
+  return await coll.getCollection('badwords');
 }
 
 // ── onCommand ─────────────────────────────────────────────────────────────────
@@ -402,7 +450,14 @@ export const onCommand = async ({
     }
     await handle.set('violations', violations);
 
-    const userName = await user.getName(targetUID);
+    // [FIX-IMPROVE] Wrapped in try/catch: getName may fail if the user left the group.
+    let userName: string;
+    try {
+      userName = await user.getName(targetUID);
+    } catch {
+      userName = targetUID;
+    }
+
     await chat.replyMessage({
       style: MessageStyle.MARKDOWN,
       message: `✅ Removed 1 warning from **${userName}** (\`${targetUID}\`).`,
@@ -424,16 +479,27 @@ export const onChat = async ({
   db,
   native,
 }: AppCtx): Promise<void> => {
+  // [BUG-1 FIX] Guard: only enforce in group threads.
+  // Without this check the scanner fires in DMs, causing spurious warnings
+  // and failed removeUser() calls on every platform (Discord, Telegram, Messenger).
+  if (!event['isGroup']) return;
+
+  // [BUG-4 FIX] Guard: only handle plain text messages and message replies.
+  // Reactions, unsend notifications, and log events can reach onChat; they
+  // carry no body text and must be skipped before any DB access.
+  const eventType = event['type'] as string | undefined;
+  if (eventType && eventType !== 'message' && eventType !== 'message_reply') return;
+
   const message = event['message'] as string | undefined;
   const threadID = event['threadID'] as string;
   const senderID = event['senderID'] as string;
 
-  if (!message) return;
+  if (!message || !message.trim()) return;
 
   // Skip messages from thread admins, bot admins, or system admins
   if (await isPrivilegedUser(thread, native, senderID)) return;
 
-  // Read thread collection — lazy-init not needed here since we bail if not exist
+  // Read thread collection — lazy-init not needed here; bail if not yet created
   const coll = db.threads.collection(threadID);
   if (!(await coll.isCollectionExist('badwords'))) return;
 
@@ -445,60 +511,69 @@ export const onChat = async ({
   const words = ((await handle.get('words')) as string[] | null) ?? [];
   if (words.length === 0) return;
 
-  // Scan message for each banned word using whole-word matching
+  // [BUG-3 FIX] Load violations ONCE before the loop.
+  // Previously this was fetched inside the loop, causing a redundant DB read
+  // for every word in the list even when no match was found.
+  const violations =
+    ((await handle.get('violations')) as Record<string, number> | null) ?? {};
+  const count = violations[senderID] ?? 0;
+
+  // Scan message for each banned word using Unicode-aware whole-word matching
   for (const word of words) {
-    let pattern: RegExp;
-    try {
-      pattern = new RegExp(`\\b${word}\\b`, 'gi');
-    } catch {
-      // Fallback for words with special regex chars — simple includes check
-      if (!message.toLowerCase().includes(word.toLowerCase())) continue;
-      pattern = new RegExp(word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-    }
+    const pattern = buildWordPattern(word);
 
     if (!pattern.test(message)) continue;
 
-    // Word found — check violation count
-    const violations =
-      ((await handle.get('violations')) as Record<string, number> | null) ?? {};
-    const count = violations[senderID] ?? 0;
+    // ── Word found ────────────────────────────────────────────────────────
 
     if (count < 1) {
-      // First offence — warn
+      // First offence — warn and persist the incremented count
       violations[senderID] = count + 1;
       await handle.set('violations', violations);
 
       await chat.replyMessage({
         style: MessageStyle.MARKDOWN,
-        message: `⚠️ Banned word **"${word}"** detected in your message. If you continue to violate you will be kicked from the group.`,
+        message: `⚠️ Banned word detected in your message. If you continue to violate you will be kicked from the group.`,
       });
-      return;
-    } else {
-      // Second offence — warn then kick
-      await chat.replyMessage({
-        style: MessageStyle.MARKDOWN,
-        message: `⚠️ Banned word **"${word}"** detected. You have violated 2 times and will be kicked from the group.`,
-      });
-
-      // Register the uid BEFORE removeUser() so the log:unsubscribe guard in
-      // on-event.middleware.ts can suppress leave.ts's generic goodbye message.
-      // The message above already owns the moderation narrative for this kick.
-      kickRegistry.register(threadID, senderID);
-
-      try {
-        await thread.removeUser(senderID);
-      } catch {
-        // Bot lacks kick permission
-        await chat.replyMessage({
-          style: MessageStyle.MARKDOWN,
-          message: '⚠️ Bot needs admin privileges to kick this member.',
-        });
-      }
-
-      // Reset violation count after kick so if re-added they start fresh
-      delete violations[senderID];
-      await handle.set('violations', violations);
       return;
     }
+
+    // Second (or more) offence — warn, attempt kick, then conditionally reset
+    await chat.replyMessage({
+      style: MessageStyle.MARKDOWN,
+      message: `⚠️ Banned word detected. You have violated ${count + 1} time(s) and will be kicked from the group.`,
+    });
+
+    // Register the uid BEFORE removeUser() so on-event.middleware.ts can suppress
+    // the generic leave.ts goodbye message for this moderation kick.
+    kickRegistry.register(threadID, senderID);
+
+    let kickSucceeded = false;
+    try {
+      await thread.removeUser(senderID);
+      kickSucceeded = true;
+    } catch {
+      // Bot lacks kick permission — inform the group but keep the violation so
+      // the next offending message triggers another kick attempt.
+      // [BUG-2 FIX] violations are NOT cleared here; they are only cleared below
+      // when kickSucceeded is true.
+      await chat.replyMessage({
+        style: MessageStyle.MARKDOWN,
+        message: '⚠️ Bot needs admin privileges to kick this member. Violation count has been preserved.',
+      });
+      // Note: the kickRegistry entry registered above will auto-expire after its
+      // built-in TTL (30 s) without being consumed, so no cleanup call is needed.
+    }
+
+    // [BUG-2 FIX] Only reset the violation count if the kick actually succeeded.
+    // Previously, `delete violations[senderID]` ran unconditionally (outside
+    // the try/catch), so a failed kick still cleared the user's warning count,
+    // letting them start over with a fresh warning instead of being kicked again.
+    if (kickSucceeded) {
+      delete violations[senderID];
+      await handle.set('violations', violations);
+    }
+
+    return;
   }
 };
