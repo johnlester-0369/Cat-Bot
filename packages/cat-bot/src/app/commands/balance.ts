@@ -23,6 +23,7 @@ import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 import { ButtonStyle } from '@/engine/constants/button-style.constants.js';
 import { hasNativeButtons } from '@/engine/utils/ui-capabilities.util.js';
 import type { CommandConfig } from '@/engine/types/module-config.types.js';
+import { formatCoins } from '@/engine/lib/currencies.lib.js';
 
 export const config: CommandConfig = {
   name: 'balance',
@@ -135,7 +136,7 @@ export const onCommand = async ({
       // Platforms embed '@' in the mention display name — strip it for cleaner output
       const displayName = (mentions?.[uid] ?? uid).replace(/^@/, '');
       const coins = await currencies.getMoney(uid);
-      lines.push(`**${displayName}:** ${coins.toLocaleString()} coins`);
+      lines.push(`**${displayName}:** ${formatCoins(coins)} coins`);
     }
     // No button on the mention path — the balance is for the mentioned user, not the sender;
     // a daily_status button would check the SENDER's daily, which is confusing in context.
@@ -160,7 +161,7 @@ export const onCommand = async ({
   // Edit when navigating back via the ⬅ Back button; reply for fresh /balance invocations
   const payload = {
     style: MessageStyle.MARKDOWN,
-    message: `💰 **Your balance:** ${coins.toLocaleString()} coins`,
+    message: `💰 **Your balance:** ${formatCoins(coins)} coins`,
     // Only inject on the self-balance path — button checks the sender's daily, which is correct here.
     ...(hasNativeButtons(native.platform)
       ? { button: [button.generateID({ id: BUTTON_ID.daily_status })] }

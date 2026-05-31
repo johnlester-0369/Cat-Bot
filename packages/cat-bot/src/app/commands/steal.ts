@@ -28,6 +28,7 @@ import { ButtonStyle } from '@/engine/constants/button-style.constants.js';
 import { hasNativeButtons } from '@/engine/utils/ui-capabilities.util.js';
 import type { CommandConfig } from '@/engine/types/module-config.types.js';
 import { OptionType } from '@/engine/modules/command/command-option.constants.js';
+import { formatCoins } from '@/engine/lib/currencies.lib.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -154,7 +155,7 @@ export const button = {
       await chat.editMessage({
         style: MessageStyle.MARKDOWN,
         message_id_to_edit: event['messageID'] as string,
-        message: `💰 **Current Balance:** ${coins.toLocaleString()} coins`,
+        message: `💰 **Current Balance:** ${formatCoins(coins)} coins`,
         ...(hasNativeButtons(native.platform) ? { button: [ctx.backId] } : {}),
       });
     },
@@ -261,15 +262,15 @@ export const onCommand = async ({
     return;
   }
 
-  if (victimCoins < amount) {
+  if (victimCoins !== Infinity && victimCoins < amount) {
     await chat.replyMessage({
       style: MessageStyle.MARKDOWN,
-      message: `❌ **${victimName}** only has **${victimCoins.toLocaleString()}** coins — lower your steal amount.`,
+      message: `❌ **${victimName}** only has **${formatCoins(victimCoins)}** coins — lower your steal amount.`,
     });
     return;
   }
 
-  if (authorCoins < penalty) {
+  if (authorCoins !== Infinity && authorCoins < penalty) {
     await chat.replyMessage({
       style: MessageStyle.MARKDOWN,
       message: [
@@ -278,7 +279,7 @@ export const onCommand = async ({
         ``,
         `**Info:**`,
         `💸 Penalty if caught: **${penalty.toLocaleString()}** coins`,
-        `🪙 Your balance: **${authorCoins.toLocaleString()}** coins`,
+        `🪙 Your balance: **${formatCoins(authorCoins)}** coins`,
         ``,
         `Get more coins before attempting this steal.`,
       ].join('\n'),
@@ -353,7 +354,8 @@ export const onCommand = async ({
     await currencies.increaseMoney({ user_id: senderID, money: amount });
     await currencies.decreaseMoney({ user_id: victimID, money: amount });
 
-    const newAuthorBal = r2(authorCoins + amount);
+    // increaseMoney is a no-op for infinity authors; balance stays Infinity
+    const newAuthorBal = authorCoins === Infinity ? Infinity : r2(authorCoins + amount);
 
     const resultMessage = [
       `🥷 **Steal**`,
@@ -365,7 +367,7 @@ export const onCommand = async ({
       `🎲 Chance: **${(chance * 100).toFixed(0)}%**`,
       ``,
       `**Balance:**`,
-      `🪙 ${authorCoins.toLocaleString()} → **${newAuthorBal.toLocaleString()}** (**+${amount.toLocaleString()}**)`,
+      `🪙 ${formatCoins(authorCoins)} → **${formatCoins(newAuthorBal)}** (**+${amount.toLocaleString()}**)`,
       ``,
       `**Daily Steals:**`,
       `📊 **${newCount}** / **${MAX_DAILY_STEALS}** used`,
@@ -388,7 +390,8 @@ export const onCommand = async ({
     await currencies.decreaseMoney({ user_id: senderID, money: penalty });
     await currencies.increaseMoney({ user_id: victimID, money: fee });
 
-    const newAuthorBal = r2(authorCoins - penalty);
+    // decreaseMoney is a no-op for infinity authors; balance stays Infinity
+    const newAuthorBal = authorCoins === Infinity ? Infinity : r2(authorCoins - penalty);
 
     const resultMessage = [
       `🥷 **Steal**`,
@@ -401,7 +404,7 @@ export const onCommand = async ({
       `🎲 Chance: **${(chance * 100).toFixed(0)}%**`,
       ``,
       `**Balance:**`,
-      `🪙 ${authorCoins.toLocaleString()} → **${newAuthorBal.toLocaleString()}** (**-${penalty.toLocaleString()}**)`,
+      `🪙 ${formatCoins(authorCoins)} → **${formatCoins(newAuthorBal)}** (**-${penalty.toLocaleString()}**)`,
       ``,
       `**Daily Steals:**`,
       `📊 **${newCount}** / **${MAX_DAILY_STEALS}** used`,

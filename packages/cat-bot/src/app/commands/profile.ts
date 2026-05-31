@@ -15,6 +15,7 @@ import { isBotAdmin, isBotPremium } from '@/engine/repos/credentials.repo.js';
 import { isSystemAdmin } from '@/engine/repos/system-admin.repo.js';
 import { isUserBanned } from '@/engine/repos/banned.repo.js';
 import type { CommandConfig } from '@/engine/types/module-config.types.js';
+import { formatCoins } from '@/engine/lib/currencies.lib.js';
 
 // ── Level formula ─────────────────────────────────────────────────────────────
 const DELTA_NEXT = 5;
@@ -216,7 +217,7 @@ export const onCommand = async ({
     `▫️ **Status:** ${statusLabel}`,
     '',
     `**💼 Economy**`,
-    `▫️ **Balance:** 💰 ${coins.toLocaleString()} Coins`,
+    `▫️ **Balance:** 💰 ${formatCoins(coins)} Coins`,
     `▫️ **Streak:** 🔥 ${streak} ${streakUnit}`,
     `▫️ **Last Claim:** ⏱️ ${lastClaimLabel}`,
     '',

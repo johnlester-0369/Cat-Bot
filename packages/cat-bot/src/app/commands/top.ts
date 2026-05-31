@@ -30,6 +30,7 @@ import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 import { ButtonStyle } from '@/engine/constants/button-style.constants.js';
 import { hasNativeButtons } from '@/engine/utils/ui-capabilities.util.js';
 import type { CommandConfig } from '@/engine/types/module-config.types.js';
+import { INFINITY_SENTINEL, formatCoins } from '@/engine/lib/currencies.lib.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -129,15 +130,23 @@ export const button = {
           const moneyData = data?.['money'] as
             | Record<string, unknown>
             | undefined;
+          const rawCoins = moneyData?.['coins'];
+          // Infinity is persisted as the sentinel string; convert back to JS Infinity
           const coins =
-            moneyData && typeof moneyData['coins'] === 'number'
-              ? (moneyData['coins'] as number)
-              : 0;
+            rawCoins === INFINITY_SENTINEL
+              ? Infinity
+              : typeof rawCoins === 'number'
+                ? rawCoins
+                : 0;
           return { botUserId, coins };
         })
         // Exclude zero-balance users so the leaderboard only shows earners
+        // Infinity > 0 is true so infinity users are always included
         .filter((u) => u.coins > 0)
-        .sort((a, b) => b.coins - a.coins)
+        // Infinity users float to the top; stable tie-break for multiple infinity users
+        .sort((a, b) =>
+          a.coins === Infinity && b.coins === Infinity ? 0 : b.coins - a.coins,
+        )
         .slice(0, DEFAULT_LIMIT);
 
       const lines: string[] = [`💰 **Top ${ranked.length} Richest Users**`];
@@ -146,7 +155,7 @@ export const button = {
         // getUserName is LRU-cached — repeated calls here hit memory, not the DB
         const name = await user.getName(entry.botUserId);
         lines.push(
-          `${position(i)} **${name}** — ${entry.coins.toLocaleString()} coins`,
+          `${position(i)} **${name}** — ${formatCoins(entry.coins)} coins`,
         );
       }
       if (ranked.length === 0) lines.push('No users have earned coins yet.');
@@ -247,14 +256,20 @@ export const onCommand = async ({
         const moneyData = data?.['money'] as
           | Record<string, unknown>
           | undefined;
+        const rawCoins = moneyData?.['coins'];
+        // Infinity is persisted as the sentinel string; convert back to JS Infinity
         const coins =
-          moneyData && typeof moneyData['coins'] === 'number'
-            ? (moneyData['coins'] as number)
-            : 0;
+          rawCoins === INFINITY_SENTINEL
+            ? Infinity
+            : typeof rawCoins === 'number'
+              ? rawCoins
+              : 0;
         return { botUserId, coins };
       })
       .filter((u) => u.coins > 0)
-      .sort((a, b) => b.coins - a.coins)
+      .sort((a, b) =>
+        a.coins === Infinity && b.coins === Infinity ? 0 : b.coins - a.coins,
+      )
       .slice(0, limit);
 
     const lines: string[] = [`💰 **Top ${ranked.length} Richest Users**`];
@@ -262,7 +277,7 @@ export const onCommand = async ({
       const entry = ranked[i]!; // safe: i is always < ranked.length
       const name = await user.getName(entry.botUserId);
       lines.push(
-        `${position(i)} **${name}** — ${entry.coins.toLocaleString()} coins`,
+        `${position(i)} **${name}** — ${formatCoins(entry.coins)} coins`,
       );
     }
     if (ranked.length === 0) lines.push('No users have earned coins yet.');

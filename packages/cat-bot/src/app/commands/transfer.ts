@@ -22,6 +22,7 @@ import { Role } from '@/engine/constants/role.constants.js';
 import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 import { OptionType } from '@/engine/modules/command/command-option.constants.js';
 import type { CommandConfig } from '@/engine/types/module-config.types.js';
+import { formatCoins } from '@/engine/lib/currencies.lib.js';
 
 export const config: CommandConfig = {
   name: 'transfer',
@@ -113,10 +114,10 @@ export const onCommand = async ({
   }
 
   const senderBalance = await currencies.getMoney(senderID);
-  if (senderBalance < coinAmount) {
+  if (senderBalance !== Infinity && senderBalance < coinAmount) {
     await chat.replyMessage({
       style: MessageStyle.MARKDOWN,
-      message: `❌ Insufficient coins. Your balance: **${senderBalance.toLocaleString()}** coins.`,
+      message: `❌ Insufficient coins. Your balance: **${formatCoins(senderBalance)}** coins.`,
     });
     return;
   }
@@ -136,13 +137,14 @@ export const onCommand = async ({
     await currencies.increaseMoney({ user_id: targetID, money: coinAmount });
 
     const targetName = await user.getName(targetID);
-    const newBalance = senderBalance - coinAmount;
+    // decreaseMoney is a no-op for infinity users so their balance stays Infinity
+    const newBalance = senderBalance === Infinity ? Infinity : senderBalance - coinAmount;
 
     await chat.replyMessage({
       style: MessageStyle.MARKDOWN,
       message: [
         `✅ Successfully transferred **${coinAmount.toLocaleString()} coins** to **${targetName}**.`,
-        `💰 Your remaining balance: **${newBalance.toLocaleString()} coins**`,
+        `💰 Your remaining balance: **${formatCoins(newBalance)} coins**`,
       ].join('\n'),
     });
   } catch (error) {

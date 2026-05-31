@@ -25,6 +25,7 @@ import { Platforms } from '@/engine/modules/platform/platform.constants.js';
 import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 import type { CommandConfig } from '@/engine/types/module-config.types.js';
 import { OptionType } from '@/engine/modules/command/command-option.constants.js';
+import { INFINITY_SENTINEL, formatCoins } from '@/engine/lib/currencies.lib.js';
 
 export const config: CommandConfig = {
   name: 'setmoney',
@@ -35,10 +36,10 @@ export const config: CommandConfig = {
   role: Role.BOT_ADMIN,
   author: 'System',
   description:
-    'Set the coin balance of yourself, a @mentioned user, or a user by ID',
+    'Set the coin balance of yourself, a @mentioned user, or a user by ID. Use "infinity" for ∞ coins.',
   category: 'Bot Admin',
   usage:
-    'me <amount> | del me | del @mention | @mention <amount> | uid <id> <amount>',
+    'me <amount|infinity> | del me | del @mention | @mention <amount|infinity> | uid <id> <amount|infinity>',
   cooldown: 5,
   hasPrefix: true,
   platform: [
@@ -63,12 +64,14 @@ export const config: CommandConfig = {
 };
 
 /**
- * Parses an integer coin amount from a raw argument slot.
+ * Parses a coin amount from a raw argument slot.
+ * Accepts "infinity" or "∞" (case-insensitive) to grant unlimited coins.
  * Returns NaN when the slot is absent or non-numeric — callers check isNaN()
  * to prevent malformed input from silently writing 0 to someone's balance.
  */
 function parseAmount(raw: string | undefined): number {
   if (raw === undefined) return NaN;
+  if (raw.toLowerCase() === 'infinity' || raw === '∞') return Infinity;
   return parseInt(raw, 10);
 }
 
@@ -105,11 +108,12 @@ export const onCommand = async ({
     const money = await userColl.getCollection('money');
     // Write directly to the 'coins' key — the same key currencies.getMoney()
     // and /balance's button handler read — so the value is immediately consistent.
-    await money.set('coins', amount);
+    // Infinity must be stored as the sentinel string since JSON cannot encode it.
+    await money.set('coins', amount === Infinity ? INFINITY_SENTINEL : amount);
 
     await chat.replyMessage({
       style: MessageStyle.MARKDOWN,
-      message: `✅ Set your balance to **${amount.toLocaleString()}** coins.`,
+      message: `✅ Set your balance to **${formatCoins(amount)}** coins.`,
     });
     return;
   }
@@ -138,14 +142,15 @@ export const onCommand = async ({
       const money = await userColl.getCollection('money');
       // Capture current balance before wiping for an auditable confirmation message
       const raw = await money.get('coins');
-      const currentCoins = typeof raw === 'number' ? raw : 0;
+      const currentCoins: number =
+        raw === INFINITY_SENTINEL ? Infinity : (typeof raw === 'number' ? raw : 0);
       await money.set('coins', 0);
 
       await chat.replyMessage({
         style: MessageStyle.MARKDOWN,
         message: [
           '✅ Removed all your coins.',
-          `💸 Coins removed: **${currentCoins.toLocaleString()}**`,
+          `💸 Coins removed: **${formatCoins(currentCoins)}**`,
         ].join('\n'),
       });
       return;
@@ -166,14 +171,15 @@ export const onCommand = async ({
       }
       const money = await userColl.getCollection('money');
       const raw = await money.get('coins');
-      const currentCoins = typeof raw === 'number' ? raw : 0;
+      const currentCoins: number =
+        raw === INFINITY_SENTINEL ? Infinity : (typeof raw === 'number' ? raw : 0);
       await money.set('coins', 0);
 
       await chat.replyMessage({
         style: MessageStyle.MARKDOWN,
         message: [
           `✅ Removed all coins of **${displayName}**.`,
-          `💸 Coins removed: **${currentCoins.toLocaleString()}**`,
+          `💸 Coins removed: **${formatCoins(currentCoins)}**`,
         ].join('\n'),
       });
       return;
@@ -207,11 +213,11 @@ export const onCommand = async ({
       await userColl.createCollection('money');
     }
     const money = await userColl.getCollection('money');
-    await money.set('coins', amount);
+    await money.set('coins', amount === Infinity ? INFINITY_SENTINEL : amount);
 
     await chat.replyMessage({
       style: MessageStyle.MARKDOWN,
-      message: `✅ Set balance of **${name}** to **${amount.toLocaleString()}** coins.`,
+      message: `✅ Set balance of **${name}** to **${formatCoins(amount)}** coins.`,
     });
     return;
   }
@@ -238,11 +244,11 @@ export const onCommand = async ({
       await userColl.createCollection('money');
     }
     const money = await userColl.getCollection('money');
-    await money.set('coins', amount);
+    await money.set('coins', amount === Infinity ? INFINITY_SENTINEL : amount);
 
     await chat.replyMessage({
       style: MessageStyle.MARKDOWN,
-      message: `✅ Set **${displayName}**'s balance to **${amount.toLocaleString()}** coins.`,
+      message: `✅ Set **${displayName}**'s balance to **${formatCoins(amount)}** coins.`,
     });
     return;
   }
@@ -252,11 +258,11 @@ export const onCommand = async ({
     style: MessageStyle.MARKDOWN,
     message: [
       '❌ Wrong syntax. Available sub-commands:',
-      `\`${prefix}setmoney me <amount>\``,
+      `\`${prefix}setmoney me <amount|infinity>\``,
       `\`${prefix}setmoney del me\``,
       `\`${prefix}setmoney del @mention\``,
-      `\`${prefix}setmoney @mention <amount>\``,
-      `\`${prefix}setmoney uid <id> <amount>\``,
+      `\`${prefix}setmoney @mention <amount|infinity>\``,
+      `\`${prefix}setmoney uid <id> <amount|infinity>\``,
     ].join('\n'),
   });
 };

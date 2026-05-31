@@ -25,6 +25,7 @@ import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 import { ButtonStyle } from '@/engine/constants/button-style.constants.js';
 import { hasNativeButtons } from '@/engine/utils/ui-capabilities.util.js';
 import type { CommandConfig } from '@/engine/types/module-config.types.js';
+import { INFINITY_SENTINEL, formatCoins } from '@/engine/lib/currencies.lib.js';
 
 /** Controls how quickly users level up — higher = slower progression. */
 const DELTA_NEXT = 5;
@@ -94,11 +95,16 @@ export const button = {
         return;
       }
       const money = await userColl.getCollection('money');
-      const coins = ((await money.get('coins')) as number | undefined) ?? 0;
+      const rawCoins = await money.get('coins');
+      // Infinity is persisted as the sentinel string; convert back to JS Infinity
+      const coins =
+        rawCoins === INFINITY_SENTINEL
+          ? Infinity
+          : ((rawCoins as number | undefined) ?? 0);
       await chat.editMessage({
         style: MessageStyle.MARKDOWN,
         message_id_to_edit: event['messageID'] as string,
-        message: `💰 **Your balance:** ${coins.toLocaleString()} coins`,
+        message: `💰 **Your balance:** ${formatCoins(coins)} coins`,
         ...(hasNativeButtons(native.platform) ? { button: [backId] } : {}),
       });
     },

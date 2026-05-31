@@ -22,6 +22,7 @@ import { MessageStyle } from '@/engine/constants/message-style.constants.js';
 import { ButtonStyle } from '@/engine/constants/button-style.constants.js';
 import { hasNativeButtons } from '@/engine/utils/ui-capabilities.util.js';
 import type { CommandConfig } from '@/engine/types/module-config.types.js';
+import { formatCoins } from '@/engine/lib/currencies.lib.js';
 
 export const config: CommandConfig = {
   name: 'daily',
@@ -72,7 +73,7 @@ export const button = {
       await chat.editMessage({
         style: MessageStyle.MARKDOWN,
         message_id_to_edit: event['messageID'] as string,
-        message: `💰 **Your balance:** ${coins.toLocaleString()} coins`,
+        message: `💰 **Your balance:** ${formatCoins(coins)} coins`,
         ...(hasNativeButtons(native.platform) ? { button: [backId] } : {}),
       });
     },

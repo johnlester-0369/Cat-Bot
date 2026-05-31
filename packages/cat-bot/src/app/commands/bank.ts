@@ -5,6 +5,7 @@ import { ButtonStyle } from '@/engine/constants/button-style.constants.js';
 import { hasNativeButtons } from '@/engine/utils/ui-capabilities.util.js';
 import type { CommandConfig } from '@/engine/types/module-config.types.js';
 import { OptionType } from '@/engine/modules/command/command-option.constants.js';
+import { formatCoins } from '@/engine/lib/currencies.lib.js';
 
 const TAX_RATE = 0.05;
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -79,6 +80,8 @@ export const button = {
 
       const wallet = await currencies.getMoney(senderID);
       const bank = await getBankBalance(db, senderID);
+      // wallet + bank: if wallet is Infinity the total is also Infinity
+      const total = wallet === Infinity ? Infinity : r2(wallet + bank);
 
       await chat.editMessage({
         style: MessageStyle.MARKDOWN,
@@ -86,9 +89,9 @@ export const button = {
         message: [
           `🏦 **Bank Overview**`,
           ``,
-          `💰 Wallet : **${wallet.toLocaleString()}** coins`,
-          `🏦 Bank   : **${bank.toLocaleString()}** coins`,
-          `💎 Total  : **${(wallet + bank).toLocaleString()}** coins`,
+          `💰 Wallet : **${formatCoins(wallet)}** coins`,
+          `🏦 Bank   : **${formatCoins(bank)}** coins`,
+          `💎 Total  : **${formatCoins(total)}** coins`,
           ``,
           `_5% tax applies on withdrawals._`,
         ].join('\n'),
@@ -206,10 +209,17 @@ export const onCommand = async ({
   const bankColl = await userColl.getCollection('bank');
 
   if (operation === 'deposit') {
+    if (walletCoins === Infinity) {
+      await chat.replyMessage({
+        style: MessageStyle.MARKDOWN,
+        message: `♾️ Your wallet already has **∞** coins — depositing into the bank isn't needed.`,
+      });
+      return;
+    }
     if (walletCoins < amount) {
       await chat.replyMessage({
         style: MessageStyle.MARKDOWN,
-        message: `❌ Not enough coins — you have **${walletCoins.toLocaleString()}** but tried to deposit **${amount.toLocaleString()}**.`,
+        message: `❌ Not enough coins — you have **${formatCoins(walletCoins)}** but tried to deposit **${amount.toLocaleString()}**.`,
       });
       return;
     }
@@ -223,8 +233,8 @@ export const onCommand = async ({
       `🏦 **Bank — Deposit**`,
       ``,
       `💰 Deposited : **${amount.toLocaleString()}** coins`,
-      `🏦 Bank      : **${newBank.toLocaleString()}** coins`,
-      `🪙 Wallet    : **${newWallet.toLocaleString()}** coins`,
+      `🏦 Bank      : **${formatCoins(newBank)}** coins`,
+      `🪙 Wallet    : **${formatCoins(newWallet)}** coins`,
     ].join('\n');
 
     // Store the formatted string directly in the session database so the Back button can reconstruct the exact view later
@@ -241,7 +251,7 @@ export const onCommand = async ({
   if (bankBalance < amount) {
     await chat.replyMessage({
       style: MessageStyle.MARKDOWN,
-      message: `❌ Not enough bank balance — you have **${bankBalance.toLocaleString()}** but tried to withdraw **${amount.toLocaleString()}**.`,
+      message: `❌ Not enough bank balance — you have **${formatCoins(bankBalance)}** but tried to withdraw **${amount.toLocaleString()}**.`,
     });
     return;
   }
@@ -249,7 +259,7 @@ export const onCommand = async ({
   const tax = r2(amount * TAX_RATE);
   const received = r2(amount - tax);
   const newBank = r2(bankBalance - amount);
-  const newWallet = r2(walletCoins + received);
+  const newWallet = walletCoins === Infinity ? Infinity : r2(walletCoins + received);
 
   await setBankBalance(db, senderID, newBank);
   await currencies.increaseMoney({ user_id: senderID, money: received });
@@ -260,8 +270,8 @@ export const onCommand = async ({
     `💸 Withdrew : **${amount.toLocaleString()}** coins`,
     `🧾 Tax (5%) : **${tax.toLocaleString()}** coins`,
     `✅ Received : **${received.toLocaleString()}** coins`,
-    `🏦 Bank     : **${newBank.toLocaleString()}** coins`,
-    `🪙 Wallet   : **${newWallet.toLocaleString()}** coins`,
+    `🏦 Bank     : **${formatCoins(newBank)}** coins`,
+    `🪙 Wallet   : **${formatCoins(newWallet)}** coins`,
   ].join('\n');
 
   // Store the formatted string for the Back button
